@@ -10,11 +10,16 @@ Feel free to open an issue if you get stuck or have feature proposals.
 Kubetailor is a Kubernetes operator that simplifies the deployment of applications with their own domain + certs, volumes, environment variables and secrets.
 What makes this useful is the addition of a simple API that can receive simplified versions of `TailoredApp` manifests that will get merged with some hard-coded defaults you can set-up in your configuration.
 
-Idea being: You configure most of the `TailoredApp` beforehand and let your end-users provide few values that will spin a container for them.
-
-A reference front-end console implementation can be found in the [console](./crates/console) folder inside crates, the [backend server](./crates/server) can be found in [crates](./crates) too.
+Idea being:
+You configure most of the `TailoredApp` beforehand and let your end-users provide few values that will spin a container for them.
 
 This guide provides a walkthrough on how to write your own manifest for the Kubetailor operator.
+
+## Contents
+
+- [Operator](./crates/operator) - Listens for new `TailoredApps` and constructs and deploys native Kubernetes resources from there.
+- [Server](./crates/server) - Receives simplified `TailoredApps` via HTTP and merges them with hard-coded values from its [config](./config/server/conf.yaml)
+- [Console](./crates/console) - A simple reference console to build the JSON request to send to the server.
 
 ## Dependencies
 
