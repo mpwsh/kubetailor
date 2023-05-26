@@ -9,13 +9,17 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - uses: debianmaster/actions-k3s@master
       id: k3s
@@ -35,13 +39,16 @@ jobs:
       run: cargo run --bin operator &
 
     - name: Apply the custom resource after a small pause
-      run: sleep 1 && kubectl apply -f sample-tailoredapp.yaml
+      run: sleep 1 && kubectl apply -f example-tapp.yaml
 
-    - name: Validate that the deployment has been created after a small pause
+    - name: Validate that the resources has been created after a small pause
       run: sleep 1 && kubectl wait --for=condition=available --timeout=60s deployment/tailored-app
 
-    - name: Validate that the ingress has been created after a small pause
-      run: sleep 1 && kubectl wait --for=condition=available --timeout=60s ingress/tailored-app
+    - name: Get tailored apps
+      run: kubectl get tapps
+
+    - name: Get all resources
+      run: kubectl get deploy,svc,pv,pvc,ing
 
     - name: Validate that the two pods have been created
       run: kubectl get pods -l owner=test
