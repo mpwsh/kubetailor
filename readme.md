@@ -23,22 +23,24 @@ This guide provides a walkthrough on how to write your own manifest for the Kube
 
 ## Dependencies
 
-- NGINX Ingress
-- External DNS
-- Cert Manager
+- [NGINX Ingress](https://github.com/nginxinc/kubernetes-ingress)
+- [External DNS](https://github.com/external-secrets/external-secrets)
+- [Cert Manager](https://github.com/cert-manager/cert-manager)
 
 ### Optional dependencies
 
-- Kyverno
-- Cilium
-- Reloader
-- Longhorn Engine
-- Portier broker (if using [console](./crates/console))
+- [Kyverno](https://github.com/kyverno/kyverno)
+- [Cilium](https://github.com/cilium/cilium)
+- [Reloader](https://github.com/stakater/Reloader)
+- [Longhorn Engine](https://github.com/longhorn/longhorn-engine)
+- [Portier broker](https://github.com/portier/portier-broker) (only if using [console](./crates/console))
 
 ### Infrastructure dependencies
 
 - DNS Provider (Supported by [external-dns](https://github.com/kubernetes-sigs/external-dns/#status-of-providers))
-- CSI Provider
+- CSI Provider (If not using longhorn)
+
+> I should probably work on a helm chart for this. Manual install is the only way for now, sorry.
 
 ### Writing your Manifest
 
