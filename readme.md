@@ -5,7 +5,7 @@ Also:
 Documentation is very poor and you need to build your own images.
 Feel free to open an issue if you get stuck or have feature proposals.
 
-### Description
+## Description
 
 Kubetailor is a Kubernetes operator that simplifies the deployment of applications with their own domain + certs, volumes, environment variables and secrets.
 What makes this useful is the addition of a simple API that can receive simplified versions of `TailoredApp` manifests that will get merged with some hard-coded defaults you can set-up in your configuration.
@@ -16,13 +16,13 @@ A reference front-end console implementation can be found in the [console](./cra
 
 This guide provides a walkthrough on how to write your own manifest for the Kubetailor operator.
 
-### Dependencies
+## Dependencies
 
 - NGINX Ingress
 - External DNS
 - Cert Manager
 
-## Optional deps
+### Optional dependencies
 
 - Kyverno
 - Cilium
