@@ -32,9 +32,8 @@ This guide provides a walkthrough on how to write your own manifest for the Kube
 
 ### Infrastructure dependencies
 
-- DNS Provider (Could be any of the supported by [external-dns](https://github.com/kubernetes-sigs/external-dns/)
+- DNS Provider (Supported by [external-dns](https://github.com/kubernetes-sigs/external-dns/#status-of-providers))
 - CSI Provider
-- A load balancer
 
 ### Writing your Manifest
 
