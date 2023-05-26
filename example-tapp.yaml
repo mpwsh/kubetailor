@@ -29,9 +29,9 @@ spec:
       image: nginx:latest
       port: 80
       replicas: 2
-      gitRepository: {}
-      buildCommand: {}
-      runCommand: {}
+      gitRepository: "https://github.com/mpwsh/a-repository"
+      buildCommand: ["npm", "run", "build"]
+      runCommand: ["npm", "run"]
       volumes:
       # PathtoMount: Size
         /home/test/123: 40Mi
