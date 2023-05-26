@@ -1,0 +1,105 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: tailoredapps.mpw.sh
+spec:
+  group: mpw.sh
+  names:
+    kind: TailoredApp
+    plural: tailoredapps
+    singular: tailoredapp
+    shortNames:
+      - tapp
+      - tapps
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                labels:
+                  type: object
+                  additionalProperties:
+                    type: string
+                deployment:
+                  type: object
+                  properties:
+                    annotations:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    container:
+                      type: object
+                      properties:
+                        image:
+                          type: string
+                        port:
+                          type: integer
+                        replicas:
+                          type: integer
+                        buildCommand:
+                          type: string
+                        runCommand:
+                          type: string
+                        gitRepository:
+                          type: string
+                        volumes:
+                          type: object
+                          additionalProperties:
+                            type: string
+                        fileMounts:
+                          type: object
+                          additionalProperties:
+                            type: string
+                ingress:
+                  type: object
+                  properties:
+                    className:
+                      type: string
+                    annotations:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    domains:
+                      type: object
+                      properties:
+                        shared:
+                          type: string
+                        custom:
+                          type: string
+                envVars:
+                  type: object
+                  additionalProperties:
+                    type: string
+                secrets:
+                  type: object
+                  additionalProperties:
+                    type: string
+              required: ["labels", "deployment", "ingress"]
+      additionalPrinterColumns:
+        - name: Image
+          type: string
+          description: Container image
+          jsonPath: .spec.deployment.container.image
+        - name: Port
+          type: string
+          description: Container Port
+          jsonPath: .spec.deployment.container.port
+        - name: Ingress Class
+          type: string
+          description: Ingress Class
+          jsonPath: .spec.ingress.className
+        - name: Shared Domain
+          type: string
+          description: Shared domain for the TailoredApp
+          jsonPath: .spec.ingress.domains.shared
+        - name: Custom Domain
+          type: string
+          description: Custom domain for the TailoredApp
+          jsonPath: .spec.ingress.domains.custom

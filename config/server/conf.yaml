@@ -1,0 +1,49 @@
+server:
+  logLevel: info
+  addr: 0.0.0.0
+  port: 8080
+
+kubetailor:
+  namespace: default
+  # Where your shared domains will be deployed
+  baseDomain: mpw.sh
+  allowedImages:
+    - nginx
+    - mkodockx/docker-pastebin
+  deployment:
+    annotations:
+      reloader.stakater.com/auto: "true"
+    # To implement:
+    # do not pass env vars from other containers in the same namespace.
+    enableServiceLinks: false
+    # Image to deploy. If not specified, container will be provided by the client via POST request
+    container:
+      image: nginx
+      port: 80
+      gitRepository: {}
+      buildCommand: {}
+      runCommand: {}
+      volumes:
+      # PathtoMount: Size
+        /home/test/123: 40Mi
+        /home/test/anotherone: 100Mi
+      fileMounts:
+       # PathToMount: Content
+        /etc/config.toml: |-
+          [someconfig]
+          avalue= true
+  ingress:
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      external-dns.alpha.kubernetes.io/hostname: bin.mpw.sh
+      external-dns.alpha.kubernetes.io/target: ing.mpw.sh
+      nginx.ingress.kubernetes.io/affinity: cookie
+      nginx.ingress.kubernetes.io/enable-cors: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "8096"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+      nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+      nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+      nginx.ingress.kubernetes.io/session-cookie-name: route
+    loadBalancerEndpoint: k3s.mpw.sh
+    className: nginx

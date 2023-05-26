@@ -1,0 +1,68 @@
+{{> header}}
+{{> top}}
+<div class="content">
+<center>
+
+    <!-- container -->
+    <div class="deploy-group">
+    <span id="subtitle" class="subtitle-status-modal">Spinning up container</span>
+    <div class="status-container" id="tapp-spinner-container">
+    <object id="loading-svg" type="image/svg+xml" data="/static/loading.svg"></object>
+    </div>
+
+    <div class="status-container" id="tapp-success-container" style="display:none">
+    <object id="success-svg" type="image/svg+xml" data="/static/success.svg"></object>
+    </div>
+    </div>
+
+    <!-- custom domain -->
+    {{#if tapp.domains.custom}}
+    <div class="deploy-group">
+    <span id="subtitle" class="subtitle-status-modal">Setting up custom domain<br> {{tapp.domains.custom}}</span>
+    <div class="status-container" id="custom-spinner-container">
+    <object id="loading-svg" type="image/svg+xml" data="/static/loading.svg"></object>
+    </div>
+
+    <div class="status-container" id="custom-success-container" style="display:none">
+    <object id="success-svg" type="image/svg+xml" data="/static/success.svg"></object>
+    </div>
+    </div>
+    <!-- SSL -->
+    <div class="deploy-group">
+    <span id="subtitle" class="subtitle-status-modal">Getting SSL certificate for custom domain</span>
+    <div class="status-container" id="custom-ssl-spinner-container">
+    <object id="loading-svg" type="image/svg+xml" data="/static/loading.svg"></object>
+    </div>
+    <div class="status-container" id="custom-ssl-success-container" style="display:none">
+    <object id="success-svg" type="image/svg+xml" data="/static/success.svg"></object>
+    </div>
+    </div>
+    {{/if}}
+
+    <!-- shared domain -->
+    <div class="deploy-group">
+    <span id="subtitle" class="subtitle-status-modal">Setting up shared domain<br> {{tapp.domains.shared}}</span>
+    <div class="status-container" id="shared-spinner-container">
+    <object id="loading-svg" type="image/svg+xml" data="/static/loading.svg"></object>
+    </div>
+    <div class="status-container" id="shared-success-container" style="display:none">
+    <object id="success-svg" type="image/svg+xml" data="/static/success.svg"></object>
+    </div>
+    </div>
+    <!-- SSL -->
+    <div class="deploy-group">
+    <span id="subtitle" class="subtitle-status-modal">Creating SSL certificate for shared domain</span>
+    <div class="status-container" id="shared-ssl-spinner-container">
+    <object id="loading-svg" type="image/svg+xml" data="/static/loading.svg"></object>
+    </div>
+    <div class="status-container" id="shared-ssl-success-container" style="display:none">
+    <object id="success-svg" type="image/svg+xml" data="/static/success.svg"></object>
+    </div>
+    </div>
+</center>
+</div>
+    <input id="tapp-name" type="hidden" name="name" value="{{tapp.name}}" />
+    <input id="tapp-custom-domain" type="hidden" name="name" value="{{tapp.domains.custom}}" />
+    <input id="tapp-shared-domain" type="hidden" name="name" value="{{tapp.domains.shared}}" />
+<script src="/static/wait_deploy.js"></script>
+{{>footer}}

@@ -1,0 +1,49 @@
+apiVersion: mpw.sh/v1
+kind: TailoredApp
+metadata:
+  name: example-tapp
+spec:
+  labels:
+    owner: an-owner
+    tapp: example-tapp
+  ingress:
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      external-dns.alpha.kubernetes.io/hostname: sample.mpw.sh
+      external-dns.alpha.kubernetes.io/target: ing.pmw.sh
+      nginx.ingress.kubernetes.io/proxy-body-size: "10"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+      nginx.ingress.kubernetes.io/affinity: "cookie"
+      nginx.ingress.kubernetes.io/session-cookie-name: "route"
+      nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+      nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+    className: nginx
+    domains:
+      shared: sample.mpw.sh
+      custom: ""
+  deployment:
+    annotations:
+      reloader.stakater.com/auto: "true"
+    container:
+      image: nginx:latest
+      port: 80
+      replicas: 2
+      gitRepository: {}
+      buildCommand: {}
+      runCommand: {}
+      volumes:
+      # PathtoMount: Size
+        /home/test/123: 40Mi
+        /home/test/anotherone: 100Mi
+      fileMounts:
+       # PathToMount: Content
+        /etc/config.toml: |-
+          [someconfig]
+          avalue= true
+  envVars:
+    key1: value1
+    key2: value2
+  secrets:
+    secretKey1: secretValue1
+    secretKey2: secretValue2

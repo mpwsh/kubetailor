@@ -1,0 +1,31 @@
+{{> header}}
+{{> top}}
+        <div class="content">
+          <br />
+          <ul class="ul-container" style="list-style-type: none">
+            {{#if deployments}}
+            {{#each deployments}}
+              <li>
+                <span class="button-group">
+                  <a href="/dashboard/view?name={{this}}" class="list-item">
+                    <span>> {{this}}</span>
+                  </a>
+                  <a href="/dashboard/edit?name={{this}}">
+                    <button class="edit-btn">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                  </a>
+                  <a href="/dashboard/delete?name={{this}}">
+                    <button class="delete-btn">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </a>
+                </span>
+              </li>
+            {{/each}} 
+          </ul>
+        {{else}}
+          <span class="subtitle-white">No deployments found.</span>
+            {{/if}}
+        </div>
+{{> footer}}

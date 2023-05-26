@@ -1,0 +1,34 @@
+<html>
+    {{> header}}
+  <body>
+    <div class="flex-container no-select">
+      <div class="form-container">
+        <form id="form" action="/login" method="post">
+          <h1 class="head">
+            Login
+          </h1>
+        <aside>
+          <p>
+          <span class="subtitle-white">No registration required</span>
+          </p>
+          {{#if error_html}}
+            <span class="subtitle-red">{error_html}</span>
+          {{/if}}
+          <br />
+          <span class="subtitle">Email:</span>
+          <input type="email" name="email" value="" />
+          <br />
+          <center>
+          <input id="form" type="submit" value="SUBMIT" class="submit-btn" />
+          <br />
+          <span class="powered-by-btn">
+            Powered by
+            <a href="https://portier.github.io"> Portier</a>
+          </span>
+          </center>
+        </form>
+        </aside>
+      </div>
+    </div>
+  </body>
+</html>
