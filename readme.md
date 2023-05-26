@@ -1,5 +1,5 @@
 **WARNING:** This is a work in progress.
-Deployments are still not fully secured. Deploying random containers in your infrastructure is not very smart without the proper precautions.
+Deployments are still not fully secured. Deploying random containers in your infrastructure is not very smart without taking the proper precautions.
 
 Also:
 Documentation is very poor and you need to build your own images.
