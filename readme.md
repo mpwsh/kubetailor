@@ -27,8 +27,8 @@ This guide provides a walkthrough on how to write your own manifest for the Kube
 - Kyverno
 - Cilium
 - Reloader
-- Longhorn Engine (To provision volumes using the nodes disk space instead of requesting volumes from your provider)
-- Portier broker (if using [console](./console)
+- Longhorn Engine
+- Portier broker (if using [console](./crates/console))
 
 ### Infrastructure dependencies
 
