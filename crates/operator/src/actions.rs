@@ -26,7 +26,7 @@ pub async fn deploy_all(
         &oref,
         namespace,
         &name,
-        app.spec.config_map.clone(),
+        app.spec.env_vars.clone(),
     )
     .await?;
 
