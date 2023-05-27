@@ -15,7 +15,6 @@ use crate::prelude::*;
     derive = "PartialEq",
     namespaced
 )]
-
 #[serde(rename_all = "camelCase")]
 pub struct TailoredAppSpec {
     pub labels: BTreeMap<String, String>,
@@ -31,9 +30,9 @@ pub struct Container {
     pub image: String,
     pub port: i32,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub build_command: Option<Vec<String>>,
+    pub build_command: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub run_command: Option<Vec<String>>,
+    pub run_command: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub git_repository: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
