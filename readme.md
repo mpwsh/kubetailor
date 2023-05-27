@@ -37,6 +37,10 @@ curl --request POST \
   --data '{
 	"name": "example",
 	"owner": "test@example.com",
+	"domain": {
+		"custom": "acustom-domain.com",
+		"shared": "user1.kubetailor.com"
+	},
 	"container": {
 		"image": "nginx",
 		"port": 80,
