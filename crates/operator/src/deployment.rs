@@ -37,8 +37,16 @@ fn new(oref: &OwnerReference, namespace: &str, name: &str, app: &TailoredApp) ->
         ]),
         ..Container::default()
     };
-
+    let init_container = if let Some(build_cmd) = deployment.container.build_command {
+            let mut init = container.clone();
+            init.name = format!("{}-builder", name);
+            init.command = Some(build_cmd.split_whitespace().map(String::from).collect());
+            Some(vec![init])
+    } else {
+        None
+    };
     let pod_spec = PodSpec {
+        init_containers: init_container,
         containers: vec![container],
         ..PodSpec::default()
     };
@@ -52,7 +60,7 @@ fn new(oref: &OwnerReference, namespace: &str, name: &str, app: &TailoredApp) ->
     };
 
     let deployment_spec = DeploymentSpec {
-        replicas: Some(1),
+        replicas: Some(deployment.container.replicas),
         selector: LabelSelector {
             match_labels: Some(app.spec.labels.clone()),
             ..LabelSelector::default()
