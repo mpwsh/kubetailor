@@ -1,20 +1,57 @@
 **WARNING:** This is a work in progress.
 
 Deploying random containers in your infrastructure is not very smart without taking the proper precautions.
-
-Also:
-Documentation is very poor and you need to build your own images.
-Feel free to open an issue if you get stuck or have feature proposals.
+Documentation is very poor, sorry. Feel free to open an issue if you get stuck or have feature proposals.
 
 ## Description
 
-Kubetailor is a Kubernetes operator that simplifies the deployment of applications with their own domain + certs, volumes, environment variables and secrets.
-What makes this useful is the addition of a simple API that can receive simplified versions of `TailoredApp` manifests that will get merged with some hard-coded defaults you can set-up in your configuration.
+Kubetailor is a Kubernetes operator that simplifies the deployment of applications with their own domain, SSL certs, volumes, environment variables (via configMaps), secrets, volumes and fileMounts.
+What makes this useful is the addition of a backend server that can receive simplified versions of a [TailoredApp manifest](./example-tapp.yaml) through its API and will merge all missing details using pre-filled information (annotations, storage classes, load balancer endpoint, etc) [from its configuration](./config/server/conf.yaml).
+Kinda like how Helm merges `--set` arguments with values from a `values.yaml` file and the default values from the original chart.
 
 Idea being:
 You configure most of the `TailoredApp` beforehand and let your end-users provide few values that will spin a container for them.
 
-This guide provides a walkthrough on how to write your own manifest for the Kubetailor operator.
+### Deploy TL;DR
+
+If you don't care about DNS and SSL and just want to see stuff being deployed, follow the steps below:
+
+```bash
+## Set your KUBECONFIG env var accordingly
+export KUBECONFIG=~/.kube/your-config
+## Deploy the crd and cluster role
+kubectl create -f deploy/crd.yaml -f deploy/clusterrole.yaml
+## Start the operator
+## (At this point you can start deploying TailoredApp manifests if you want)
+cargo run --bin operator
+## Start the backend server -If trying out the backend API-
+CONFIG_PATH=config/server/conf.yaml cargo run --bin server
+```
+
+Use the API to deploy something
+
+```bash
+curl --request POST \
+  --url http://127.0.0.1:8080/ \
+  --header 'Content-Type: application/json' \
+  --data '{
+	"name": "example",
+	"owner": "test@example.com",
+	"container": {
+		"image": "nginx",
+		"port": 80,
+		"replicas": 1,
+		"fileMount": {
+			"/usr/share/nginx/html/index.html": "Hello from kubetailor"
+		}
+	},
+	"env_vars": {
+		"test": "test2"
+	}
+}'
+```
+
+You should be see a `Deployment`, `ConfigMap` and `Ingress` being created now.
 
 ## Contents
 
