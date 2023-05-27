@@ -6,16 +6,15 @@ server:
 kubetailor:
   namespace: default
   # Where your shared domains will be deployed
-  allowedImages:
-    - nginx
-    - mkodockx/docker-pastebin
   deployment:
     annotations:
       reloader.stakater.com/auto: "true"
-    # To implement:
-    # do not pass env vars from other containers in the same namespace.
-    exposeServiceLinks: false
     deployNetworkPolicies: true
+    allowedImages:
+      - nginx/nginx
+      - mkodockx/docker-pastebin
+      - node/node
+    maxVolumeSize: 1Gi
     # Image to deploy. If not specified, container will be provided by the client via POST request
    #container:
    #  image: nginx
