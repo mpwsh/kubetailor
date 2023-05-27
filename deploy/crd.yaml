@@ -44,13 +44,9 @@ spec:
                         replicas:
                           type: integer
                         buildCommand:
-                          type: array
-                          items:
-                            type: string
+                          type: string
                         runCommand:
-                          type: array
-                          items:
-                            type: string
+                          type: string
                         gitRepository:
                           type: string
                         volumes:
