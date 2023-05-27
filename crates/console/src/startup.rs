@@ -20,9 +20,8 @@ use crate::{
     config::{Kubetailor, Settings},
     errors::error_handlers,
     routes::{
-        check_custom_domain, check_shared_domain, claim, dashboard, delete, delete_form,
-        deploying, edit, edit_form, health, login, login_form, logout, new, new_form, view,
-        whoami,
+        check_custom_domain, check_shared_domain, claim, dashboard, delete, delete_form, deploying,
+        edit, edit_form, health, login, login_form, logout, new, new_form, view, whoami,
     },
 };
 
