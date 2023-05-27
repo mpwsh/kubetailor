@@ -11,7 +11,7 @@ impl fmt::Display for TappRequestError {
         match self {
             TappRequestError::Domain(msg) => write!(f, "Invalid domain: {}", msg),
             TappRequestError::Name(msg) => write!(f, "Invalid tapp name: {}", msg),
-            TappRequestError::Image(msg) => write!(f, "Invalid container image in tapp: {}", msg),
+            TappRequestError::Image(msg) => write!(f, "Invalid image: {}", msg),
         }
     }
 }

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
-use kubetailor::crd::{self,Domains};
-use serde::{Serialize, Deserialize};
+
+use kubetailor::crd::{self, Domains};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -33,8 +34,7 @@ impl Ingress {
     }
     pub fn build(&self, subdomain: String, custom: Option<String>) -> crd::Ingress {
         crd::Ingress {
-            annotations: self
-                .build_annotations(&subdomain, &self.base_domain),
+            annotations: self.build_annotations(&subdomain, &self.base_domain),
             class_name: self.class_name.clone(),
             domains: Domains {
                 shared: format!("{}.{}", subdomain, self.base_domain),

@@ -1,8 +1,9 @@
-use kubetailor::crd::{TailoredApp, TailoredAppSpec, Container, Domains};
-use regex::Regex;
 use std::collections::BTreeMap;
-use serde::{Serialize, Deserialize};
-use super::error::TappRequestError;
+use kubetailor::crd::{Container, Domains, TailoredApp, TailoredAppSpec};
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+
+use super::{deployment::Deployment, config::Kubetailor, error::TappRequestError};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TappRequest {
@@ -10,13 +11,13 @@ pub struct TappRequest {
     pub owner: String,
     pub domains: Domains,
     pub container: Container,
-    #[serde(skip_deserializing, skip_serializing)]
-    pub labels: BTreeMap<String, String>,
+    //#[serde(skip_deserializing, skip_serializing)]
+    //pub labels: BTreeMap<String, String>,
     pub env_vars: BTreeMap<String, String>,
     #[serde(skip_deserializing, skip_serializing)]
     pub secrets: BTreeMap<String, String>,
     #[serde(skip_deserializing, skip_serializing)]
-    pub kubetailor: super::config::Kubetailor,
+    pub kubetailor: Kubetailor,
 }
 
 impl TappRequest {
@@ -44,47 +45,80 @@ impl TappRequest {
     }
 }
 
+pub struct TappBuilder;
+
+impl TappBuilder {
+    fn validate_image(deployment_config: Deployment, container: &Container) -> Result<String, TappRequestError> {
+        if let Some(allow_list) = deployment_config.allowed_images {
+            if allow_list.iter().any(|image| container.image.contains(image)) {
+                Ok(container.image.clone())
+            } else {
+                Err(TappRequestError::Image(format!("{}.\nAllowed images: {:?}", container.image, allow_list)))
+            }
+        } else {
+            Ok(container.image.clone())
+        }
+    }
+
+    fn validate_name(subdomain: &str, re: &Regex) -> Result<(), TappRequestError> {
+        if !re.is_match(subdomain) {
+            Err(TappRequestError::Domain(subdomain.to_string()))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn validate_custom_domain(custom: &str) -> Result<(), TappRequestError> {
+        let re = Regex::new(r"^(?:[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])?\.)?[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])?\.(?:[a-z]{2,}\.)?[a-z]{2,}$").unwrap();
+        if !re.is_match(custom) {
+            Err(TappRequestError::Domain(custom.to_string()))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn create_secrets() -> BTreeMap<String, String> {
+        let mut secrets = BTreeMap::new();
+        secrets.insert("test-secret".to_owned(), "1234".to_owned());
+        secrets
+    }
+
+    fn create_labels(req: &TappRequest) -> BTreeMap<String, String> {
+        let mut labels = BTreeMap::new();
+        labels.insert("owner".to_owned(), req.owner.replace('@', "-"));
+        labels.insert("fingerprint".to_owned(), sha1_smol::Sha1::from(&req.owner).digest().to_string());
+        labels
+    }
+
+}
 impl TryFrom<TappRequest> for TailoredApp {
     type Error = TappRequestError;
 
-    fn try_from(mut app: TappRequest) -> Result<Self, Self::Error> {
-        app.sanitize_input();
-        //parse shared subdomain
-        let re = Regex::new(r"^[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])$").unwrap();
-        if !re.is_match(&app.domains.shared) {
-            return Err(TappRequestError::Domain(app.domains.shared));
-        };
-        if !re.is_match(&app.name) {
-            return Err(TappRequestError::Name(app.name));
-        };
-        if let Some(custom) = app.domains.custom.clone() {
-            //parse custom domain
-            let re = Regex::new(r"^(?:[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])?\.)?[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])?\.(?:[a-z]{2,}\.)?[a-z]{2,}$").unwrap();
-            if !re.is_match(&custom) {
-                return Err(TappRequestError::Domain(custom));
-            };
-        };
-        let mut secrets = BTreeMap::new();
-        secrets.insert("test-secret".to_owned(), "1234".to_owned());
+    fn try_from(mut req: TappRequest) -> Result<TailoredApp, TappRequestError> {
+    req.sanitize_input();
 
-        //Insert Owner to tapp label
-        let mut labels = BTreeMap::new();
-        labels.insert("owner".to_owned(), app.owner.replace('@', "-"));
-        labels.insert("tapp".to_owned(), app.name.to_owned());
+    req.container.image = TappBuilder::validate_image(req.kubetailor.deployment.clone(), &req.container)?;
+    let name_regex = Regex::new(r"^[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])$").unwrap();
+    TappBuilder::validate_name(&req.domains.shared, &name_regex)?;
+    TappBuilder::validate_name(&req.name, &name_regex)?;
 
-        let mut tapp = TailoredApp::new(&app.name.to_lowercase(), TailoredAppSpec {
-            labels: labels.clone(),
-            deployment: app.kubetailor.deployment.build(&app.container),
-            ingress: app
-                .kubetailor
-                .ingress.build(app.domains.shared, app.domains.custom),
-            env_vars: app.env_vars,
-            secrets,
-        });
-
-        tapp.metadata.labels = Some(labels);
-        Ok(tapp)
+    if let Some(custom) = &req.domains.custom {
+        TappBuilder::validate_custom_domain(custom)?;
     }
+
+    let secrets = TappBuilder::create_secrets();
+    let labels = TappBuilder::create_labels(&req);
+
+    let tapp_spec = TailoredAppSpec {
+        labels: labels.clone(),
+        deployment: req.kubetailor.deployment.build(&req.container),
+        ingress: req.kubetailor.ingress.build(req.domains.shared, req.domains.custom),
+        env_vars: req.env_vars.clone(),
+        secrets,
+    };
+
+    Ok(TailoredApp::new(&req.name.to_lowercase(), tapp_spec.clone()))
+}
 }
 
 impl TryFrom<TailoredApp> for TappRequest {
@@ -98,8 +132,7 @@ impl TryFrom<TailoredApp> for TappRequest {
             container: tapp.spec.deployment.container,
             env_vars: tapp.spec.env_vars,
             secrets: BTreeMap::new(),
-            labels: BTreeMap::new(),
-            kubetailor: super::config::Kubetailor::default(),
+            kubetailor: Kubetailor::default(),
         };
 
         Ok(app_config)

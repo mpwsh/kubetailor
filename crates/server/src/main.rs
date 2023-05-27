@@ -1,15 +1,12 @@
-use actix_web::{
-    web::Data,
-    App, HttpServer,
-};
+use actix_web::{web::Data, App, HttpServer};
 use kube::{Client, Config as KubeConfig};
 
 mod config;
-mod routes;
-mod ingress;
 mod deployment;
-mod tapp;
 mod error;
+mod ingress;
+mod routes;
+mod tapp;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

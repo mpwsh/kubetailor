@@ -1,5 +1,8 @@
 use std::{env, fs, io::Read};
+
 use serde::{Deserialize, Serialize};
+
+use crate::{deployment::Deployment, ingress::Ingress};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Config {
@@ -11,8 +14,8 @@ pub struct Config {
 #[serde(rename_all = "camelCase")]
 pub struct Kubetailor {
     pub namespace: String,
-    pub deployment: super::deployment::Deployment,
-    pub ingress: super::ingress::Ingress,
+    pub deployment: Deployment,
+    pub ingress: Ingress,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

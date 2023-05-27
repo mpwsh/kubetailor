@@ -1,17 +1,19 @@
 use std::str::FromStr;
+
 use actix_web::{
     delete, get, post, put, web,
-    HttpResponse, Responder,
     web::{Data, Json},
+    HttpResponse, Responder,
 };
-use crate::{config, tapp::TappRequest};
 use kube::{
     api::{Api as KubeApi, DeleteParams, ListParams, ObjectList, PostParams},
     Client, ResourceExt,
 };
 use kubetailor::prelude::*;
-use serde::Deserialize;
 use log::info;
+use serde::Deserialize;
+
+use crate::{config::Kubetailor, tapp::TappRequest};
 
 #[derive(Deserialize)]
 pub struct BasicParams {
@@ -49,7 +51,7 @@ impl FromStr for ListFilter {
 pub async fn create(
     client: Data<Client>,
     mut payload: Json<TappRequest>,
-    kubetailor: Data<config::Kubetailor>,
+    kubetailor: Data<Kubetailor>,
 ) -> impl Responder {
     let namespace: String = kubetailor.namespace.clone();
 
@@ -60,7 +62,7 @@ pub async fn create(
         Ok(k) => k,
         Err(e) => {
             return HttpResponse::InternalServerError()
-                .body(format!("Error parsing TailoredApp Config: {}", e));
+                .body(e.to_string());
         },
     };
     info!("Creating TailoredApp: {app:?}");
@@ -80,7 +82,7 @@ pub async fn create(
 pub async fn update(
     client: Data<Client>,
     mut payload: Json<TappRequest>,
-    kubetailor: Data<config::Kubetailor>,
+    kubetailor: Data<Kubetailor>,
 ) -> impl Responder {
     let namespace: String = kubetailor.namespace.clone();
 
@@ -90,7 +92,7 @@ pub async fn update(
         Ok(k) => k,
         Err(e) => {
             return HttpResponse::InternalServerError()
-                .body(format!("Error parsing TailoredApp Config: {}", e));
+                .body(e.to_string());
         },
     };
     let api: KubeApi<TailoredApp> = KubeApi::namespaced(
@@ -109,7 +111,7 @@ pub async fn update(
     match api.replace(app_name, &PostParams::default(), &app).await {
         Ok(_) => HttpResponse::Ok().body(format!("Updated TailoredApp: {}", app_name)),
         Err(e) => {
-            HttpResponse::InternalServerError().body(format!("Error updating TailoredApp: {}", e))
+            HttpResponse::InternalServerError().body(e.to_string())
         },
     }
 }
@@ -117,7 +119,7 @@ pub async fn update(
 pub async fn list(
     client: Data<Client>,
     params: web::Query<BasicParams>,
-    kubetailor: Data<config::Kubetailor>,
+    kubetailor: Data<Kubetailor>,
 ) -> impl Responder {
     let api: KubeApi<TailoredApp> =
         KubeApi::namespaced(client.get_ref().clone(), kubetailor.namespace.as_str());
@@ -143,7 +145,7 @@ pub async fn list(
 pub async fn delete(
     client: Data<Client>,
     app_name: web::Path<String>,
-    kubetailor: Data<config::Kubetailor>,
+    kubetailor: Data<Kubetailor>,
 ) -> impl Responder {
     let api: KubeApi<TailoredApp> =
         KubeApi::namespaced(client.get_ref().clone(), kubetailor.namespace.as_str());
@@ -158,7 +160,7 @@ pub async fn delete(
     {
         Ok(_) => HttpResponse::Ok().body(format!("Deleted TailoredApp: {}", app_name)),
         Err(e) => {
-            HttpResponse::InternalServerError().body(format!("Error deleting TailoredApp: {}", e))
+            HttpResponse::InternalServerError().body(e.to_string())
         },
     };
 
@@ -168,7 +170,7 @@ pub async fn delete(
 pub async fn get(
     client: Data<Client>,
     app_name: web::Path<String>,
-    kubetailor: Data<config::Kubetailor>,
+    kubetailor: Data<Kubetailor>,
 ) -> impl Responder {
     let api: KubeApi<TailoredApp> =
         KubeApi::namespaced(client.get_ref().clone(), kubetailor.namespace.as_str());
@@ -178,9 +180,6 @@ pub async fn get(
             let tapp = TappRequest::try_from(tapp).unwrap();
             HttpResponse::Ok().json(tapp)
         },
-        Err(e) => HttpResponse::InternalServerError().body(format!(
-            "TailoredApp '{}' not found. Error: {}",
-            app_name, e
-        )),
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }

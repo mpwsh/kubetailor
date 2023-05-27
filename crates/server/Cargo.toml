@@ -21,3 +21,4 @@ k8s-openapi = { version = "0.18", default-features = false, features = [
 kubetailor = { version = "0.1", path = "../lib" }
 serde_yaml = "0.9.21"
 regex = "1.8.1"
+bytesize = {version = "1.2.0", features = ["serde"]}
