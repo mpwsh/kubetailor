@@ -6,7 +6,6 @@ server:
 kubetailor:
   namespace: default
   # Where your shared domains will be deployed
-  baseDomain: mpw.sh
   allowedImages:
     - nginx
     - mkodockx/docker-pastebin
@@ -15,23 +14,25 @@ kubetailor:
       reloader.stakater.com/auto: "true"
     # To implement:
     # do not pass env vars from other containers in the same namespace.
-    enableServiceLinks: false
+    exposeServiceLinks: false
+    deployNetworkPolicies: true
     # Image to deploy. If not specified, container will be provided by the client via POST request
-    container:
-      image: nginx
-      port: 80
-      gitRepository: {}
-      buildCommand: {}
-      runCommand: {}
-      volumes:
+   #container:
+   #  image: nginx
+   #  port: 80
+   #  gitRepository: ""
+   #  buildCommand: ["ping", "1.1.1.1"]
+   #  runCommand: ["echo", "build something"]
+   #  replicas: 1
+   #  volumes:
       # PathtoMount: Size
-        /home/test/123: 40Mi
-        /home/test/anotherone: 100Mi
-      fileMounts:
+   #    /home/test/123: 40Mi
+   #    /home/test/anotherone: 100Mi
+   #  fileMounts:
        # PathToMount: Content
-        /etc/config.toml: |-
-          [someconfig]
-          avalue= true
+   #    /etc/config.toml: |-
+   #      [someconfig]
+   #      avalue= true
   ingress:
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
@@ -43,5 +44,6 @@ kubetailor:
       nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
       nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
       nginx.ingress.kubernetes.io/session-cookie-name: route
+    baseDomain: mpw.sh
     loadBalancerEndpoint: k3s.mpw.sh
     className: nginx
