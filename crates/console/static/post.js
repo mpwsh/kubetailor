@@ -27,7 +27,7 @@ function processFormData(event, url) {
       image: formData.get("image"),
       port: Number(formData.get("port")),
     },
-    config: env,
+    env_vars: env,
   };
   if (custom_active.innerText == "Enable") {
     data.domains.custom = null;
