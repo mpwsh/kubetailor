@@ -13,11 +13,7 @@ pub enum TailoredAppAction {
     NoOp,
 }
 
-pub async fn deploy_all(
-    client: &Client,
-    meta: &TappMeta,
-    app: &TailoredApp,
-) -> Result<(), Error> {
+pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Result<(), Error> {
     let name = app.name_any();
 
     // Deploy env_vars ConfigMap
@@ -36,7 +32,7 @@ pub async fn deploy_all(
         if enable_netpol {
             netpol::deploy(client, meta, app).await?;
         }
-     }
+    }
 
     // Deploy Persistent Volumes
     let mut vol_mounts = BTreeMap::new();

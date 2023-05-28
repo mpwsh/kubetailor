@@ -38,9 +38,7 @@ pub async fn deploy(
     let api: Api<PersistentVolumeClaim> = Api::namespaced(client.to_owned(), &meta.namespace);
     match api.create(&PostParams::default(), &pvc).await {
         Ok(pvc) => Ok(pvc),
-        Err(kube::Error::Api(e)) if e.code == 409 => {
-            update(client, meta, &storage).await
-        },
+        Err(kube::Error::Api(e)) if e.code == 409 => update(client, meta, &storage).await,
         Err(e) => Err(Error::KubeError { source: e }),
     }
 }
@@ -56,5 +54,7 @@ pub async fn update(
     let resource_version = api.get(&meta.name).await?.metadata.resource_version;
     pvc.metadata.resource_version = resource_version;
 
-    Ok(api.replace(&meta.name, &PostParams::default(), &pvc).await?)
+    Ok(api
+        .replace(&meta.name, &PostParams::default(), &pvc)
+        .await?)
 }

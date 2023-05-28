@@ -20,20 +20,22 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
                 ..LabelSelector::default()
             },
             ingress: Some(vec![NetworkPolicyIngressRule {
-                from: Some(vec![NetworkPolicyPeer {
-                    pod_selector: Some(LabelSelector {
-                        match_labels: Some(app.spec.ingress.match_labels.to_owned()),
-                        ..LabelSelector::default()
-                    }),
-                    ..NetworkPolicyPeer::default()
-                },
-                NetworkPolicyPeer {
-                    pod_selector: Some(LabelSelector {
-                        match_labels: Some(meta.labels.to_owned()),
-                        ..LabelSelector::default()
-                    }),
-                    ..NetworkPolicyPeer::default()
-                }]),
+                from: Some(vec![
+                    NetworkPolicyPeer {
+                        pod_selector: Some(LabelSelector {
+                            match_labels: Some(app.spec.ingress.match_labels.to_owned()),
+                            ..LabelSelector::default()
+                        }),
+                        ..NetworkPolicyPeer::default()
+                    },
+                    NetworkPolicyPeer {
+                        pod_selector: Some(LabelSelector {
+                            match_labels: Some(meta.labels.to_owned()),
+                            ..LabelSelector::default()
+                        }),
+                        ..NetworkPolicyPeer::default()
+                    },
+                ]),
                 ..NetworkPolicyIngressRule::default()
             }]),
             egress: Some(vec![
@@ -96,7 +98,11 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
     }
 }
 
-pub async fn deploy(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Result<NetworkPolicy, Error> {
+pub async fn deploy(
+    client: &Client,
+    meta: &TappMeta,
+    app: &TailoredApp,
+) -> Result<NetworkPolicy, Error> {
     let netpol = new(meta, app);
     let api: Api<NetworkPolicy> = Api::namespaced(client.clone(), &meta.namespace);
     match api.create(&PostParams::default(), &netpol).await {
@@ -106,12 +112,18 @@ pub async fn deploy(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Resu
     }
 }
 
-pub async fn update(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Result<NetworkPolicy, Error> {
+pub async fn update(
+    client: &Client,
+    meta: &TappMeta,
+    app: &TailoredApp,
+) -> Result<NetworkPolicy, Error> {
     let mut netpol = new(meta, app);
     let api: Api<NetworkPolicy> = Api::namespaced(client.to_owned(), &meta.namespace);
 
     let resource_version = api.get(&meta.name).await?.metadata.resource_version;
     netpol.metadata.resource_version = resource_version;
 
-    Ok(api.replace(&meta.name, &PostParams::default(), &netpol).await?)
+    Ok(api
+        .replace(&meta.name, &PostParams::default(), &netpol)
+        .await?)
 }
