@@ -34,6 +34,14 @@ spec:
                       type: object
                       additionalProperties:
                         type: string
+                    serviceAccount:
+                      type: string
+                    enableServiceLinks:
+                      type: boolean
+                    deployNetworkPolicies:
+                      type: boolean
+                    allowPrivilegeEscalation:
+                      type: boolean
                     container:
                       type: object
                       properties:
@@ -44,9 +52,13 @@ spec:
                         replicas:
                           type: integer
                         buildCommand:
-                          type: string
+                          type: array
+                          items:
+                            type: string
                         runCommand:
-                          type: string
+                          type: array
+                          items:
+                            type: string
                         gitRepository:
                           type: string
                         volumes:
@@ -63,6 +75,10 @@ spec:
                     className:
                       type: string
                     annotations:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    matchLabels:
                       type: object
                       additionalProperties:
                         type: string
@@ -83,6 +99,14 @@ spec:
                     type: string
               required: ["labels", "deployment", "ingress"]
       additionalPrinterColumns:
+        - name: Owner
+          type: string
+          description: Tapp Owner
+          jsonPath: .spec.deployment.container.owner
+        - name: Group
+          type: string
+          description: Tapp Group
+          jsonPath: .spec.deployment.container.group
         - name: Image
           type: string
           description: Container image

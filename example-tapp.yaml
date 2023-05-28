@@ -25,13 +25,19 @@ spec:
   deployment:
     annotations:
       reloader.stakater.com/auto: "true"
+    deployNetworkPolicies: true
+    serviceAccount: "limited"
+    # if false, service env vars in the same namespace will be hidden
+    enableServiceLinks: false
+    allowPrivilegeEscalation: false
     container:
       image: nginx:latest
       port: 80
-      replicas: 2
-      gitRepository: "https://github.com/mpwsh/a-repository"
-      buildCommand: ["npm", "run", "build"]
-      runCommand: ["npm", "run"]
+      replicas: 1
+      #Not implemented
+      #gitRepository: "https://github.com/mpwsh/a-repository"
+      buildCommand: ["echo", "something"]
+      #runCommand: ["npm", "run"]
       volumes:
       # PathtoMount: Size
         /home/test/123: 40Mi
