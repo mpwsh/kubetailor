@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct Ingress {
     pub base_domain: String,
     pub annotations: BTreeMap<String, String>,
+    pub match_labels: BTreeMap<String, String>,
     pub load_balancer_endpoint: String,
     pub class_name: String,
 }
@@ -36,6 +37,7 @@ impl Ingress {
         crd::Ingress {
             annotations: self.build_annotations(&subdomain, &self.base_domain),
             class_name: self.class_name.clone(),
+            match_labels: self.match_labels.clone(),
             domains: Domains {
                 shared: format!("{}.{}", subdomain, self.base_domain),
                 custom,

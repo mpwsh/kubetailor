@@ -9,11 +9,20 @@ kubetailor:
   deployment:
     annotations:
       reloader.stakater.com/auto: "true"
+        # Limit connectivity to:
+        # - internet
+        # - pods owned by the same (owner) deployer
     deployNetworkPolicies: true
+    serviceAccount: limited
+    # if false, service env vars in the same namespace will be hidden
+    enableServiceLinks: false
+    allowPrivilegeEscalation: false
     allowedImages:
-      - nginx/nginx
+      - nginx
       - mkodockx/docker-pastebin
       - node/node
+      - nicolaka/netshoot
+      - tsl0922/ttyd:latest
     maxVolumeSize: 1Gi
     # Image to deploy. If not specified, container will be provided by the client via POST request
    #container:
@@ -33,6 +42,9 @@ kubetailor:
    #      [someconfig]
    #      avalue= true
   ingress:
+    className: nginx
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
       nginx.ingress.kubernetes.io/affinity: cookie
@@ -45,4 +57,3 @@ kubetailor:
       nginx.ingress.kubernetes.io/session-cookie-name: route
     baseDomain: mpw.sh
     loadBalancerEndpoint: k3s.mpw.sh
-    className: nginx

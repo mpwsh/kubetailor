@@ -61,8 +61,7 @@ pub async fn create(
     let app: TailoredApp = match TailoredApp::try_from(payload.into_inner()) {
         Ok(k) => k,
         Err(e) => {
-            return HttpResponse::InternalServerError()
-                .body(e.to_string());
+            return HttpResponse::InternalServerError().body(e.to_string());
         },
     };
     info!("Creating TailoredApp: {app:?}");
@@ -91,8 +90,7 @@ pub async fn update(
     let mut app: TailoredApp = match TailoredApp::try_from(payload.into_inner()) {
         Ok(k) => k,
         Err(e) => {
-            return HttpResponse::InternalServerError()
-                .body(e.to_string());
+            return HttpResponse::InternalServerError().body(e.to_string());
         },
     };
     let api: KubeApi<TailoredApp> = KubeApi::namespaced(
@@ -110,9 +108,7 @@ pub async fn update(
     app.metadata.resource_version = resource_version;
     match api.replace(app_name, &PostParams::default(), &app).await {
         Ok(_) => HttpResponse::Ok().body(format!("Updated TailoredApp: {}", app_name)),
-        Err(e) => {
-            HttpResponse::InternalServerError().body(e.to_string())
-        },
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
 #[get("/list")]
@@ -159,9 +155,7 @@ pub async fn delete(
         .await
     {
         Ok(_) => HttpResponse::Ok().body(format!("Deleted TailoredApp: {}", app_name)),
-        Err(e) => {
-            HttpResponse::InternalServerError().body(e.to_string())
-        },
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     };
 
     HttpResponse::Ok().body(format!("Deleted TailoredApp '{}'", app_name))
