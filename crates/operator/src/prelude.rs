@@ -1,16 +1,21 @@
-pub use std::{collections::BTreeMap, fmt::Debug, io::BufRead, sync::Arc};
+pub use std::{
+    collections::{BTreeMap, HashMap},
+    fmt::Debug,
+    io::BufRead,
+    sync::Arc,
+};
 
 pub use k8s_openapi::{
     api::{
         apps::v1::Deployment,
-        core::v1::{ConfigMap, Secret, Service},
-        networking::v1::Ingress,
+        core::v1::{ConfigMap, PersistentVolumeClaim, Secret, Service, ServicePort},
+        networking::v1::{Ingress, NetworkPolicy},
     },
     apimachinery::pkg::{
         apis::meta::v1::{LabelSelector, OwnerReference},
         util::intstr::IntOrString,
     },
-    ByteString,
+    ByteString, NamespaceResourceScope, ResourceScope,
 };
 pub use kube::{
     api::{DeleteParams, ListParams, ObjectMeta, Patch, PatchParams, PostParams},
@@ -31,5 +36,5 @@ pub use crate::{
     actions::TailoredAppAction,
     context::ContextData,
     error::{on_error, Error},
-    reconciler::reconcile,
+    reconciler::{reconcile, TappMeta},
 };

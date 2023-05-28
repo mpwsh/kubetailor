@@ -4,6 +4,14 @@ use crate::{
     prelude::*,
 };
 
+#[derive(Debug)]
+pub struct TappMeta {
+    pub name: String,
+    pub namespace: String,
+    pub labels: BTreeMap<String, String>,
+    pub oref: OwnerReference,
+}
+
 pub async fn reconcile(app: Arc<TailoredApp>, ctx: Arc<ContextData>) -> Result<Action, Error> {
     let client: Client = ctx.client.clone();
 
@@ -18,22 +26,25 @@ pub async fn reconcile(app: Arc<TailoredApp>, ctx: Arc<ContextData>) -> Result<A
     };
 
     let oref = app.controller_owner_ref(&()).unwrap();
-    // Performs action as decided by the `determine_action` function.
+
+    let meta = TappMeta {
+        name: app.name_any(),
+        namespace: namespace.to_string(),
+        labels: app.spec.labels.clone(),
+        oref: oref.clone(),
+    };
     match determine_action(&app) {
         TailoredAppAction::Create => {
             // Apply the finalizer first. If that fails, the `?` operator invokes automatic conversion
             // of `kube::Error` to the `Error` defined in this crate.
-            finalizer::add(client.clone(), &namespace, &app.name_any()).await?;
+            finalizer::add(&client, &namespace, &app.name_any()).await?;
 
             // Invoke creation of all the resources
-            deploy_all(client, oref, &namespace, &app).await?;
+            deploy_all(&client, &meta, &app).await?;
 
             Ok(Action::requeue(Duration::from_secs(10)))
         },
-        TailoredAppAction::Delete => {
-            let name = app.name_any();
-            delete_all(client, &namespace, &name).await
-        },
+        TailoredAppAction::Delete => delete_all(&client, &meta).await,
         // The resource is already in desired state, do nothing and re-check after 10 seconds
         TailoredAppAction::NoOp => Ok(Action::requeue(Duration::from_secs(10))),
     }

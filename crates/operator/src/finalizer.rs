@@ -4,8 +4,8 @@ use crate::prelude::*;
 
 pub static KUBETAILOR_FINALIZER: &str = "tailoredapps.mpw.sh";
 
-pub async fn add(client: Client, namespace: &str, name: &str) -> Result<TailoredApp, Error> {
-    let api: Api<TailoredApp> = Api::namespaced(client, namespace);
+pub async fn add(client: &Client, namespace: &str, name: &str) -> Result<TailoredApp, Error> {
+    let api: Api<TailoredApp> = Api::namespaced(client.to_owned(), namespace);
     let finalizer: Value = json!({
         "metadata": {
             "finalizers": [KUBETAILOR_FINALIZER]
@@ -16,8 +16,8 @@ pub async fn add(client: Client, namespace: &str, name: &str) -> Result<Tailored
     Ok(api.patch(name, &PatchParams::default(), &patch).await?)
 }
 
-pub async fn delete(client: Client, namespace: &str, name: &str) -> Result<TailoredApp, Error> {
-    let api: Api<TailoredApp> = Api::namespaced(client, namespace);
+pub async fn delete(client: &Client, namespace: &str, name: &str) -> Result<TailoredApp, Error> {
+    let api: Api<TailoredApp> = Api::namespaced(client.to_owned(), namespace);
     let finalizer: Value = json!({
         "metadata": {
             "finalizers": null
