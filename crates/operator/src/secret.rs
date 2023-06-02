@@ -1,4 +1,3 @@
-//use base64::{engine::general_purpose, Engine as _};
 use crate::prelude::*;
 
 fn new(meta: &TappMeta, data: BTreeMap<String, String>) -> Secret {
@@ -7,7 +6,6 @@ fn new(meta: &TappMeta, data: BTreeMap<String, String>) -> Secret {
         .map(|(k, v)| {
             (
                 k,
-                //ByteString(general_purpose::STANDARD.encode(v).into_bytes()),
                 ByteString(v.into_bytes()),
             )
         })

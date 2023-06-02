@@ -38,7 +38,7 @@ pub struct Container {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub volumes: Option<BTreeMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub file_mounts: Option<BTreeMap<String, String>>,
+    pub files: Option<BTreeMap<String, String>>,
     pub replicas: i32,
 }
 

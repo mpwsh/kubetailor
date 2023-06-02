@@ -45,16 +45,16 @@ pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> 
                 namespace: meta.namespace.to_string(),
                 oref: meta.oref.clone(),
             };
-            pvc::deploy(client, &meta, storage.clone()).await?;
+            pvc::deploy(client, &new_meta, storage.clone()).await?;
             vol_mounts.insert(new_meta.name.to_owned(), path.to_string());
         }
     }
 
     // Deploy FileMounts
-    if let Some(file_mounts) = app.spec.deployment.container.file_mounts.clone() {
+    if let Some(files) = app.spec.deployment.container.files.clone() {
         // Group the paths by their parent directories
         let mut groups: HashMap<String, Vec<(&String, &String)>> = HashMap::new();
-        for (path, data) in file_mounts.iter() {
+        for (path, data) in files.iter() {
             let path_buf = std::path::PathBuf::from(path);
             let parent_dir = match path_buf.parent() {
                 Some(dir) => dir.to_string_lossy().into_owned(),

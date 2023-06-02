@@ -61,6 +61,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Api::<Secret>::all(client.clone()),
             watcher::Config::default(),
         )
+        .owns(
+            Api::<PersistentVolumeClaim>::all(client.clone()),
+            watcher::Config::default(),
+        )
+        .owns(
+            Api::<NetworkPolicy>::all(client.clone()),
+            watcher::Config::default(),
+        )
         .run(reconcile, on_error, context)
         .for_each(|reconciliation_result| async move {
             match reconciliation_result {

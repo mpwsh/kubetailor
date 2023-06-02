@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
-
 use kubetailor::crd::{Container, Domains, TailoredApp, TailoredAppSpec};
 use regex::Regex;
+use bytesize::ByteSize;
 use serde::{Deserialize, Serialize};
 
 use super::{config::Kubetailor, deployment::Deployment, error::TappRequestError};
@@ -13,9 +13,7 @@ pub struct TappRequest {
     pub group: String,
     pub container: Container,
     pub domains: Domains,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub env_vars: Option<BTreeMap<String, String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub secrets: Option<BTreeMap<String, String>>,
     #[serde(skip_deserializing, skip_serializing)]
     pub kubetailor: Kubetailor,
@@ -91,6 +89,7 @@ impl TappBuilder {
     fn create_labels(req: &TappRequest) -> BTreeMap<String, String> {
         let mut labels = BTreeMap::new();
         labels.insert("owner".to_owned(), req.owner.replace('@', "-"));
+        labels.insert("group".to_owned(), req.group.to_owned());
         labels.insert(
             "fingerprint".to_owned(),
             sha1_smol::Sha1::from(format!("{}{}", req.group, req.owner))
@@ -119,7 +118,7 @@ impl TryFrom<TappRequest> for TailoredApp {
         let labels = TappBuilder::create_labels(&req);
 
         let tapp_spec = TailoredAppSpec {
-            labels,
+            labels: labels.clone(),
             deployment: req.kubetailor.deployment.build(&req.container),
             ingress: req
                 .kubetailor
@@ -128,8 +127,9 @@ impl TryFrom<TappRequest> for TailoredApp {
             env_vars: req.env_vars.clone(),
             secrets: req.secrets,
         };
-
-        Ok(TailoredApp::new(&req.name.to_lowercase(), tapp_spec))
+        let mut tapp = TailoredApp::new(&req.name.to_lowercase(), tapp_spec);
+        tapp.metadata.labels = Some(labels);
+        Ok(tapp)
     }
 }
 

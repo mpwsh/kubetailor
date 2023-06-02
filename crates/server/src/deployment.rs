@@ -27,7 +27,7 @@ impl Deployment {
                 run_command: container.run_command,
                 git_repository: None,
                 volumes: container.volumes,
-                file_mounts: container.file_mounts,
+                files: container.files,
             }
         } else {
             container.clone()

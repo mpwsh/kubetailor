@@ -89,12 +89,10 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
                             end_port: None,
                         },
                     ]),
-                    ..NetworkPolicyEgressRule::default()
                 },
             ]),
             policy_types: Some(vec!["Ingress".to_string(), "Egress".to_string()]),
         }),
-        ..NetworkPolicy::default()
     }
 }
 
