@@ -1,0 +1,8 @@
+application:
+  port: 8000
+  host: 0.0.0.0
+  hmac_secret: "super-long-and-secret-random-key-needed-to-verify-message-integrity"
+  session_ttl: 48  # in hours
+redis_dsn: "redis://192.168.1.210:6379"
+portier_url: "https://broker.mpw.sh"
+kubetailor_url: "http://127.0.0.1:8080"

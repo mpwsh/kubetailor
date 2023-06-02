@@ -1,0 +1,54 @@
+<div class="form-group">
+  <span class="subtitle no-select">Environment Variables:</span>
+  <div id="environment-pairs">
+    {{#each tapp.env_vars}}
+      <div class="form-group-inline key-value-group">
+        <input
+          class="kv-input"
+          type="text"
+          name="environment_key"
+          placeholder="Key"
+          value="{{@key}}"
+        />
+        <input
+          class="kv-input"
+          type="text"
+          name="environment_value"
+          placeholder="Value"
+          value="{{this}}"
+        />
+        <button type="button" class="delete-btn">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    {{/each}}
+  </div>
+</div>
+<button type="button" id="add-environment-btn" class="add-env-btn">+</button>
+<div class="form-group">
+  <span class="subtitle no-select">Secrets:</span>
+  <div id="secret-pairs">
+    {{#each tapp.secrets}}
+      <div class="form-group-inline key-value-group">
+        <input
+          class="kv-input"
+          type="text"
+          name="secret_key"
+          placeholder="Key"
+          value="{{@key}}"
+        />
+        <input
+          class="kv-input"
+          type="text"
+          name="secret_value"
+          placeholder="Value"
+          value="{{this}}"
+        />
+        <button type="button" class="delete-btn">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    {{/each}}
+  </div>
+</div>
+<button type="button" id="add-secret-btn" class="add-env-btn">+</button>

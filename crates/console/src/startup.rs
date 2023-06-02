@@ -81,6 +81,7 @@ pub async fn run(
         .broker(portier_url.expose_secret().parse().unwrap())
         .build()
         .unwrap();
+
     let secret_key = Key::from(hmac_secret.expose_secret().as_bytes());
     let message_store = CookieMessageStore::builder(secret_key.clone()).build();
     let message_framework = FlashMessagesFramework::builder(message_store).build();

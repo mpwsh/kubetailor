@@ -3,7 +3,8 @@
 <div class="content">
   <br />
   <form id="editForm" onsubmit="processFormData(event, '/dashboard/new');">
-    {{> edit-form}} 
+    {{> forms/wizard}}
+  <progress id="progressBar" value="0"></progress>
   </form>
 </div>
 {{> footer}}

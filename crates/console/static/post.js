@@ -19,6 +19,7 @@ function processFormData(event, url) {
   // Create the final JSON object
   const data = {
     name: formData.get("name"),
+    group: formData.get("group"),
     domains: {
       shared: formData.get("shared"),
       custom: formData.get("custom"),
@@ -26,9 +27,11 @@ function processFormData(event, url) {
     container: {
       image: formData.get("image"),
       port: Number(formData.get("port")),
+      replicas: Number(formData.get("replicas")),
     },
     env_vars: env,
   };
+  console.log("sending" + JSON.stringify(data));
   if (custom_active.innerText == "Enable") {
     data.domains.custom = null;
   }

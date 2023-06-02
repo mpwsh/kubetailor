@@ -385,6 +385,25 @@ input:focus {
   margin-bottom: 0.5rem;
 }
 
+.image-port-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.image-input {
+  width: 150px;
+}
+
+.port-input {
+  width: 100px;
+}
+
+.replicas-input {
+  width: 100px;
+}
+
 .form-group-inline {
   display: flex;
   justify-content: space-between;

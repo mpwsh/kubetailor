@@ -25,7 +25,7 @@ pub struct TappConfig {
     pub name: String,
     pub domains: Domains,
     pub container: Container,
-    pub config: HashMap<String, String>,
+    pub env_vars: HashMap<String, String>,
     #[serde(skip_deserializing)]
     pub owner: String,
 }
@@ -87,7 +87,7 @@ pub async fn dashboard(
         "action": "New",
         "user": user,
     });
-    let body = hb.render("dashboard", &data).unwrap();
+    let body = hb.render("home", &data).unwrap();
 
     Ok(HttpResponse::Ok().body(body))
 }
@@ -109,7 +109,7 @@ pub async fn new_form(
         "action": "Deploy",
         "user": user,
     });
-    let body = hb.render("new", &data).unwrap();
+    let body = hb.render("forms/new", &data).unwrap();
 
     Ok(HttpResponse::Ok().body(body))
 }
@@ -232,7 +232,7 @@ pub async fn edit_form(
         "user": user,
     });
 
-    let body = hb.render("edit", &data).unwrap();
+    let body = hb.render("forms/edit", &data).unwrap();
 
     Ok(HttpResponse::Ok().body(body))
 }
@@ -377,7 +377,7 @@ pub async fn delete_form(
         "loading": params.loading.unwrap_or(false),
         "user": user,
     });
-    let body = hb.render("delete-confirm", &data).unwrap();
+    let body = hb.render("forms/delete-confirm", &data).unwrap();
 
     Ok(HttpResponse::Ok().body(body))
 }
