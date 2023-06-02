@@ -23,11 +23,13 @@ pub struct BasicForm {
 #[derive(Deserialize, Serialize, Default)]
 pub struct TappConfig {
     pub name: String,
-    pub domains: Domains,
-    pub container: Container,
-    pub env_vars: HashMap<String, String>,
+    pub group: Option<String>,
     #[serde(skip_deserializing)]
     pub owner: String,
+    pub domains: Domains,
+    pub container: Container,
+    pub env_vars: Option<HashMap<String, String>>,
+    pub secrets: Option<HashMap<String, String>>,
 }
 
 #[derive(Deserialize, Serialize, Default)]
@@ -39,7 +41,10 @@ pub struct Domains {
 #[derive(Deserialize, Serialize, Default)]
 pub struct Container {
     pub image: String,
+    pub replicas: u32,
     pub port: u32,
+    pub volumes: Option<HashMap<String, String>>,
+    pub files: Option<HashMap<String, String>>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -124,7 +129,7 @@ pub async fn new(
         return Ok(see_other("/login"));
     };
     tapp.owner = user;
-    //send form to API Server
+
     let res = kubetailor
         .client
         .post(&kubetailor.url)
@@ -167,7 +172,7 @@ async fn get(tapp_name: &str, owner: &str, kubetailor: web::Data<Kubetailor>) ->
     if items.into_iter().any(|name| name == tapp_name) {
         kubetailor
             .client
-            .get(format!("{}/{}", kubetailor.url, tapp_name))
+            .get(format!("{}/{}?owner={}", kubetailor.url, tapp_name, owner))
             .send()
             .await
             .unwrap()

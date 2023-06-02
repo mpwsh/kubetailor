@@ -17,7 +17,7 @@ pub async fn login_form(
         "title": "Login",
         "error_html": error_html,
     });
-    let body = hb.render("login", &data).unwrap();
+    let body = hb.render("forms/login", &data).unwrap();
 
     HttpResponse::Ok()
         .content_type(ContentType::html())
