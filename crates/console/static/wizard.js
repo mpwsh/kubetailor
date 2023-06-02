@@ -5,6 +5,7 @@ window.onload = function () {
     "container-input",
     "domain-input",
     "environment-input",
+    "secrets-input",
     "files-input",
     "volumes-input",
   ];

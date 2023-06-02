@@ -4,19 +4,17 @@ function processFormData(event, url) {
   const form = document.getElementById("editForm");
   const formData = new FormData(form);
 
-  // Collect environment variables as a nested JSON object
-  const env = {};
-  const keys = formData.getAll("env_key");
-  const values = formData.getAll("env_value");
-
-  for (let i = 0; i < keys.length; i++) {
-    if (keys[i] && values[i]) {
-      env[keys[i]] = values[i];
-    }
-  }
+  const env_vars = collectData(
+    "environment_key",
+    "environment_value",
+    formData
+  );
+  const secrets = collectData("secret_key", "secret_value", formData);
+  const volumes = collectData("volume_key", "volume_value", formData);
+  const files = collectData("file_key", "file_value", formData);
 
   const custom_active = document.getElementById("toggleCustomDomain");
-  // Create the final JSON object
+
   const data = {
     name: formData.get("name"),
     group: formData.get("group"),
@@ -28,10 +26,13 @@ function processFormData(event, url) {
       image: formData.get("image"),
       port: Number(formData.get("port")),
       replicas: Number(formData.get("replicas")),
+      volumes: volumes,
+      files: files,
     },
-    env_vars: env,
+    env_vars: env_vars,
+    secrets: secrets,
   };
-  console.log("sending" + JSON.stringify(data));
+  console.log("sending: " + JSON.stringify(data));
   if (custom_active.innerText == "Enable") {
     data.domains.custom = null;
   }
@@ -56,4 +57,19 @@ function processFormData(event, url) {
       // Handle network errors
       console.error("Network error:", error);
     });
+}
+
+function collectData(keyName, valueName, formData) {
+  const data = {};
+  const keys = formData.getAll(keyName);
+  const values = formData.getAll(valueName);
+
+  for (let i = 0; i < keys.length; i++) {
+    if (keys[i] && values[i]) {
+      data[keys[i]] = values[i];
+    }
+  }
+  console.info(data);
+
+  return data;
 }

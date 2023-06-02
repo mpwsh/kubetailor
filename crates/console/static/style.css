@@ -385,6 +385,13 @@ input:focus {
   margin-bottom: 0.5rem;
 }
 
+.file-mount-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
 .image-port-group {
   display: flex;
   justify-content: space-between;
