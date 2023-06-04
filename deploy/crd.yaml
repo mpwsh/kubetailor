@@ -65,7 +65,7 @@ spec:
                           type: object
                           additionalProperties:
                             type: string
-                        fileMounts:
+                        files:
                           type: object
                           additionalProperties:
                             type: string
@@ -102,11 +102,11 @@ spec:
         - name: Owner
           type: string
           description: Tapp Owner
-          jsonPath: .spec.deployment.container.owner
+          jsonPath: .metadata.labels.owner
         - name: Group
           type: string
           description: Tapp Group
-          jsonPath: .spec.deployment.container.group
+          jsonPath: .metadata.labels.group
         - name: Image
           type: string
           description: Container image
