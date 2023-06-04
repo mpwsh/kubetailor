@@ -126,7 +126,7 @@ async fn fetch_tapps(
 ) -> Option<Vec<TailoredApp>> {
     let api: KubeApi<TailoredApp> =
         KubeApi::namespaced(client.to_owned(), kubetailor.namespace.as_str());
-    let owner = owner.clone().replace('@', "-");
+    let owner = owner.replace('@', "-");
     let list_params = ListParams::default().labels(&format!("owner={}", owner));
 
     match api.list(&list_params).await {

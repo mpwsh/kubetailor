@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use kubetailor::crd::{Container, Domains, TailoredApp, TailoredAppSpec};
 use regex::Regex;
-use bytesize::ByteSize;
 use serde::{Deserialize, Serialize};
 
 use super::{config::Kubetailor, deployment::Deployment, error::TappRequestError};

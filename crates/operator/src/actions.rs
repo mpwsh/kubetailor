@@ -24,7 +24,6 @@ pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> 
     // Deploy Secret
     if let Some(secrets) = app.spec.secrets.as_ref() {
         secret::deploy(client, meta, secrets).await?;
-        //secret::deploy(client, namespace, &name, &app.spec.labels, secrets).await?;
     }
 
     // Deploy Network policies
@@ -50,7 +49,7 @@ pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> 
         }
     }
 
-    // Deploy FileMounts
+    // Deploy Files
     if let Some(files) = app.spec.deployment.container.files.clone() {
         // Group the paths by their parent directories
         let mut groups: HashMap<String, Vec<(&String, &String)>> = HashMap::new();
@@ -132,15 +131,8 @@ where
     <T as Resource>::Scope: ResourceScope,
 {
     let api: Api<T> = Api::namespaced(client.to_owned(), &meta.namespace);
-    let labels_str = meta
-        .labels
-        .iter()
-        .map(|(k, v)| format!("{}={}", k, v))
-        .collect::<Vec<String>>()
-        .join(",");
-    let lp = ListParams::default().labels(&labels_str);
     let dp = DeleteParams::default();
-    match api.delete_collection(&dp, &lp).await {
+    match api.delete(&meta.name, &dp).await {
         Ok(_) => Ok(()),
         Err(kube::Error::Api(e)) if e.code == 404 => {
             warn!("Resource {meta:?} already deleted");
@@ -158,15 +150,8 @@ where
         + Clone,
 {
     let api: Api<T> = Api::namespaced(client.to_owned(), &meta.namespace);
-    let labels_str = meta
-        .labels
-        .iter()
-        .map(|(k, v)| format!("{}={}", k, v))
-        .collect::<Vec<String>>()
-        .join(",");
-    let lp = ListParams::default().labels(&labels_str);
-    match api.list(&lp).await {
-        Ok(resources) => Ok(!resources.items.is_empty()),
+    match api.get(&meta.name).await {
+        Ok(_) => Ok(true),
         Err(kube::Error::Api(e)) if e.code == 404 => Ok(false),
         Err(e) => Err(Error::KubeError { source: e }),
     }

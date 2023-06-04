@@ -21,6 +21,7 @@ spec:
       labels:
         app: operator
     spec:
+      serviceAccountName: kubetailor
       containers:
       - image: mpwsh/operator:latest
         imagePullPolicy: Always

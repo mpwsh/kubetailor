@@ -22,6 +22,7 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
             ingress: Some(vec![NetworkPolicyIngressRule {
                 from: Some(vec![
                     NetworkPolicyPeer {
+                        namespace_selector: Some(LabelSelector::default()),
                         pod_selector: Some(LabelSelector {
                             match_labels: Some(app.spec.ingress.match_labels.to_owned()),
                             ..LabelSelector::default()
@@ -68,10 +69,10 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
                 // Allow egress to DNS (kube-dns or CoreDNS)
                 NetworkPolicyEgressRule {
                     to: Some(vec![NetworkPolicyPeer {
-                        namespace_selector: Some(LabelSelector::default()), /* modify this to select kube-system namespace */
+                        namespace_selector: Some(LabelSelector::default()),
                         pod_selector: Some(LabelSelector {
                             match_labels: Some(BTreeMap::from_iter(vec![
-                                ("k8s-app".to_string(), "kube-dns".to_string()), /* or use "k8s-app".to_string(), "coredns".to_string() depending on your DNS service */
+                                ("k8s-app".to_string(), "kube-dns".to_string()),
                             ])),
                             ..LabelSelector::default()
                         }),
