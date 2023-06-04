@@ -26,13 +26,6 @@ pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> 
         secret::deploy(client, meta, secrets).await?;
     }
 
-    // Deploy Network policies
-    if let Some(enable_netpol) = app.spec.deployment.deploy_network_policies {
-        if enable_netpol {
-            netpol::deploy(client, meta, app).await?;
-        }
-    }
-
     // Deploy Persistent Volumes
     let mut vol_mounts = BTreeMap::new();
     if let Some(volumes) = app.spec.deployment.container.volumes.clone() {
@@ -91,17 +84,21 @@ pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> 
             configmap::deploy(client, &new_meta, &cm).await?;
         }
     }
-
     // Deploy Deployment
     deployment::deploy(client, meta, app, vol_mounts).await?;
 
     // Deploy Service
-    //service::deploy(client.clone(), namespace, &name, app).await?;
     service::deploy(client, meta, app).await?;
 
     // Deploy Ingress
-    //ingress::deploy(client.clone(), namespace, &name, app).await?;
     ingress::deploy(client, meta, app).await?;
+
+    // Deploy Network policies
+    if let Some(enable_netpol) = app.spec.deployment.deploy_network_policies {
+        if enable_netpol {
+            netpol::deploy(client, meta, app).await?;
+        }
+    }
 
     Ok(())
 }
@@ -111,6 +108,7 @@ pub async fn delete_all(client: &Client, meta: &TappMeta) -> Result<Action, Erro
     delete::<Deployment>(client, meta).await?;
     delete::<Secret>(client, meta).await?;
     delete::<Ingress>(client, meta).await?;
+    delete::<NetworkPolicy>(client, meta).await?;
     delete::<Service>(client, meta).await?;
     delete::<PersistentVolumeClaim>(client, meta).await?;
 
@@ -131,8 +129,15 @@ where
     <T as Resource>::Scope: ResourceScope,
 {
     let api: Api<T> = Api::namespaced(client.to_owned(), &meta.namespace);
+    let labels_str = meta
+        .labels
+        .iter()
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect::<Vec<String>>()
+        .join(",");
+    let lp = ListParams::default().labels(&labels_str);
     let dp = DeleteParams::default();
-    match api.delete(&meta.name, &dp).await {
+    match api.delete_collection(&dp, &lp).await {
         Ok(_) => Ok(()),
         Err(kube::Error::Api(e)) if e.code == 404 => {
             warn!("Resource {meta:?} already deleted");
@@ -150,8 +155,15 @@ where
         + Clone,
 {
     let api: Api<T> = Api::namespaced(client.to_owned(), &meta.namespace);
-    match api.get(&meta.name).await {
-        Ok(_) => Ok(true),
+    let labels_str = meta
+        .labels
+        .iter()
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect::<Vec<String>>()
+        .join(",");
+    let lp = ListParams::default().labels(&labels_str);
+    match api.list(&lp).await {
+        Ok(resources) => Ok(!resources.items.is_empty()),
         Err(kube::Error::Api(e)) if e.code == 404 => Ok(false),
         Err(e) => Err(Error::KubeError { source: e }),
     }

@@ -6,6 +6,8 @@ use k8s_openapi::api::networking::v1::{
 use crate::prelude::*;
 
 fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
+    let mut labels = meta.labels.clone();
+    labels.remove("tapp");
     NetworkPolicy {
         metadata: ObjectMeta {
             name: Some(meta.name.to_owned()),
@@ -31,7 +33,7 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
                     },
                     NetworkPolicyPeer {
                         pod_selector: Some(LabelSelector {
-                            match_labels: Some(meta.labels.to_owned()),
+                            match_labels: Some(labels.to_owned()),
                             ..LabelSelector::default()
                         }),
                         ..NetworkPolicyPeer::default()
@@ -59,7 +61,7 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
                 NetworkPolicyEgressRule {
                     to: Some(vec![NetworkPolicyPeer {
                         pod_selector: Some(LabelSelector {
-                            match_labels: Some(meta.labels.to_owned()),
+                            match_labels: Some(labels.to_owned()),
                             ..LabelSelector::default()
                         }),
                         ..NetworkPolicyPeer::default()

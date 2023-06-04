@@ -109,7 +109,7 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
 
     let pod_template_spec = PodTemplateSpec {
         metadata: Some(ObjectMeta {
-            labels: Some(app.spec.labels.clone()),
+            labels: Some(meta.labels.clone()),
             ..ObjectMeta::default()
         }),
         spec: Some(pod_spec),
@@ -118,7 +118,7 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
     let deployment_spec = DeploymentSpec {
         replicas: Some(deployment.container.replicas),
         selector: LabelSelector {
-            match_labels: Some(app.spec.labels.clone()),
+            match_labels: Some(meta.labels.clone()),
             ..LabelSelector::default()
         },
         template: pod_template_spec,
@@ -130,6 +130,7 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
             name: Some(meta.name.to_owned()),
             annotations: Some(deployment.annotations),
             namespace: Some(meta.namespace.to_owned()),
+            labels: Some(meta.labels.to_owned()),
             owner_references: Some(vec![meta.oref.to_owned()]),
             ..ObjectMeta::default()
         },

@@ -12,7 +12,7 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> Service {
     };
 
     let service_spec = ServiceSpec {
-        selector: Some(app.labels),
+        selector: Some(meta.labels.clone()),
         ports: Some(vec![service_port]),
         ..ServiceSpec::default()
     };
@@ -21,6 +21,7 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> Service {
         metadata: ObjectMeta {
             name: Some(meta.name.to_owned()),
             namespace: Some(meta.namespace.to_owned()),
+            labels: Some(meta.labels.to_owned()),
             ..ObjectMeta::default()
         },
         spec: Some(service_spec),

@@ -10,6 +10,7 @@ fn new(meta: &TappMeta, storage: &str) -> PersistentVolumeClaim {
         metadata: ObjectMeta {
             name: Some(meta.name.to_owned()),
             namespace: Some(meta.namespace.to_owned()),
+            labels: Some(meta.labels.to_owned()),
             owner_references: Some(vec![meta.oref.to_owned()]),
             ..ObjectMeta::default()
         },

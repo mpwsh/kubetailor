@@ -43,7 +43,7 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> Ingress {
         metadata: ObjectMeta {
             name: Some(meta.name.to_owned()),
             namespace: Some(meta.namespace.to_owned()),
-            labels: Some(app.labels.to_owned()),
+            labels: Some(meta.labels.to_owned()),
             annotations: Some(app.ingress.annotations.clone()),
             ..ObjectMeta::default()
         },

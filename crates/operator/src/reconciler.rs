@@ -26,11 +26,12 @@ pub async fn reconcile(app: Arc<TailoredApp>, ctx: Arc<ContextData>) -> Result<A
     };
 
     let oref = app.controller_owner_ref(&()).unwrap();
-
+    let mut labels = app.spec.labels.clone();
+    labels.insert("tapp".to_string(), app.name_any());
     let meta = TappMeta {
         name: app.name_any(),
         namespace: namespace.to_string(),
-        labels: app.spec.labels.clone(),
+        labels,
         oref: oref.clone(),
     };
     match determine_action(&app) {
