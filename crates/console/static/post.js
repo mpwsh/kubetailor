@@ -1,5 +1,5 @@
 function processFormData(event, url) {
-  event.preventDefault(); // Prevent the form from submitting the default way
+  event.preventDefault();
 
   const form = document.getElementById("editForm");
   const formData = new FormData(form);
@@ -11,8 +11,20 @@ function processFormData(event, url) {
   );
   const secrets = collectData("secret_key", "secret_value", formData);
   const volumes = collectData("volume_key", "volume_value", formData);
-  const files = collectData("file_key", "file_value", formData);
-
+  const files = {};
+  const keyInputs = document.querySelectorAll("input[name='file_key[]']");
+  keyInputs.forEach((keyInput) => {
+    const key = keyInput.value;
+    const uniqueId = keyInput.nextElementSibling.getAttribute("data-id");
+    const hiddenInput = document.querySelector(
+      `input[name='hidden-file-content-${uniqueId}']`
+    );
+    if (hiddenInput) {
+      console.log("Reading File: " + key);
+      console.log("Content: " + hiddenInput.value);
+      files[key] = hiddenInput.value;
+    }
+  });
   const custom_active = document.getElementById("toggleCustomDomain");
 
   const data = {
@@ -32,11 +44,11 @@ function processFormData(event, url) {
     env_vars: env_vars,
     secrets: secrets,
   };
-  console.log("sending: " + JSON.stringify(data));
   if (custom_active.innerText == "Enable") {
     data.domains.custom = null;
   }
-  // Submit the form using the Fetch API
+
+  console.info(JSON.stringify(data));
   fetch(url, {
     method: "POST",
     headers: {
@@ -46,15 +58,12 @@ function processFormData(event, url) {
   })
     .then((response) => {
       if (response.ok) {
-        // Redirect or perform other actions on successful submission
         window.location.href = `/dashboard/loading?name=${data.name}`;
       } else {
-        // Handle errors
         console.error("Form submission failed:", response.statusText);
       }
     })
     .catch((error) => {
-      // Handle network errors
       console.error("Network error:", error);
     });
 }
@@ -69,7 +78,7 @@ function collectData(keyName, valueName, formData) {
       data[keys[i]] = values[i];
     }
   }
-  console.info(data);
 
+  console.info(data);
   return data;
 }

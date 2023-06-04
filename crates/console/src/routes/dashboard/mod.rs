@@ -226,6 +226,14 @@ pub async fn edit_form(
     let mut tapp = get(&params.name, &user, kubetailor.clone()).await;
     //todo replace when merging server code here
     tapp.domains.shared = tapp.domains.shared.replace(".mpw.sh", "");
+    //workaround for files index
+
+    let mut print_files: Vec<(String, String, String)> = Vec::new();
+    if let Some(files) = tapp.container.files.clone() {
+    for (i, (key, value)) in files.into_iter().enumerate() {
+        print_files.push((key.clone(), value.clone(), i.to_string()));
+    }}
+
     let data = json!({
         "title": "Editing deployment",
         "head": format!("Editing {}", params.name),
@@ -234,6 +242,7 @@ pub async fn edit_form(
         "custom_enabled": tapp.domains.custom.is_some(),
         "action": "Save",
         "tapp": tapp,
+        "files": print_files,
         "user": user,
     });
 
@@ -382,7 +391,7 @@ pub async fn delete_form(
         "loading": params.loading.unwrap_or(false),
         "user": user,
     });
-    let body = hb.render("forms/delete-confirm", &data).unwrap();
+    let body = hb.render("forms/delete", &data).unwrap();
 
     Ok(HttpResponse::Ok().body(body))
 }
@@ -401,8 +410,8 @@ pub async fn delete(
     let items: Vec<String> = kubetailor
         .client
         .get(format!(
-            "{}/list?owner={}&filter=name",
-            kubetailor.url, user
+            "{}/list?owner={user}&filter=name",
+            kubetailor.url
         ))
         .send()
         .await
@@ -414,7 +423,7 @@ pub async fn delete(
     if items.into_iter().any(|name| name == form.name) {
         kubetailor
             .client
-            .delete(&format!("{}/{}", kubetailor.url, form.name))
+            .delete(&format!("{}/{}?owner={user}", kubetailor.url, form.name))
             .send()
             .await
             .unwrap()
