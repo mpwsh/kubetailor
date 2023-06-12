@@ -3,12 +3,7 @@ use crate::prelude::*;
 fn new(meta: &TappMeta, data: BTreeMap<String, String>) -> Secret {
     let encoded_data: BTreeMap<String, ByteString> = data
         .into_iter()
-        .map(|(k, v)| {
-            (
-                k,
-                ByteString(v.into_bytes()),
-            )
-        })
+        .map(|(k, v)| (k, ByteString(v.into_bytes())))
         .collect();
 
     Secret {

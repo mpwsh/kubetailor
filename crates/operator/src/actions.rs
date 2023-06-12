@@ -16,9 +16,9 @@ pub enum TailoredAppAction {
 pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Result<(), Error> {
     let name = app.name_any();
 
-    // Deploy env_vars ConfigMap
-    if let Some(env_vars) = app.spec.env_vars.as_ref() {
-        configmap::deploy(client, meta, env_vars).await?;
+    // Deploy env ConfigMap
+    if let Some(env) = app.spec.env.as_ref() {
+        configmap::deploy(client, meta, env).await?;
     }
 
     // Deploy Secret
@@ -91,7 +91,9 @@ pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> 
     service::deploy(client, meta, app).await?;
 
     // Deploy Ingress
-    ingress::deploy(client, meta, app).await?;
+    if app.spec.ingress.domains.is_some() {
+        ingress::deploy(client, meta, app).await?;
+    }
 
     // Deploy Network policies
     if let Some(enable_netpol) = app.spec.deployment.deploy_network_policies {

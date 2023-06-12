@@ -73,9 +73,10 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
                     to: Some(vec![NetworkPolicyPeer {
                         namespace_selector: Some(LabelSelector::default()),
                         pod_selector: Some(LabelSelector {
-                            match_labels: Some(BTreeMap::from_iter(vec![
-                                ("k8s-app".to_string(), "kube-dns".to_string()),
-                            ])),
+                            match_labels: Some(BTreeMap::from_iter(vec![(
+                                "k8s-app".to_string(),
+                                "kube-dns".to_string(),
+                            )])),
                             ..LabelSelector::default()
                         }),
                         ..NetworkPolicyPeer::default()

@@ -21,15 +21,18 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> Ingress {
             }),
         },
     }];
-    let mut domains = Vec::new();
-    domains.push(app.ingress.domains.shared.clone());
-    // If there is a custom domain, add it to the hosts vector
-    if let Some(custom_domain) = &app.ingress.domains.custom {
-        domains.push(custom_domain.clone());
+    let mut add_domains = Vec::new();
+
+    if let Some(domains) = app.ingress.domains {
+        add_domains.push(domains.shared.clone());
+        // If there is a custom domain, add it to the hosts vector
+        if let Some(custom_domain) = &domains.custom {
+            add_domains.push(custom_domain.clone());
+        }
     }
 
     //create ingress rules
-    let rules: Vec<IngressRule> = domains
+    let rules: Vec<IngressRule> = add_domains
         .iter()
         .map(|host| IngressRule {
             host: Some(host.to_owned()),
@@ -53,7 +56,7 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> Ingress {
             ingress_class_name: Some(app.ingress.class_name.clone()),
             rules: { Some(rules) },
             tls: Some(vec![IngressTLS {
-                hosts: Some(domains),
+                hosts: Some(add_domains),
                 secret_name: Some(format!(
                     "{}-{}-kubetailor-tls",
                     meta.name,
