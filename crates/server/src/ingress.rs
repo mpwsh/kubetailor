@@ -33,14 +33,26 @@ impl Ingress {
         );
         annotations
     }
-    pub fn build(&self, subdomain: String, custom: Option<String>) -> crd::Ingress {
-        crd::Ingress {
-            annotations: self.build_annotations(&subdomain, &self.base_domain),
-            class_name: self.class_name.clone(),
-            match_labels: self.match_labels.clone(),
-            domains: Domains {
-                shared: format!("{}.{}", subdomain, self.base_domain),
-                custom,
+    pub fn build(&self, domains: Option<Domains>) -> crd::Ingress {
+        match domains {
+            Some(domains) => {
+                let subdomain = domains.shared.clone();
+                let custom = domains.custom;
+                crd::Ingress {
+                    annotations: self.build_annotations(&subdomain, &self.base_domain),
+                    class_name: self.class_name.clone(),
+                    match_labels: self.match_labels.clone(),
+                    domains: Some(Domains {
+                        shared: format!("{}.{}", subdomain, self.base_domain),
+                        custom,
+                    }),
+                }
+            },
+            None => crd::Ingress {
+                annotations: BTreeMap::new(),
+                class_name: self.class_name.clone(),
+                match_labels: self.match_labels.clone(),
+                domains: None,
             },
         }
     }

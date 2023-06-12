@@ -2,7 +2,7 @@ use std::{env, fs, io::Read};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{deployment::Deployment, ingress::Ingress};
+use crate::{deployment::Deployment, git::Git, ingress::Ingress};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Config {
@@ -16,6 +16,7 @@ pub struct Kubetailor {
     pub namespace: String,
     pub deployment: Deployment,
     pub ingress: Ingress,
+    pub git_sync: Git,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

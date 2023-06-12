@@ -11,6 +11,9 @@ pub struct Deployment {
     pub enable_service_links: Option<bool>,
     pub service_account: Option<String>,
     pub allow_privilege_escalation: Option<bool>,
+    pub allow_root: Option<bool>,
+    pub run_as_user: Option<i64>,
+    pub run_as_group: Option<i64>,
     pub annotations: BTreeMap<String, String>,
     pub container: Option<Container>,
 }
@@ -25,7 +28,6 @@ impl Deployment {
                 replicas: container.replicas,
                 build_command: container.build_command,
                 run_command: container.run_command,
-                git_repository: None,
                 volumes: container.volumes,
                 files: container.files,
             }
@@ -37,6 +39,9 @@ impl Deployment {
             container,
             service_account: self.service_account.to_owned(),
             allow_privilege_escalation: self.allow_privilege_escalation,
+            allow_root: self.allow_root,
+            run_as_user: self.run_as_user,
+            run_as_group: self.run_as_group,
             enable_service_links: self.enable_service_links,
             deploy_network_policies: self.deploy_network_policies,
         }

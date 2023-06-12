@@ -1,20 +1,24 @@
 use std::collections::BTreeMap;
+
 use kubetailor::crd::{Container, Domains, TailoredApp, TailoredAppSpec};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use super::{config::Kubetailor, deployment::Deployment, error::TappRequestError};
+use super::{config::Kubetailor, deployment::Deployment, error::TappRequestError, git::Git};
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct TappRequest {
     pub name: String,
     #[serde(skip_serializing)]
     pub owner: String,
     pub group: String,
     pub container: Container,
-    pub domains: Domains,
+    pub domains: Option<Domains>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub env_vars: Option<BTreeMap<String, String>>,
+    pub git: Option<Git>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub env: Option<BTreeMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub secrets: Option<BTreeMap<String, String>>,
     #[serde(skip_deserializing, skip_serializing)]
@@ -23,27 +27,25 @@ pub struct TappRequest {
 
 impl TappRequest {
     pub fn sanitize_input(&mut self) {
-        let sanitized_config: Option<BTreeMap<String, String>> =
-            self.env_vars.as_ref().map(|env_vars| {
-                env_vars
-                    .iter()
-                    .map(|(key, value)| {
-                        let sanitized_key = key
-                            .chars()
-                            .map(|c| {
-                                if c.is_ascii_alphanumeric() || c == '-' || c == '.' || c == '_' {
-                                    c
-                                } else {
-                                    '_'
-                                }
-                            })
-                            .collect::<String>();
+        let sanitized_config: Option<BTreeMap<String, String>> = self.env.as_ref().map(|env| {
+            env.iter()
+                .map(|(key, value)| {
+                    let sanitized_key = key
+                        .chars()
+                        .map(|c| {
+                            if c.is_ascii_alphanumeric() || c == '-' || c == '.' || c == '_' {
+                                c
+                            } else {
+                                '_'
+                            }
+                        })
+                        .collect::<String>();
 
-                        (sanitized_key, value.clone())
-                    })
-                    .collect()
-            });
-        self.env_vars = sanitized_config;
+                    (sanitized_key, value.clone())
+                })
+                .collect()
+        });
+        self.env = sanitized_config;
     }
 }
 
@@ -110,23 +112,25 @@ impl TryFrom<TappRequest> for TailoredApp {
         req.container.image =
             TappBuilder::validate_image(req.kubetailor.deployment.clone(), &req.container)?;
         let name_regex = Regex::new(r"^[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])$").unwrap();
-        TappBuilder::validate_name(&req.domains.shared, &name_regex)?;
-        TappBuilder::validate_name(&req.name, &name_regex)?;
 
-        if let Some(custom) = &req.domains.custom {
-            TappBuilder::validate_custom_domain(custom)?;
+        if let Some(domains) = &req.domains {
+            TappBuilder::validate_name(&domains.shared, &name_regex)?;
+            if let Some(custom) = &domains.custom {
+                TappBuilder::validate_custom_domain(custom)?;
+            }
         }
-
+        let git = match &req.git {
+            Some(g) => req.kubetailor.git_sync.build(g),
+            None => None,
+        };
+        TappBuilder::validate_name(&req.name, &name_regex)?;
         let labels = TappBuilder::create_labels(&req);
-
         let tapp_spec = TailoredAppSpec {
             labels: labels.clone(),
             deployment: req.kubetailor.deployment.build(&req.container),
-            ingress: req
-                .kubetailor
-                .ingress
-                .build(req.domains.shared, req.domains.custom),
-            env_vars: req.env_vars.clone(),
+            git,
+            ingress: req.kubetailor.ingress.build(req.domains),
+            env: req.env.clone(),
             secrets: req.secrets,
         };
         let mut tapp = TailoredApp::new(&req.name.to_lowercase(), tapp_spec);
@@ -143,9 +147,10 @@ impl TryFrom<TailoredApp> for TappRequest {
             name: tapp.metadata.name.unwrap(),
             owner: String::new(),
             group: String::new(),
-            domains: tapp.spec.ingress.domains,
+            git: None,
             container: tapp.spec.deployment.container,
-            env_vars: tapp.spec.env_vars,
+            domains: tapp.spec.ingress.domains,
+            env: tapp.spec.env,
             secrets: tapp.spec.secrets,
             kubetailor: Kubetailor::default(),
         };

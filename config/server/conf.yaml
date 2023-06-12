@@ -4,23 +4,27 @@ server:
   port: 8080
 
 kubetailor:
-  namespace: default
+  namespace: mpw
+  gitSync:
+    image: registry.k8s.io/git-sync/git-sync:v3.6.6
+    period: 30s
   # Where your shared domains will be deployed
   deployment:
     annotations:
       reloader.stakater.com/auto: "true"
-        # Limit connectivity to:
-        # - internet
-        # - pods owned by the same (owner) deployer
+    # Limit connectivity to:
+    # - internet
+    # - pods owned by the same (owner) deployer
     deployNetworkPolicies: true
     serviceAccount: limited
-    # if false, service env vars in the same namespace will be hidden
+    # if false, services in the same namespace won't be listed in env vars.
     enableServiceLinks: false
     allowPrivilegeEscalation: false
+    allowRoot: true
     allowedImages:
       - nginx
       - mkodockx/docker-pastebin
-      - node/node
+      - node
       - nicolaka/netshoot
       - tsl0922/ttyd:latest
     maxVolumeSize: 1Gi

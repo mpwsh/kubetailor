@@ -11,7 +11,7 @@ use kube::{
 };
 use kubetailor::prelude::*;
 use log::info;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{config::Kubetailor, tapp::TappRequest};
 
@@ -146,8 +146,15 @@ pub async fn list(
     match items {
         Some(tapps) => {
             let list = match ListFilter::from_str(params.filter.as_deref().unwrap_or("spec")) {
-                Ok(ListFilter::Spec) => ListOutput::Spec(tapps.iter().map(|tapp| tapp.spec.clone()).collect()),
-                Ok(ListFilter::Name) => ListOutput::Name(tapps.iter().map(|tapp| tapp.metadata.name.clone().unwrap()).collect()),
+                Ok(ListFilter::Spec) => {
+                    ListOutput::Spec(tapps.iter().map(|tapp| tapp.spec.clone()).collect())
+                },
+                Ok(ListFilter::Name) => ListOutput::Name(
+                    tapps
+                        .iter()
+                        .map(|tapp| tapp.metadata.name.clone().unwrap())
+                        .collect(),
+                ),
                 Err(_) => return HttpResponse::BadRequest().body("Invalid filter value"),
             };
 
@@ -168,11 +175,17 @@ pub async fn delete(
 
     match items {
         Some(tapps) => {
-            if let Some(tapp) = tapps.into_iter().find(|tapp| tapp.metadata.name.as_ref() == Some(&app_name.to_string())) {
+            if let Some(tapp) = tapps
+                .into_iter()
+                .find(|tapp| tapp.metadata.name.as_ref() == Some(&app_name.to_string()))
+            {
                 let api: KubeApi<TailoredApp> =
                     KubeApi::namespaced(client.get_ref().clone(), kubetailor.namespace.as_str());
 
-                match api.delete(&tapp.metadata.name.unwrap(), &DeleteParams::default()).await {
+                match api
+                    .delete(&tapp.metadata.name.unwrap(), &DeleteParams::default())
+                    .await
+                {
                     Ok(_) => HttpResponse::Ok().body(format!("Deleted TailoredApp: {}", app_name)),
                     Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
                 }
@@ -195,7 +208,10 @@ pub async fn get(
 
     match items {
         Some(tapps) => {
-            if let Some(tapp) = tapps.into_iter().find(|tapp| tapp.metadata.name.as_ref() == Some(&app_name.to_string())) {
+            if let Some(tapp) = tapps
+                .into_iter()
+                .find(|tapp| tapp.metadata.name.as_ref() == Some(&app_name.to_string()))
+            {
                 let tapp = TappRequest::try_from(tapp).unwrap();
                 HttpResponse::Ok().json(tapp)
             } else {
