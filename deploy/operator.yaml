@@ -23,7 +23,7 @@ spec:
     spec:
       serviceAccountName: kubetailor
       containers:
-      - image: mpwsh/operator:latest
+      - image: mpwsh/kt-operator:latest
         imagePullPolicy: Always
         name: operator
         resources: {}

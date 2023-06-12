@@ -22,7 +22,7 @@ spec:
         app: console
     spec:
       containers:
-      - image: mpwsh/console:latest
+      - image: mpwsh/kt-console:latest
         imagePullPolicy: Always
         name: console
         ports:

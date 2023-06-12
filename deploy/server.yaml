@@ -22,7 +22,7 @@ spec:
         app: server
     spec:
       containers:
-      - image: mpwsh/server:latest
+      - image: mpwsh/kt-server:latest
         imagePullPolicy: Always
         name: server
         ports:
