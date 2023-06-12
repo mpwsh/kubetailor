@@ -4,11 +4,7 @@ function processFormData(event, url) {
   const form = document.getElementById("editForm");
   const formData = new FormData(form);
 
-  const env_vars = collectData(
-    "environment_key",
-    "environment_value",
-    formData
-  );
+  const env = collectData("environment_key", "environment_value", formData);
   const secrets = collectData("secret_key", "secret_value", formData);
   const volumes = collectData("volume_key", "volume_value", formData);
   const files = {};
@@ -41,7 +37,7 @@ function processFormData(event, url) {
       volumes: volumes,
       files: files,
     },
-    env_vars: env_vars,
+    env: env,
     secrets: secrets,
   };
   if (custom_active.innerText == "Enable") {

@@ -28,7 +28,7 @@ pub struct TappConfig {
     pub owner: String,
     pub domains: Domains,
     pub container: Container,
-    pub env_vars: Option<HashMap<String, String>>,
+    pub env: Option<HashMap<String, String>>,
     pub secrets: Option<HashMap<String, String>>,
 }
 
@@ -230,9 +230,10 @@ pub async fn edit_form(
 
     let mut print_files: Vec<(String, String, String)> = Vec::new();
     if let Some(files) = tapp.container.files.clone() {
-    for (i, (key, value)) in files.into_iter().enumerate() {
-        print_files.push((key.clone(), value.clone(), i.to_string()));
-    }}
+        for (i, (key, value)) in files.into_iter().enumerate() {
+            print_files.push((key.clone(), value.clone(), i.to_string()));
+        }
+    }
 
     let data = json!({
         "title": "Editing deployment",
@@ -409,10 +410,7 @@ pub async fn delete(
     //Check if owner.
     let items: Vec<String> = kubetailor
         .client
-        .get(format!(
-            "{}/list?owner={user}&filter=name",
-            kubetailor.url
-        ))
+        .get(format!("{}/list?owner={user}&filter=name", kubetailor.url))
         .send()
         .await
         .unwrap()
