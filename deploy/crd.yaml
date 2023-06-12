@@ -38,6 +38,12 @@ spec:
                       type: string
                     enableServiceLinks:
                       type: boolean
+                    allowRoot:
+                      type: boolean
+                    runAsUser:
+                      type: number
+                    runAsGroup:
+                      type: number
                     deployNetworkPolicies:
                       type: boolean
                     allowPrivilegeEscalation:
@@ -52,14 +58,8 @@ spec:
                         replicas:
                           type: integer
                         buildCommand:
-                          type: array
-                          items:
-                            type: string
+                          type: string
                         runCommand:
-                          type: array
-                          items:
-                            type: string
-                        gitRepository:
                           type: string
                         volumes:
                           type: object
@@ -69,6 +69,21 @@ spec:
                           type: object
                           additionalProperties:
                             type: string
+                git:
+                  type: object
+                  properties:
+                    image:
+                      type: string
+                    period:
+                      type: string
+                    repository:
+                      type: string
+                    branch:
+                      type: string
+                    root:
+                      type: string
+                    dest:
+                      type: string
                 ingress:
                   type: object
                   properties:
@@ -89,7 +104,7 @@ spec:
                           type: string
                         custom:
                           type: string
-                envVars:
+                env:
                   type: object
                   additionalProperties:
                     type: string

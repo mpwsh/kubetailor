@@ -20,8 +20,12 @@ pub struct TailoredAppSpec {
     pub labels: BTreeMap<String, String>,
     pub deployment: Deployment,
     pub ingress: Ingress,
-    pub env_vars: Option<BTreeMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub env: Option<BTreeMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub secrets: Option<BTreeMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub git: Option<Git>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema, Default)]
@@ -30,16 +34,24 @@ pub struct Container {
     pub image: String,
     pub port: i32,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub build_command: Option<Vec<String>>,
+    pub run_command: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub run_command: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub git_repository: Option<String>,
+    pub build_command: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub volumes: Option<BTreeMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub files: Option<BTreeMap<String, String>>,
     pub replicas: i32,
+}
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Git {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repository: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
+    pub image: Option<String>,
+    pub period: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema)]
@@ -48,7 +60,8 @@ pub struct Ingress {
     pub annotations: BTreeMap<String, String>,
     pub match_labels: BTreeMap<String, String>,
     pub class_name: String,
-    pub domains: Domains,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub domains: Option<Domains>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema)]
@@ -58,6 +71,9 @@ pub struct Deployment {
     pub enable_service_links: Option<bool>,
     pub service_account: Option<String>,
     pub allow_privilege_escalation: Option<bool>,
+    pub allow_root: Option<bool>,
+    pub run_as_user: Option<i64>,
+    pub run_as_group: Option<i64>,
     pub deploy_network_policies: Option<bool>,
     pub container: Container,
 }
