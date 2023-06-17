@@ -6,10 +6,15 @@ IMAGE_COMMAND=$(echo "${CMD_ARRAY}" | jq -r 'map(if contains(" ") then "'"'"'"+.
 
 # Select the command to run based on the presence of RUN_COMMAND
 cmd_to_run="${RUN_COMMAND:-$IMAGE_COMMAND}"
+cmd_to_build="${BUILD_COMMAND:-'echo nothing to build'}"
+
+BUILD_PATH=/app/build
+SYNC_PATH=/src/git-sync
 
 cat << EOF > /init/run.sh
-#!/bin/bash
-/init/watchexec -vvv --workdir /src/git-sync -w /src --project-origin /src/git-sync --restart "cd /src/git-sync && ${BUILD_COMMAND} && ${cmd_to_run}"
+#!/bin/sh
+mkdir -p "${BUILD_PATH}"
+/init/watchexec -v --workdir ${SYNC_PATH} -w /src --project-origin ${SYNC_PATH} --restart "cp -r -L ${SYNC_PATH} ${BUILD_PATH} && cd ${BUILD_PATH}/git-sync && ${cmd_to_build} && ${cmd_to_run}"
 EOF
 
 chmod +x /init/run.sh

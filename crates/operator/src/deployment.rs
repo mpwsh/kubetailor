@@ -106,10 +106,6 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
             run_as_non_root: app.spec.deployment.allow_root.map(|root| !root),
             run_as_user: app.spec.deployment.run_as_user,
             run_as_group: app.spec.deployment.run_as_group,
-            capabilities: Some(Capabilities {
-                drop: Some(vec!["all".to_owned()]),
-                add: Some(vec!["CAP_NET_BIND_SERVICE".to_owned()]),
-            }),
             ..SecurityContext::default()
         }),
         ..Container::default()

@@ -23,6 +23,7 @@ kubetailor:
     allowRoot: true
     allowedImages:
       - nginx
+      - postgres
       - mkodockx/docker-pastebin
       - node
       - nicolaka/netshoot
