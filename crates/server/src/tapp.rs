@@ -143,11 +143,17 @@ impl TryFrom<TailoredApp> for TappRequest {
     type Error = TappRequestError;
 
     fn try_from(tapp: TailoredApp) -> Result<Self, Self::Error> {
+        let git_option = tapp.spec.git.as_ref();
         let app_config = TappRequest {
             name: tapp.metadata.name.unwrap(),
             owner: String::new(),
             group: String::new(),
-            git: None,
+            git: git_option.map(|git| Git {
+                repository: git.repository.clone(),
+                branch: git.branch.clone(),
+                period: git.period.clone(),
+                image: git.image.clone(),
+            }),
             container: tapp.spec.deployment.container,
             domains: tapp.spec.ingress.domains,
             env: tapp.spec.env,

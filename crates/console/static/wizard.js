@@ -3,6 +3,7 @@ window.onload = function () {
   var formIds = [
     "tapp-input",
     "container-input",
+    "git-input",
     "environment-input",
     "domain-input",
   ];

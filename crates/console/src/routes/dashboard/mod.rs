@@ -28,6 +28,7 @@ pub struct TappConfig {
     pub owner: String,
     pub domains: Domains,
     pub container: Container,
+    pub git: Option<Git>,
     pub env: Option<HashMap<String, String>>,
     pub secrets: Option<HashMap<String, String>>,
 }
@@ -39,12 +40,22 @@ pub struct Domains {
 }
 
 #[derive(Deserialize, Serialize, Default)]
+pub struct Git {
+    pub repository: Option<String>,
+    pub branch: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Default)]
 pub struct Container {
     pub image: String,
     pub replicas: u32,
     pub port: u32,
     pub volumes: Option<HashMap<String, String>>,
     pub files: Option<HashMap<String, String>>,
+    #[serde(rename = "buildCommand")]
+    pub build_command: String,
+    #[serde(rename = "runCommand")]
+    pub run_command: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -224,6 +235,7 @@ pub async fn edit_form(
         return Ok(see_other("/login"));
     };
     let mut tapp = get(&params.name, &user, kubetailor.clone()).await;
+    log::info!("{}", serde_json::to_string(&tapp).unwrap());
     //todo replace when merging server code here
     tapp.domains.shared = tapp.domains.shared.replace(".kubetailor.io", "");
     //workaround for files index

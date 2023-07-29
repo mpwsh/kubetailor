@@ -1,0 +1,34 @@
+<div class="form-group">
+  <span class="subtitle no-select">Repository URL:</span>
+  {{#if tapp.git.repository}}
+    <input type="text" name="repository" value="{{tapp.git.repository}}" />
+  {{else}}
+    <input type="text" name="repository" value="{{tapp.git.repository}}" />
+  {{/if}}
+
+  <span class="subtitle no-select">Branch:</span>
+  {{#if tapp.git.branch}}
+    <input type="text" name="branch" value="{{tapp.git.branch}}" />
+  {{else}}
+    <input type="text" name="branch" value="main" />
+  {{/if}}
+
+  <span class="subtitle no-select">Build command:</span>
+  {{#if tapp.container.buildCommand}}
+    <input
+      type="text"
+      name="buildcmd"
+      value="{{tapp.container.buildCommand}}"
+    />
+  {{else}}
+    <input type="text" name="buildcmd" value="" />
+  {{/if}}
+
+  <span class="subtitle no-select">Run command:</span>
+  {{#if tapp.container.runCommand}}
+    <input type="text" name="runcmd" value="{{tapp.container.runCommand}}" />
+  {{else}}
+    <input type="text" name="runcmd" value="" />
+  {{/if}}
+
+</div>

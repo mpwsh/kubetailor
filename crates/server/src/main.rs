@@ -3,8 +3,8 @@ use kube::{Client, Config as KubeConfig};
 
 mod config;
 mod deployment;
-mod git;
 mod error;
+mod git;
 mod ingress;
 mod routes;
 mod tapp;

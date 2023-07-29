@@ -36,6 +36,12 @@ function processFormData(event, url) {
       replicas: Number(formData.get("replicas")),
       volumes: volumes,
       files: files,
+      buildCommand: formData.get("buildcmd"),
+      runCommand: formData.get("runcmd"),
+    },
+    git: {
+      repository: formData.get("repository"),
+      branch: formData.get("branch"),
     },
     env: env,
     secrets: secrets,
