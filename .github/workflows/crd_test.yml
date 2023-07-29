@@ -43,11 +43,11 @@ jobs:
     - name: Apply the custom resource after a small pause
       run: sleep 2 && kubectl apply -f example-tapp.yaml
 
-    - name: Get deployments
-      run: sleep 2 && kubectl get deployments
+    - name: Use kubetailor namespace
+      run: kubectl config set-context –current –namespace=kubetailor
 
     - name: Get pods
-      run: sleep 2 && kubectl get pods
+      run: sleep 2 && kubectl get pods -A
 
     - name: Validate that the resources has been created after a small pause
       run: sleep 5 && kubectl wait --for=condition=available --timeout=60s deployment/tailored-app
