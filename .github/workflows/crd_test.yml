@@ -44,7 +44,7 @@ jobs:
       run: sleep 2 && kubectl apply -f example-tapp.yaml
 
     - name: Use kubetailor namespace
-      run: kubectl config set-context –current –namespace=kubetailor
+      run: kubectl config set-context --current --namespace kubetailor
 
     - name: Get pods
       run: sleep 2 && kubectl get pods -A
