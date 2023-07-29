@@ -1,0 +1,17 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: "clusterwide-default-ns-egress-policy"
+spec:
+  endpointSelector:
+    matchLabels:
+      k8s:io/namespace: default
+  egress:
+    - toFQDNs:
+        - matchName: "*"
+      toPorts:
+      - ports:
+        - port: "80"
+          protocol: TCP
+        - port: "443"
+          protocol: TCP

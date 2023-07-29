@@ -2,7 +2,7 @@ use serde_json::{json, Value};
 
 use crate::prelude::*;
 
-pub static KUBETAILOR_FINALIZER: &str = "tailoredapps.mpw.sh";
+pub static KUBETAILOR_FINALIZER: &str = "tailoredapps.kubetailor.io";
 
 pub async fn add(client: &Client, namespace: &str, name: &str) -> Result<TailoredApp, Error> {
     let api: Api<TailoredApp> = Api::namespaced(client.to_owned(), namespace);

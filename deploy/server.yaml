@@ -5,7 +5,7 @@ metadata:
   labels:
     app: server
   name: server
-  namespace: mpw
+  namespace: kubetailor
 spec:
   replicas: 1
   selector:
@@ -21,6 +21,7 @@ spec:
       labels:
         app: server
     spec:
+      serviceAccountName: kubetailor
       containers:
       - image: mpwsh/kt-server:latest
         imagePullPolicy: Always
@@ -55,7 +56,7 @@ metadata:
   labels:
     app: server
   name: server
-  namespace: mpw
+  namespace: kubetailor
 spec:
   internalTrafficPolicy: Cluster
   ports:

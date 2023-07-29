@@ -225,7 +225,7 @@ pub async fn edit_form(
     };
     let mut tapp = get(&params.name, &user, kubetailor.clone()).await;
     //todo replace when merging server code here
-    tapp.domains.shared = tapp.domains.shared.replace(".mpw.sh", "");
+    tapp.domains.shared = tapp.domains.shared.replace(".kubetailor.io", "");
     //workaround for files index
 
     let mut print_files: Vec<(String, String, String)> = Vec::new();

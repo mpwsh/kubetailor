@@ -4,7 +4,7 @@ metadata:
   name: kubetailor
 rules:
 - apiGroups:
-  - mpw.sh
+  - kubetailor.io
   resources:
   - tailoredapps
   verbs:
@@ -73,10 +73,10 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: kubetailor
-  namespace: mpw
+  namespace: kubetailor
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: kubetailor
-  namespace: mpw
+  namespace: kubetailor

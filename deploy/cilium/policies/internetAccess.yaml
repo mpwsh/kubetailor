@@ -1,0 +1,14 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: "internet-access"
+spec:
+  endpointSelector:
+    matchLabels:
+      run: tmp-shell-debug
+  egressDeny:
+    - toCIDR:
+      - "10.0.0.0/8"
+  egress:
+    - toCIDR:
+      - "0.0.0.0/0"

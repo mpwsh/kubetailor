@@ -1,0 +1,11 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "no-internal-only-svc"
+spec:
+  endpointSelector:
+    matchLabels:
+      run: ttyd
+  egress:
+    - toCIDR:
+      - "0.0.0.0/0"

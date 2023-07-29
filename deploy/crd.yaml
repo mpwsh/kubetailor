@@ -1,9 +1,9 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: tailoredapps.mpw.sh
+  name: tailoredapps.kubetailor.io
 spec:
-  group: mpw.sh
+  group: kubetailor.io
   names:
     kind: TailoredApp
     plural: tailoredapps

@@ -5,7 +5,7 @@ metadata:
   labels:
     app: console
   name: console
-  namespace: mpw
+  namespace: kubetailor
 spec:
   replicas: 1
   selector:
@@ -52,7 +52,7 @@ metadata:
   labels:
     app: console
   name: console
-  namespace: mpw
+  namespace: kubetailor
 spec:
   internalTrafficPolicy: Cluster
   ports:
@@ -78,7 +78,17 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: mpw.sh
+    - host: kubetailor.io
+      http:
+        paths:
+          - pathType: Prefix
+            backend:
+              service:
+                name: console
+                port:
+                  number: 8000
+            path: /
+    - host: www.kubetailor.io
       http:
         paths:
           - pathType: Prefix
@@ -90,8 +100,9 @@ spec:
             path: /
   tls:
     - hosts:
-      - mpw.sh
-      secretName: mpwsh-tls
+      - kubetailor.io
+      - www.kubetailor.io
+      secretName: kubetailor-tls
 ---
 apiVersion: apps/v1
 kind: Deployment

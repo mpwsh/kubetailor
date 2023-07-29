@@ -1,57 +1,52 @@
-apiVersion: mpw.sh/v1
+apiVersion: kubetailor.io/v1
 kind: TailoredApp
 metadata:
-  name: example-tapp
-spec:
   labels:
-    owner: useremail-gmail.com
-    tapp: example-tapp
-  ingress:
-    matchLabels:
-      app.kubernetes.io/name: ingress-nginx
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-      external-dns.alpha.kubernetes.io/hostname: sample.mpw.sh
-      external-dns.alpha.kubernetes.io/target: ing.mpw.sh
-      nginx.ingress.kubernetes.io/proxy-body-size: "10"
-      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-      nginx.ingress.kubernetes.io/affinity: "cookie"
-      nginx.ingress.kubernetes.io/session-cookie-name: "route"
-      nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
-      nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
-    className: nginx
-    domains:
-      shared: sample.mpw.sh
-      custom: ""
+    fingerprint: 6e1f0674bc18d41d38146b80721bfaf169cf963e
+    group: Default
+    owner: x-mpw.sh
+  name: tailored-app
+  namespace: kubetailor
+spec:
   deployment:
+    allowPrivilegeEscalation: false
+    allowRoot: true
     annotations:
       reloader.stakater.com/auto: "true"
-    deployNetworkPolicies: true
-    serviceAccount: "limited"
-    # if false, service env vars in the same namespace will be hidden
-    enableServiceLinks: false
-    allowPrivilegeEscalation: false
     container:
-      image: nginx:latest
+      files:
+        /test/file: |
+          some content
+      image: nginx
       port: 80
       replicas: 1
-      #Not implemented
-      #gitRepository: "https://github.com/mpwsh/a-repository"
-      #buildCommand: ["echo", "something"]
-      #runCommand: ["npm", "run"]
-      volumes:
-      # PathtoMount: Size
-        /home/test/123: 40Mi
-        /home/test/anotherone: 100Mi
-      files:
-       # PathToMount: Content
-        /etc/config.toml: |-
-          [someconfig]
-          avalue= true
-  envVars:
-    key1: value1
-    key2: value2
+      volumes: {}
+    deployNetworkPolicies: true
+    enableServiceLinks: false
+    serviceAccount: limited
+  env:
+    myvariable: itsavalue
+  ingress:
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      external-dns.alpha.kubernetes.io/hostname: example.kubetailor.io
+      external-dns.alpha.kubernetes.io/target: k3s.kubetailor.io
+      nginx.ingress.kubernetes.io/affinity: cookie
+      nginx.ingress.kubernetes.io/enable-cors: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "8096"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+      nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+      nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+      nginx.ingress.kubernetes.io/session-cookie-name: route
+    className: nginx
+    domains:
+      shared: example.kubetailor.io
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+  labels:
+    fingerprint: 6e1f0674bc18d41d38146b80721bfaf169cf963e
+    group: Default
+    owner: x-mpw.sh
   secrets:
-    secretKey1: secretValue1
-    secretKey2: secretValue2
+    mysecret: value

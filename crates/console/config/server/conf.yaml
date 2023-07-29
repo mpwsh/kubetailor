@@ -6,7 +6,7 @@ server:
 kubetailor:
   namespace: default
   # Where your shared domains will be deployed
-  baseDomain: mpw.sh
+  baseDomain: kubetailor.io
   allowedImages:
     - nginx
     - mkodockx/docker-pastebin
@@ -44,5 +44,5 @@ kubetailor:
       nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
       nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
       nginx.ingress.kubernetes.io/session-cookie-name: route
-    loadBalancerEndpoint: k3s.mpw.sh
+    loadBalancerEndpoint: k3s.kubetailor.io
     className: nginx

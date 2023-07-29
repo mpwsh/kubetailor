@@ -1,0 +1,13 @@
+FROM alpine:3.18.0
+
+ENV WATCHEXEC_URL="https://github.com/watchexec/watchexec/releases/download/v1.22.3/watchexec-1.22.3-aarch64-unknown-linux-musl.tar.xz"
+
+RUN apk add --no-cache wget tar xz jq skopeo bash file
+
+RUN wget -qO- ${WATCHEXEC_URL} | tar -xJ -C /bin --wildcards --strip-components=1 '*/watchexec'
+
+COPY ../scripts/tapp-init.sh .
+RUN chmod +x tapp-init.sh && \
+    mkdir -p /init
+
+CMD ["./tapp-init.sh"]

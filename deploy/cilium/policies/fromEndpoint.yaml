@@ -1,0 +1,12 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "console-redis-l3-rule"
+spec:
+  endpointSelector:
+    matchLabels:
+      app: redis-console
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: console
