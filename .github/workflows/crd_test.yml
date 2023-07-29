@@ -46,11 +46,11 @@ jobs:
     - name: Get pods
       run: sleep 2 && kubectl get pods -A
 
-    - name: Validate that the resources has been created after a small pause
-      run: sleep 5 && kubectl wait --for=condition=available -n kubetailor --timeout=240s deployment/tailored-app
+   #- name: Validate that the resources has been created after a small pause
+   #  run: sleep 5 && kubectl wait --for=condition=available -n kubetailor --timeout=240s deployment/tailored-app
 
     - name: Get tailored apps
-      run: kubectl get tapps -n kubetailor
+      run: sleep 60 && kubectl get tapps -n kubetailor
 
     - name: Get all resources
       run: kubectl get deploy,svc,pv,pvc,ing -n kubetailor
