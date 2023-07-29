@@ -35,7 +35,7 @@ jobs:
       run: cargo test --bin operator --verbose
 
     - name: Apply the custom resource definition and cluster role
-      run: kubectl apply -f deploy/crd.yaml -f deploy/clusterrole.yaml -f deploy/no-role-sa.yaml
+      run: kubectl apply -f deploy/ns.yaml -f deploy/crd.yaml -f deploy/clusterrole.yaml -f deploy/no-role-sa.yaml
 
     - name: Run the operator
       run: cargo run --bin operator &
