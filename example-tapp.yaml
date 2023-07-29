@@ -4,7 +4,7 @@ metadata:
   labels:
     fingerprint: 6e1f0674bc18d41d38146b80721bfaf169cf963e
     group: Default
-    owner: x-mpw.sh
+    owner: test
   name: tailored-app
   namespace: kubetailor
 spec:
@@ -47,6 +47,6 @@ spec:
   labels:
     fingerprint: 6e1f0674bc18d41d38146b80721bfaf169cf963e
     group: Default
-    owner: x-mpw.sh
+    owner: test
   secrets:
     mysecret: value
