@@ -47,7 +47,6 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          network: host
           file: ./docker/Dockerfile
           target: operator
           push: true
@@ -62,7 +61,6 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          network: host
           file: ./docker/Dockerfile
           target: server
           push: true
@@ -77,7 +75,6 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          network: host
           file: ./docker/Dockerfile
           target: console
           push: true
