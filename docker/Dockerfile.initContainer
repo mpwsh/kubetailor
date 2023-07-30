@@ -1,4 +1,4 @@
-FROM alpine:3.18.0
+FROM alpine:3.18.2
 
 ENV WATCHEXEC_URL="https://github.com/watchexec/watchexec/releases/download/v1.22.3/watchexec-1.22.3-aarch64-unknown-linux-musl.tar.xz"
 
