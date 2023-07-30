@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         arch: [amd64, arm64]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch }}
     environment: release
     steps:
       -
