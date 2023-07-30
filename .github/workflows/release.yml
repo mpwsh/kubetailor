@@ -47,7 +47,7 @@ jobs:
       - name: Build and push operator
         uses: docker/build-push-action@v3
         with:
-          context: ci
+          context: .
           file: ./docker/Dockerfile
           target: operator
           push: true
@@ -60,7 +60,7 @@ jobs:
       - name: Build and push server
         uses: docker/build-push-action@v3
         with:
-          context: ci
+          context: .
           file: ./docker/Dockerfile
           target: server
           push: true
@@ -73,7 +73,7 @@ jobs:
       - name: Build and push console
         uses: docker/build-push-action@v3
         with:
-          context: ci
+          context: .
           file: ./docker/Dockerfile
           target: console
           push: true
@@ -86,7 +86,7 @@ jobs:
       - name: Build and push init container
         uses: docker/build-push-action@v3
         with:
-          context: ci
+          context: .
           file: docker/Dockerfile.initContainer
           push: true
           provenance: false
