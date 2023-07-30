@@ -119,10 +119,18 @@ impl TryFrom<TappRequest> for TailoredApp {
                 TappBuilder::validate_custom_domain(custom)?;
             }
         }
+
         let git = match &req.git {
-            Some(g) => req.kubetailor.git_sync.build(g),
+            Some(g) => {
+                if let (Some(repository), Some(branch)) = (&g.repository, &g.branch) {
+                    req.kubetailor.git_sync.build(repository, branch)
+                } else {
+                    None
+                }
+            },
             None => None,
         };
+
         TappBuilder::validate_name(&req.name, &name_regex)?;
         let labels = TappBuilder::create_labels(&req);
         let tapp_spec = TailoredAppSpec {

@@ -34,7 +34,7 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
     volume_mounts.push(init_mount.clone());
     let init_container = Container {
         name: "init".to_owned(),
-        image: Some("mpwsh/kt-init:latest".to_owned()),
+        image: Some("kubetailor/init:latest".to_owned()),
         volume_mounts: Some(vec![init_mount]),
         env: Some(vec![
             EnvVar {

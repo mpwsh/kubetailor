@@ -10,10 +10,10 @@ pub struct Git {
 }
 
 impl Git {
-    pub fn build(&self, git: &Git) -> Option<crd::Git> {
+    pub fn build(&self, repository: &str, branch: &str) -> Option<crd::Git> {
         Some(crd::Git {
-            repository: git.repository.clone(),
-            branch: git.branch.clone(),
+            repository: Some(repository.into()),
+            branch: Some(branch.into()),
             image: self.image.clone(),
             period: self.period.clone(),
         })
