@@ -120,16 +120,14 @@ impl TryFrom<TappRequest> for TailoredApp {
             }
         }
 
-        let git = match &req.git {
-            Some(g) => {
-                if let (Some(repository), Some(branch)) = (&g.repository, &g.branch) {
-                    req.kubetailor.git_sync.build(repository, branch)
-                } else {
-                    None
-                }
-            },
-            None => None,
-        };
+        let git = req.git.as_ref().and_then(|g| {
+            g.repository
+                .as_ref()
+                .zip(g.branch.as_ref())
+                .filter(|(repo, _)| !repo.is_empty())
+                .map(|(repo, branch)| req.kubetailor.git_sync.build(repo, branch))
+                .flatten()
+        });
 
         TappBuilder::validate_name(&req.name, &name_regex)?;
         let labels = TappBuilder::create_labels(&req);

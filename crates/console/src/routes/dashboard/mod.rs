@@ -41,7 +41,9 @@ pub struct Domains {
 
 #[derive(Deserialize, Serialize, Default)]
 pub struct Git {
+    #[serde(skip_serializing_if = "is_empty_string")]
     pub repository: Option<String>,
+    #[serde(skip_serializing_if = "is_empty_string")]
     pub branch: Option<String>,
 }
 
@@ -52,10 +54,10 @@ pub struct Container {
     pub port: u32,
     pub volumes: Option<HashMap<String, String>>,
     pub files: Option<HashMap<String, String>>,
-    #[serde(rename = "buildCommand")]
-    pub build_command: String,
-    #[serde(rename = "runCommand")]
-    pub run_command: String,
+    #[serde(rename = "buildCommand", skip_serializing_if = "is_empty_string")]
+    pub build_command: Option<String>,
+    #[serde(rename = "runCommand", skip_serializing_if = "is_empty_string")]
+    pub run_command: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -70,6 +72,13 @@ struct Tapp {
 #[derive(Deserialize, Serialize, Debug)]
 struct TappListResponse {
     metadata: Metadata,
+}
+
+fn is_empty_string(opt: &Option<String>) -> bool {
+    match opt {
+        Some(s) if s.trim().is_empty() => true,
+        _ => false,
+    }
 }
 pub async fn dashboard(
     hb: web::Data<Handlebars<'_>>,
