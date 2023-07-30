@@ -25,10 +25,10 @@ RUN cargo build --release --bin server
 FROM builder AS builder-operator
 RUN cargo build --release --bin operator
 
-FROM debian:bullseye-slim AS base
+FROM debian:bookworm-slim AS base
 WORKDIR /app
 RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends libssl1.1.1 ca-certificates \
+    && apt-get install -y --no-install-recommends libssl-dev ca-certificates \
     # Clean up
     && apt-get autoremove -y \
     && apt-get clean -y \
