@@ -54,8 +54,8 @@ jobs:
           provenance: false
           platforms: linux/${{ matrix.arch }}
           tags: ${{ env.DOCKERHUB_OPERATOR_REPO}}:latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ github.ref}}-${{ matrix.arch }}
+          cache-to: type=gha,scope=${{ github.ref}}-${{ matrix.arch }},mode=max
 
       -
         name: Build and push server
@@ -68,8 +68,8 @@ jobs:
           provenance: false
           platforms: linux/${{ matrix.arch }}
           tags: ${{ env.DOCKERHUB_SERVER_REPO}}:latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ github.ref}}-${{ matrix.arch }}
+          cache-to: type=gha,scope=${{ github.ref}}-${{ matrix.arch }},mode=max
 
       -
         name: Build and push console
@@ -82,8 +82,8 @@ jobs:
           provenance: false
           platforms: linux/${{ matrix.arch }}
           tags: ${{ env.DOCKERHUB_CONSOLE_REPO}}:latest-${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ github.ref}}-${{ matrix.arch }}
+          cache-to: type=gha,scope=${{ github.ref}}-${{ matrix.arch }},mode=max
 
       -
         name: Build and push init container
@@ -95,8 +95,8 @@ jobs:
           provenance: false
           platforms: linux/${{ matrix.arch }}
           tags: ${{ env.DOCKERHUB_INIT_REPO}}:latest-${{ matrix.arch }}
-          cache-from: type=gha,scope=init-container-image
-          cache-to: type=gha,mode=max,scope=init-container-image
+          cache-from: type=gha,scope=${{ github.ref}}-${{ matrix.arch }}-init
+          cache-to: type=gha,scope=${{ github.ref}}-${{ matrix.arch }}-init,mode=max
 
   finalize:
     needs: build
