@@ -1,4 +1,4 @@
-FROM rust:1.71.0-bookworm as chef
+FROM rust:1.71.0-slim-bullseye as chef
 RUN cargo install cargo-chef --locked
 
 WORKDIR /app
@@ -25,7 +25,7 @@ RUN cargo build --release --bin server
 FROM builder AS builder-operator
 RUN cargo build --release --bin operator
 
-FROM debian:bookworm-slim AS base
+FROM debian:bullseye-slim AS base
 WORKDIR /app
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends libssl-dev ca-certificates \
