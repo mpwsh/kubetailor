@@ -13,6 +13,7 @@ env:
   DOCKERHUB_OPERATOR_REPO: ${{ vars.DOCKERHUB_USER }}/operator
   DOCKERHUB_SERVER_REPO: ${{ vars.DOCKERHUB_USER }}/server
   DOCKERHUB_CONSOLE_REPO: ${{ vars.DOCKERHUB_USER }}/console
+  DOCKERHUB_INIT_REPO: ${{ vars.DOCKERHUB_USER }}/init
 
 jobs:
   build:
@@ -84,6 +85,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      -
+        name: Build and push init container
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: docker/Dockerfile.initContainer
+          push: true
+          provenance: false
+          platforms: linux/${{ matrix.arch }}
+          tags: ${{ env.DOCKERHUB_INIT_REPO}}:latest-${{ matrix.arch }}
+          cache-from: type=gha,scope=init-container-image
+          cache-to: type=gha,mode=max,scope=init-container-image
+
   finalize:
     needs: build
     runs-on: ubuntu-latest
@@ -114,4 +128,11 @@ jobs:
         with:
           inputs: ${{ env.DOCKERHUB_CONSOLE_REPO }}:latest,${{ env.DOCKERHUB_CONSOLE_REPO }}:${{ github.sha }}
           images: ${{ env.DOCKERHUB_CONSOLE_REPO }}:latest-amd64,${{ env.DOCKERHUB_CONSOLE_REPO }}:latest-arm64
+          push: true
+
+      - name: Merge init container image tags
+        uses: Noelware/docker-manifest-action@master
+        with:
+          inputs: ${{ env.DOCKERHUB_INIT_REPO }}:latest,${{ env.DOCKERHUB_INIT_REPO }}:${{ github.sha }}
+          images: ${{ env.DOCKERHUB_INIT_REPO }}:latest-amd64,${{ env.DOCKERHUB_INIT_REPO }}:latest-arm64
           push: true
