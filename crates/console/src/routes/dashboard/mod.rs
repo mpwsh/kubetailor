@@ -75,11 +75,9 @@ struct TappListResponse {
 }
 
 fn is_empty_string(opt: &Option<String>) -> bool {
-    match opt {
-        Some(s) if s.trim().is_empty() => true,
-        _ => false,
-    }
+    matches!(opt, Some(s) if s.trim().is_empty())
 }
+
 pub async fn dashboard(
     hb: web::Data<Handlebars<'_>>,
     kubetailor: web::Data<Kubetailor>,
