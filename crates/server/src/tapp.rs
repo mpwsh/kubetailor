@@ -125,8 +125,7 @@ impl TryFrom<TappRequest> for TailoredApp {
                 .as_ref()
                 .zip(g.branch.as_ref())
                 .filter(|(repo, _)| !repo.is_empty())
-                .map(|(repo, branch)| req.kubetailor.git_sync.build(repo, branch))
-                .flatten()
+                .and_then(|(repo, branch)| req.kubetailor.git_sync.build(repo, branch))
         });
 
         TappBuilder::validate_name(&req.name, &name_regex)?;

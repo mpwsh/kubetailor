@@ -56,10 +56,7 @@ pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> 
                     ));
                 },
             };
-            groups
-                .entry(parent_dir)
-                .or_insert_with(Vec::new)
-                .push((path, data));
+            groups.entry(parent_dir).or_default().push((path, data));
         }
 
         // Create a configMap for each path group

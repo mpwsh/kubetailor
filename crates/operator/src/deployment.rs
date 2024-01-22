@@ -1,9 +1,9 @@
 use k8s_openapi::api::{
     apps::v1::DeploymentSpec,
     core::v1::{
-        Capabilities, ConfigMapEnvSource, ConfigMapVolumeSource, Container, ContainerPort,
-        EmptyDirVolumeSource, EnvFromSource, EnvVar, PersistentVolumeClaimVolumeSource, PodSpec,
-        PodTemplateSpec, SecretEnvSource, SecurityContext, Volume, VolumeMount,
+        ConfigMapEnvSource, ConfigMapVolumeSource, Container, ContainerPort, EmptyDirVolumeSource,
+        EnvFromSource, EnvVar, PersistentVolumeClaimVolumeSource, PodSpec, PodTemplateSpec,
+        SecretEnvSource, SecurityContext, Volume, VolumeMount,
     },
 };
 

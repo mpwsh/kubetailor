@@ -10,7 +10,7 @@ keywords = ["kubernetes", "controller", "runtime", "cncf"]
 default-run = "operator"
 
 [dependencies]
-tokio = { version = "1.0", features = [
+tokio = { version = "1.35", features = [
     "macros",
     "rt-multi-thread",
 ] } # Macros for easy project setup and testing, multi-threaded runtime for best utilization of resources
@@ -26,12 +26,12 @@ futures = "0.3"
 serde = "1"
 serde_json = "1.0"
 thiserror = "1"    # Custom Error definitions and convenient error mappings
-base64 = "0.21.0"
-log = "0.4.17"
-env_logger = "0.10.0"
-tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.16", features = ["json", "env-filter"] }
+base64 = "0.21.7"
+log = "0.4.20"
+env_logger = "0.10.2"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["json", "env-filter"] }
 tracing-opentelemetry = "0.18.0"
-chrono = { version = "0.4.23", features = ["serde"] }
+chrono = { version = "0.4.31", features = ["serde"] }
 opentelemetry = { version = "0.18.0", features = ["trace", "rt-tokio"] }
 kubetailor = { path = "../lib" }
