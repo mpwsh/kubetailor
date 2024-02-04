@@ -12,14 +12,23 @@ use kube::{
 use kubetailor::prelude::*;
 use log::info;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
-use crate::{config::Kubetailor, tapp::TappRequest};
+use crate::{config::Kubetailor, quickwit, tapp::TappRequest};
 
 #[derive(Deserialize)]
 pub struct BasicParams {
     pub owner: String,
     pub group: Option<String>,
     pub filter: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct LogsParams {
+    pub owner: String,
+    pub query: Option<String>,
+    pub from_ts: Option<String>,
+    pub to_ts: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -214,6 +223,68 @@ pub async fn get(
             {
                 let tapp = TappRequest::try_from(tapp).unwrap();
                 HttpResponse::Ok().json(tapp)
+            } else {
+                HttpResponse::NotFound().body("No TailoredApp found with the specified name")
+            }
+        },
+        None => HttpResponse::NotFound().body("No TailoredApps found"),
+    }
+}
+
+#[get("/{app_name}/logs")]
+pub async fn logs(
+    client: Data<Client>,
+    app_name: web::Path<String>,
+    params: web::Query<LogsParams>,
+    kubetailor: Data<Kubetailor>,
+    quickwit: Data<quickwit::Client>,
+) -> impl Responder {
+    let items = fetch_tapps(&client, &params.owner, &kubetailor).await;
+    let owner = params.owner.replace('@', "-");
+
+    match items {
+        Some(tapps) => {
+            if let Some(tapp) = tapps
+                .into_iter()
+                .find(|tapp| tapp.metadata.name.as_ref() == Some(&app_name.to_string()))
+            {
+                let base_query = format!(
+                    "resource_attributes.tapp:{} AND resource_attributes.owner:{} AND NOT resource_attributes.k8s.container.name:init AND NOT resource_attributes.k8s.container.name:git-sync",
+                    tapp.metadata.name.unwrap(),
+                    owner
+                );
+                //Here we query for logs
+                let query = if let Some(query) = &params.query {
+                    json!({
+                        "query":
+                            format!(
+                                "{} AND body.message:{}",
+                                base_query,
+                                query.replace(' ', "+")
+                            )
+                    })
+                } else {
+                    json!({
+                    "query": base_query,
+                    })
+                };
+
+                let logs = quickwit
+                    .client
+                    .post(&quickwit.url)
+                    .json(&query)
+                    .send()
+                    .await
+                    .unwrap()
+                    .json::<quickwit::Logs>()
+                    .await
+                    .unwrap();
+                let res: Vec<String> = logs
+                    .hits
+                    .iter()
+                    .map(|log| log.body.message.clone())
+                    .collect();
+                HttpResponse::Ok().json(res)
             } else {
                 HttpResponse::NotFound().body("No TailoredApp found with the specified name")
             }

@@ -1,18 +1,6 @@
-use std::collections::HashMap;
+use crate::routes::prelude::*;
 
-use actix_web::{web, HttpResponse};
-use actix_web_flash_messages::FlashMessage;
-use handlebars::Handlebars;
-use reqwest::StatusCode;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
-
-use crate::{
-    config::Kubetailor,
-    errors::ApiError,
-    session_state::TypedSession,
-    utils::{e500, see_other},
-};
+pub mod tapp;
 
 #[derive(Deserialize)]
 pub struct BasicForm {
@@ -20,65 +8,7 @@ pub struct BasicForm {
     pub loading: Option<bool>,
 }
 
-#[derive(Deserialize, Serialize, Default)]
-pub struct TappConfig {
-    pub name: String,
-    pub group: Option<String>,
-    #[serde(skip_deserializing)]
-    pub owner: String,
-    pub domains: Domains,
-    pub container: Container,
-    pub git: Option<Git>,
-    pub env: Option<HashMap<String, String>>,
-    pub secrets: Option<HashMap<String, String>>,
-}
-
-#[derive(Deserialize, Serialize, Default)]
-pub struct Domains {
-    pub custom: Option<String>,
-    pub shared: String,
-}
-
-#[derive(Deserialize, Serialize, Default)]
-pub struct Git {
-    #[serde(skip_serializing_if = "is_empty_string")]
-    pub repository: Option<String>,
-    #[serde(skip_serializing_if = "is_empty_string")]
-    pub branch: Option<String>,
-}
-
-#[derive(Deserialize, Serialize, Default)]
-pub struct Container {
-    pub image: String,
-    pub replicas: u32,
-    pub port: u32,
-    pub volumes: Option<HashMap<String, String>>,
-    pub files: Option<HashMap<String, String>>,
-    #[serde(rename = "buildCommand", skip_serializing_if = "is_empty_string")]
-    pub build_command: Option<String>,
-    #[serde(rename = "runCommand", skip_serializing_if = "is_empty_string")]
-    pub run_command: Option<String>,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-struct Metadata {
-    name: String,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-struct Tapp {
-    metadata: Metadata,
-}
-#[derive(Deserialize, Serialize, Debug)]
-struct TappListResponse {
-    metadata: Metadata,
-}
-
-fn is_empty_string(opt: &Option<String>) -> bool {
-    matches!(opt, Some(s) if s.trim().is_empty())
-}
-
-pub async fn dashboard(
+pub async fn page(
     hb: web::Data<Handlebars<'_>>,
     kubetailor: web::Data<Kubetailor>,
     session: TypedSession,
@@ -115,93 +45,6 @@ pub async fn dashboard(
     Ok(HttpResponse::Ok().body(body))
 }
 
-pub async fn new_form(
-    hb: web::Data<Handlebars<'_>>,
-    session: TypedSession,
-) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
-    let data = json!({
-        "title": "Editing deployment",
-        "head": "New Tapp",
-        "is_form": true,
-        "show_back": true,
-        "action": "Deploy",
-        "user": user,
-    });
-    let body = hb.render("forms/new", &data).unwrap();
-
-    Ok(HttpResponse::Ok().body(body))
-}
-pub async fn new(
-    mut tapp: web::Json<TappConfig>,
-    session: TypedSession,
-    kubetailor: web::Data<Kubetailor>,
-) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
-    tapp.owner = user;
-
-    let res = kubetailor
-        .client
-        .post(&kubetailor.url)
-        .json(&tapp)
-        .send()
-        .await;
-
-    match res {
-        Ok(response) => {
-            if response.status().is_success() {
-                Ok(see_other(&format!("/dashboard/loading?name={}", tapp.name)))
-            } else {
-                // Ok(HttpResponse::BadRequest().body(response.text().await.unwrap().to_string()))
-                FlashMessage::info(format!(
-                    "Internal server error. Unable to initialize session. Please try again\n{err}",
-                    err = response.text().await.unwrap(),
-                ))
-                .send();
-                Ok(see_other("/dashboard/new"))
-            }
-        },
-        Err(e) => Ok(HttpResponse::BadRequest().body(e.to_string())),
-    }
-}
-
-async fn get(tapp_name: &str, owner: &str, kubetailor: web::Data<Kubetailor>) -> TappConfig {
-    let items: Vec<String> = kubetailor
-        .client
-        .get(format!(
-            "{}/list?owner={}&filter=name",
-            kubetailor.url, owner
-        ))
-        .send()
-        .await
-        .unwrap()
-        .json::<Vec<String>>()
-        .await
-        .unwrap();
-
-    if items.into_iter().any(|name| name == tapp_name) {
-        kubetailor
-            .client
-            .get(format!("{}/{}?owner={}", kubetailor.url, tapp_name, owner))
-            .send()
-            .await
-            .unwrap()
-            .json::<TappConfig>()
-            .await
-            .unwrap()
-    } else {
-        TappConfig::default()
-    }
-}
-
 pub async fn view(
     hb: web::Data<Handlebars<'_>>,
     params: web::Query<BasicForm>,
@@ -213,7 +56,7 @@ pub async fn view(
     } else {
         return Ok(see_other("/login"));
     };
-    let tapp = get(&params.name, &user, kubetailor.clone()).await;
+    let tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
     let data = json!({
         "title": format!("{} Details", params.name),
         "head": format!("{} Details", params.name),
@@ -230,74 +73,6 @@ pub async fn view(
         Ok(HttpResponse::Ok().body(body))
     }
 }
-pub async fn edit_form(
-    hb: web::Data<Handlebars<'_>>,
-    session: TypedSession,
-    params: web::Query<BasicForm>,
-    kubetailor: web::Data<Kubetailor>,
-) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
-    let mut tapp = get(&params.name, &user, kubetailor.clone()).await;
-    log::info!("{}", serde_json::to_string(&tapp).unwrap());
-    //todo replace when merging server code here
-    tapp.domains.shared = tapp.domains.shared.replace(".kubetailor.io", "");
-    //workaround for files index
-
-    let mut print_files: Vec<(String, String, String)> = Vec::new();
-    if let Some(files) = tapp.container.files.clone() {
-        for (i, (key, value)) in files.into_iter().enumerate() {
-            print_files.push((key.clone(), value.clone(), i.to_string()));
-        }
-    }
-
-    let data = json!({
-        "title": "Editing deployment",
-        "head": format!("Editing {}", params.name),
-        "is_form": true,
-        "show_back": true,
-        "custom_enabled": tapp.domains.custom.is_some(),
-        "action": "Save",
-        "tapp": tapp,
-        "files": print_files,
-        "user": user,
-    });
-
-    let body = hb.render("forms/edit", &data).unwrap();
-
-    Ok(HttpResponse::Ok().body(body))
-}
-pub async fn edit(
-    mut tapp: web::Json<TappConfig>,
-    session: TypedSession,
-    kubetailor: web::Data<Kubetailor>,
-) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
-    let old_tapp = get(&tapp.name, &user, kubetailor.clone()).await;
-    if old_tapp.name.is_empty() {
-        return Ok(HttpResponse::NotFound().body(format!("Tapp: {} -not found-", tapp.name)));
-    }
-    tapp.name = old_tapp.name.clone();
-    tapp.owner = user;
-    kubetailor
-        .client
-        .put(&kubetailor.url)
-        .json(&tapp)
-        .send()
-        .await
-        .unwrap()
-        .text()
-        .await
-        .unwrap();
-    Ok(see_other(&format!("/dashboard/loading?name={}", tapp.name)))
-}
 
 pub async fn check_shared_domain(
     session: TypedSession,
@@ -309,7 +84,7 @@ pub async fn check_shared_domain(
     } else {
         return Ok(see_other("/login"));
     };
-    let tapp = get(&params.name, &user, kubetailor.clone()).await;
+    let tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
     if tapp.name.is_empty() {
         return Ok(HttpResponse::BadRequest().body(format!("Tapp: {} -not found-", tapp.name)));
     };
@@ -340,7 +115,7 @@ pub async fn check_custom_domain(
     } else {
         return Ok(see_other("/login"));
     };
-    let tapp = get(&params.name, &user, kubetailor.clone()).await;
+    let tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
     if tapp.name.is_empty() {
         return Ok(HttpResponse::BadRequest().body(format!("Tapp: {} -not found-", tapp.name)));
     };
@@ -376,7 +151,7 @@ pub async fn deploying(
     } else {
         return Ok(see_other("/login"));
     };
-    let tapp = get(&params.name, &user, kubetailor.clone()).await;
+    let tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
     if tapp.name.is_empty() {
         return Ok(HttpResponse::NotFound().body(format!("Tapp: {} -not found-", tapp.name)));
     };
@@ -392,66 +167,4 @@ pub async fn deploying(
     let body = hb.render("loading", &data).unwrap();
 
     Ok(HttpResponse::Ok().body(body))
-}
-pub async fn delete_form(
-    hb: web::Data<Handlebars<'_>>,
-    session: TypedSession,
-    params: web::Query<BasicForm>,
-) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
-    let data = json!({
-        "title": "Destroying tapp",
-        "head": format!("Destroying Tapp: {}", params.name),
-        "subtitle": "This action CANNOT be reverted. Proceed?",
-        "tapp_name": params.name,
-        "loading": params.loading.unwrap_or(false),
-        "user": user,
-    });
-    let body = hb.render("forms/delete", &data).unwrap();
-
-    Ok(HttpResponse::Ok().body(body))
-}
-
-pub async fn delete(
-    form: web::Form<BasicForm>,
-    session: TypedSession,
-    kubetailor: web::Data<Kubetailor>,
-) -> Result<HttpResponse, ApiError> {
-    let user = if let Some(email) = session.get_user().map_err(e500).unwrap() {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
-    //Check if owner.
-    let items: Vec<String> = kubetailor
-        .client
-        .get(format!("{}/list?owner={user}&filter=name", kubetailor.url))
-        .send()
-        .await
-        .unwrap()
-        .json::<Vec<String>>()
-        .await
-        .unwrap();
-
-    if items.into_iter().any(|name| name == form.name) {
-        kubetailor
-            .client
-            .delete(&format!("{}/{}?owner={user}", kubetailor.url, form.name))
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
-        Ok(see_other(&format!(
-            "/dashboard/delete?name={}&loading=true",
-            form.name
-        )))
-    } else {
-        Ok(HttpResponse::NotFound().body(format!("Tapp {} not found", form.name)))
-    }
 }

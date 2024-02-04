@@ -7,7 +7,16 @@ use crate::{deployment::Deployment, git::Git, ingress::Ingress};
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Config {
     pub server: Server,
+    pub quickwit: Quickwit,
     pub kubetailor: Kubetailor,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Quickwit {
+    pub index: String,
+    pub url: String,
+    pub api_version: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
