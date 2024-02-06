@@ -121,11 +121,19 @@ impl TryFrom<TappRequest> for TailoredApp {
         }
 
         let git = req.git.as_ref().and_then(|g| {
-            g.repository
-                .as_ref()
-                .zip(g.branch.as_ref())
-                .filter(|(repo, _)| !repo.is_empty())
-                .and_then(|(repo, branch)| req.kubetailor.git_sync.build(repo, branch))
+            let repo = g.repository.clone().filter(|r| !r.is_empty());
+            let branch = g.branch.clone();
+            let token = g.token.clone().filter(|t| !t.is_empty());
+            let username = g.username.clone().filter(|t| !t.is_empty());
+
+            match (repo, branch) {
+                (Some(repo), Some(branch)) => {
+                    req.kubetailor
+                        .git_sync
+                        .build(Some(repo), Some(branch), username, token)
+                },
+                _ => None,
+            }
         });
 
         TappBuilder::validate_name(&req.name, &name_regex)?;
@@ -156,6 +164,8 @@ impl TryFrom<TailoredApp> for TappRequest {
             git: git_option.map(|git| Git {
                 repository: git.repository.clone(),
                 branch: git.branch.clone(),
+                username: git.username.clone(),
+                token: git.token.clone(),
                 period: git.period.clone(),
                 image: git.image.clone(),
             }),

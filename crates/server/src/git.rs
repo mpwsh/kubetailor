@@ -7,15 +7,25 @@ pub struct Git {
     pub branch: Option<String>,
     pub image: Option<String>,
     pub period: Option<String>,
+    pub username: Option<String>,
+    pub token: Option<String>,
 }
 
 impl Git {
-    pub fn build(&self, repository: &str, branch: &str) -> Option<crd::Git> {
+    pub fn build(
+        &self,
+        repository: Option<String>,
+        branch: Option<String>,
+        username: Option<String>,
+        token: Option<String>,
+    ) -> Option<crd::Git> {
         Some(crd::Git {
-            repository: Some(repository.into()),
-            branch: Some(branch.into()),
+            repository,
+            branch,
             image: self.image.clone(),
             period: self.period.clone(),
+            username,
+            token,
         })
     }
 }

@@ -80,6 +80,10 @@ spec:
                       type: string
                     branch:
                       type: string
+                    username:
+                      type: string
+                    token:
+                      type: string
                     root:
                       type: string
                     dest:

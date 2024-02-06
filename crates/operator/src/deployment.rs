@@ -35,6 +35,7 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
     let init_container = Container {
         name: "init".to_owned(),
         image: Some("kubetailor/init:latest".to_owned()),
+        image_pull_policy: Some("IfNotPresent".to_owned()),
         volume_mounts: Some(vec![init_mount]),
         env: Some(vec![
             EnvVar {
@@ -90,6 +91,7 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
     let mut container = Container {
         name: "app".to_owned(), //meta.name.to_owned(),
         image: Some(deployment.container.image.to_owned()),
+        image_pull_policy: Some("IfNotPresent".to_owned()),
         command,
         ports: Some(vec![ContainerPort {
             container_port: deployment.container.port,
@@ -194,6 +196,16 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
             EnvVar {
                 name: "GIT_SYNC_ROOT".to_owned(),
                 value: Some(GIT_SYNC_ROOT.to_owned()),
+                value_from: None,
+            },
+            EnvVar {
+                name: "GIT_SYNC_USERNAME".to_owned(),
+                value: git_config.username.to_owned(),
+                value_from: None,
+            },
+            EnvVar {
+                name: "GIT_SYNC_PASSWORD".to_owned(),
+                value: git_config.token.to_owned(),
                 value_from: None,
             },
         ]);
