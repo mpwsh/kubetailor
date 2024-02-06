@@ -50,6 +50,10 @@ pub struct Git {
     pub repository: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub branch: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
     pub image: Option<String>,
     pub period: Option<String>,
 }

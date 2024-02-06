@@ -1,0 +1,20 @@
+{
+  "name": "example",
+  "group": "Default",
+  "owner": "testuser@email.com",
+  "domains": {
+    "custom": "my-domain.com",
+    "shared": "example"
+  },
+  "container": {
+    "image": "nginx",
+    "port": 8080,
+    "replicas": 1,
+    "files": {
+      "/usr/share/nginx/html/index.html": "Hello from kubetailor"
+    }
+  },
+  "env": {
+    "test": "test2"
+  }
+}
