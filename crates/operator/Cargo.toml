@@ -28,7 +28,7 @@ serde_json = "1.0"
 thiserror = "1"    # Custom Error definitions and convenient error mappings
 base64 = "0.21.7"
 log = "0.4.20"
-env_logger = "0.10.2"
+env_logger = "0.11.1"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["json", "env-filter"] }
 tracing-opentelemetry = "0.18.0"
