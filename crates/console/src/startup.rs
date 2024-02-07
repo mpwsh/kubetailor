@@ -10,7 +10,7 @@ use actix_web::{
 };
 use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
 use actix_web_lab::middleware::from_fn;
-use handlebars::Handlebars;
+use handlebars::{DirectorySourceOptions, Handlebars};
 use portier::Client;
 use secrecy::{ExposeSecret, Secret};
 use tracing_actix_web::TracingLogger;
@@ -20,8 +20,8 @@ use crate::{
     config::{Kubetailor, Settings},
     errors::error_handlers,
     routes::{
-        check_custom_domain, check_shared_domain, claim, dashboard, delete, delete_form, deploying,
-        edit, edit_form, health, login, login_form, logout, new, new_form, view, whoami,
+        check_custom_domain, check_shared_domain, claim, dashboard, deploying, health, login,
+        login_form, logout, tapp::*, view, whoami,
     },
 };
 
@@ -75,7 +75,7 @@ pub async fn run(
     let redirect_url = format!("{base_url}{claim_path}").parse().unwrap();
 
     let mut handlebars = Handlebars::new();
-    handlebars.register_templates_directory(".hbs", "./templates")?;
+    handlebars.register_templates_directory("./templates", DirectorySourceOptions::default())?;
 
     let client = Client::builder(redirect_url)
         .broker(portier_url.expose_secret().parse().unwrap())
@@ -121,27 +121,27 @@ pub async fn run(
             .service(
                 web::scope("/dashboard")
                     .wrap(from_fn(reject_anonymous_users))
-                    .route("/", web::get().to(dashboard))
-                    .route("", web::get().to(dashboard))
+                    .route("/", web::get().to(dashboard::page))
+                    .route("", web::get().to(dashboard::page))
                     .route("/loading", web::get().to(deploying))
                     .route("/view", web::get().to(view))
                     .route("/custom_domain", web::get().to(check_custom_domain))
                     .route("/shared_domain", web::get().to(check_shared_domain))
-                    .route("/edit", web::get().to(edit_form))
                     .service(
                         resource("/new")
-                            .route(web::get().to(new_form))
-                            .route(web::post().to(new)),
+                            .route(web::get().to(new::get))
+                            .route(web::post().to(new::post)),
                     )
+                    .service(resource("/logs").route(web::get().to(logs::get)))
                     .service(
                         resource("/edit")
-                            .route(web::get().to(edit_form))
-                            .route(web::post().to(edit)),
+                            .route(web::get().to(edit::get))
+                            .route(web::post().to(edit::post)),
                     )
                     .service(
                         resource("/delete")
-                            .route(web::get().to(delete_form))
-                            .route(web::post().to(delete)),
+                            .route(web::get().to(delete::page))
+                            .route(web::post().to(delete::form)),
                     ),
             )
             .service(resource(claim_path).route(web::post().to(claim)))

@@ -1,31 +1,37 @@
 {{> header}}
 {{> top}}
-        <div class="content">
-          <br />
-          <ul class="ul-container" style="list-style-type: none">
-            {{#if deployments}}
-            {{#each deployments}}
-              <li>
-                <span class="button-group">
-                  <a href="/dashboard/view?name={{this}}" class="list-item">
-                    <span>> {{this}}</span>
-                  </a>
-                  <a href="/dashboard/edit?name={{this}}">
-                    <button class="edit-btn">
-                      <i class="fas fa-edit"></i>
-                    </button>
-                  </a>
-                  <a href="/dashboard/delete?name={{this}}">
-                    <button class="delete-btn">
-                      <i class="fas fa-trash"></i>
-                    </button>
-                  </a>
-                </span>
-              </li>
-            {{/each}} 
-          </ul>
-        {{else}}
-          <span class="subtitle-white">No deployments found.</span>
-            {{/if}}
-        </div>
+  <div class="content">
+    <br />
+    <ul class="ul-container" style="list-style-type: none">
+      {{#if deployments}}
+      {{#each deployments}}
+        <li>
+          <span class="button-group">
+            <a href="/dashboard/view?name={{this}}" class="list-item">
+              <span>> {{this}}</span>
+            </a>
+            <a href="/dashboard/logs?name={{this}}" title="View logs">
+              <button class="logs-btn">
+                <i class="fas fa-file-text"></i>
+              </button>
+            </a>
+
+            <a href="/dashboard/edit?name={{this}}" title="Edit">
+              <button class="edit-btn">
+                <i class="fas fa-edit"></i>
+              </button>
+            </a>
+            <a href="/dashboard/delete?name={{this}}" title="Delete">
+              <button class="delete-btn">
+                <i class="fas fa-trash"></i>
+              </button>
+            </a>
+          </span>
+        </li>
+      {{/each}} 
+    </ul>
+  {{else}}
+    <span class="subtitle-white">No deployments found.</span>
+      {{/if}}
+  </div>
 {{> footer}}

@@ -6,6 +6,7 @@ mod deployment;
 mod error;
 mod git;
 mod ingress;
+mod quickwit;
 mod routes;
 mod tapp;
 
@@ -20,13 +21,20 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to infer kube config");
 
     HttpServer::new(move || {
-        let client = Client::try_from(kube_config.clone()).expect("Failed to create kube client");
+        let kubetailor =
+            Client::try_from(kube_config.clone()).expect("Failed to create kube client");
+        let quickwit = quickwit::Client::new(format!(
+            "{}/api/{}/{}/search",
+            config.quickwit.url, config.quickwit.api_version, config.quickwit.index
+        ));
         App::new()
-            .app_data(Data::new(client))
+            .app_data(Data::new(kubetailor))
+            .app_data(Data::new(quickwit))
             .app_data(Data::new(config.kubetailor.clone()))
             .service(routes::create)
             .service(routes::list)
             .service(routes::get)
+            .service(routes::logs)
             .service(routes::update)
             .service(routes::delete)
     })

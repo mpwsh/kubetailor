@@ -1,0 +1,29 @@
+{{#if action}} 
+    <div class="full-height-logs-flex-container">
+      <div class="full-height-logs-form-container">
+        <div class="title-container">
+          {{#if show_back}}
+          <a href="/dashboard">
+            <button class="back-btn"><i class="fa-solid fa-arrow-left"></i></button>
+          </a>
+          {{/if}}
+          <h1 class="head no-select">{{head}}</h1>
+          {{#if home}}
+            <a href="/dashboard/new">
+              <button class="action-btn">{{action}}</button>
+            </a>
+          {{/if}}
+          {{#if view}}
+            <a href="/dashboard/edit?name={{tapp.name}}">
+              <button class="action-btn">{{action}}</button>
+            </a>
+          {{/if}}
+          {{#if is_form}}
+              <button id="submitForm" class="action-btn" type="submit" form="editForm">{{action}}</button>
+          {{/if}}
+        </div>
+{{else}}
+<div class="flex-container">
+      <div class="form-container">
+        <h1 class="head no-select">{{head}}</h1>
+{{/if}}
