@@ -3,10 +3,10 @@ name: Rust Operator test
 on:
   push:
     paths-ignore:
-      - '**.md'
-    branches: [ main ]
+      - "**.md"
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -17,43 +17,42 @@ concurrency:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - uses: debianmaster/actions-k3s@master
-      id: k3s
-      with:
-        version: 'latest'
+      - uses: debianmaster/actions-k3s@master
+        id: k3s
+        with:
+          version: "latest"
 
-    - name: Build
-      run: cargo build --bin operator --verbose
+      - name: Build
+        run: cargo build --bin operator --verbose
 
-    - name: Run tests
-      run: cargo test --bin operator --verbose
+      - name: Run tests
+        run: cargo test --bin operator --verbose
 
-    - name: Apply the custom resource definition and cluster role
-      run: kubectl apply -f deploy/ns.yaml -f deploy/crd.yaml -f deploy/clusterrole.yaml -f deploy/no-role-sa.yaml
+      - name: Apply the custom resource definition and cluster role
+        run: kubectl apply -f deploy/kubetailor/ns.yaml -f deploy/kubetailor/crd.yaml -f deploy/kubetailor/clusterrole.yaml -f deploy/kubetailor/no-role-sa.yaml
 
-    - name: Run the operator
-      run: cargo run --bin operator &
+      - name: Run the operator
+        run: cargo run --bin operator &
 
-    - name: Apply the custom resource after a small pause
-      run: sleep 2 && kubectl apply -f example-tapp.yaml
+      - name: Apply the custom resource after a small pause
+        run: sleep 2 && kubectl apply -f ./examples/basic-manifest.yaml
 
-    - name: Get pods
-      run: sleep 2 && kubectl get pods -A
+      - name: Get pods
+        run: sleep 2 && kubectl get pods -A
 
-   #- name: Validate that the resources has been created after a small pause
-   #  run: sleep 5 && kubectl wait --for=condition=available -n kubetailor --timeout=240s deployment/tailored-app
+      #- name: Validate that the resources has been created after a small pause
+      #  run: sleep 5 && kubectl wait --for=condition=available -n kubetailor --timeout=240s deployment/tailored-app
 
-    - name: Get tailored apps
-      run: sleep 60 && kubectl get tapps -n kubetailor
+      - name: Get tailored apps
+        run: sleep 60 && kubectl get tapps -n kubetailor
 
-    - name: Get all resources
-      run: kubectl get deploy,svc,pv,pvc,ing -n kubetailor
+      - name: Get all resources
+        run: kubectl get deploy,svc,pv,pvc,ing -n kubetailor
 
-    - name: Validate that the two pods have been created
-      run: kubectl get pods -l owner=test -n kubetailor
+      - name: Validate that the two pods have been created
+        run: kubectl get pods -l owner=test -n kubetailor

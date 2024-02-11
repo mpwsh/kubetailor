@@ -32,14 +32,14 @@ Use the API to deploy an NGINX container with a static `index.html` file [basic.
 
 ```bash
 curl --request POST --url http://127.0.0.1:8080/ \
-  --header 'Content-Type: application/json' --data "@tapp-example.json"
+  --header 'Content-Type: application/json' --data "@examples/basic.json"
 ```
 
 Or deploy a base NGINX container that syncs to a repo hosting your static site [git.json](./examples/git.json)
 
 ```bash
 curl --request POST --url http://127.0.0.1:8080/ \
-  --header 'Content-Type: application/json' --data "@tapp-git.json"
+  --header 'Content-Type: application/json' --data "@examples/git.json"
 ```
 
 You should be see a `Deployment`, `ConfigMap` and `Ingress` being created now.

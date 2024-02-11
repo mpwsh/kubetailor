@@ -11,7 +11,7 @@ inherits = "dev"
 incremental = false
 opt-level = 0
 debug = 1
-lto = "none"
+lto = "off"
 
 [profile.release-lite]
 inherits = "release"
@@ -25,4 +25,4 @@ incremental = true
 
 [profile.docker]
 inherits = "release"
-# strip = "symbols" # Not supported in the workspace toolchain version
+strip = "symbols"
