@@ -41,7 +41,9 @@ document.addEventListener("DOMContentLoaded", async function () {
   ) {
     if (container.available === false) {
       try {
-        const response = await fetch(`/dashboard/view?name=${container.value}`);
+        const response = await fetch(
+          `/dashboard/tapp/view?name=${container.value}`,
+        );
         if (response.status === 200) {
           console.log("Container ready");
           container.spinner.style.display = "none";

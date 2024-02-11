@@ -49,7 +49,7 @@ pub async fn whoami(session: TypedSession) -> Result<HttpResponse, ApiError> {
     Ok(HttpResponse::Ok().json(UserData { email }))
 }
 
-pub async fn login(form: web::Form<AuthForm>, client: web::Data<Client>) -> HttpResponse {
+pub async fn authenticate(form: web::Form<AuthForm>, client: web::Data<Client>) -> HttpResponse {
     match client.start_auth(&form.email).await {
         Ok(url) => see_other(url.as_ref()),
         Err(err) => {

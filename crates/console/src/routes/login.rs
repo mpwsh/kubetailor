@@ -5,7 +5,7 @@ use actix_web_flash_messages::IncomingFlashMessages;
 use handlebars::Handlebars;
 use serde_json::json;
 
-pub async fn login_form(
+pub async fn login(
     hb: web::Data<Handlebars<'_>>,
     flash_messages: IncomingFlashMessages,
 ) -> HttpResponse {
@@ -15,7 +15,7 @@ pub async fn login_form(
     }
     let data = json!({
         "title": "Login",
-        "error_html": error_html,
+        "message": error_html,
     });
     let body = hb.render("forms/login", &data).unwrap();
 

@@ -7,6 +7,8 @@ RUN apt update && apt install lld clang libssl-dev pkg-config -y
 FROM chef as planner
 COPY Cargo.* ./
 COPY crates crates
+COPY rust-toolchain.toml rust-toolchain.toml
+
 # Compute a lock-like file for our project
 RUN cargo chef prepare  --recipe-path recipe.json
 

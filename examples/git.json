@@ -1,0 +1,22 @@
+{
+  "name": "example",
+  "group": "Default",
+  "owner": "testuser@email.com",
+  "domains": {
+    "custom": "demo.127-0-0-1.nip.io",
+    "shared": "example"
+  },
+  "git": {
+    "repository": "https://github.com/mpwsh/nginx-test",
+    "branch": "main"
+  },
+  "container": {
+    "image": "nginx",
+    "port": 80,
+    "replicas": 1,
+    "buildCommand": "cp index.html /usr/share/nginx/html/index.html"
+  },
+  "env": {
+    "test": "test2"
+  }
+}

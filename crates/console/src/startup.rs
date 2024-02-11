@@ -20,8 +20,8 @@ use crate::{
     config::{Kubetailor, Settings},
     errors::error_handlers,
     routes::{
-        check_custom_domain, check_shared_domain, claim, dashboard, deploying, health, login,
-        login_form, logout, tapp::*, view, whoami,
+        authenticate, check_custom_domain, check_shared_domain, claim, dashboard, deploying,
+        health, login, logout, tapp::*, view, whoami,
     },
 };
 
@@ -111,12 +111,12 @@ pub async fn run(
             .app_data(web::Data::new(client.clone()))
             .app_data(web::Data::new(kubetailor.clone()))
             .app_data(web::Data::new(handlebars.clone()))
-            .route("/", web::get().to(login_form))
+            .route("/", web::get().to(login))
             .route("/health", web::get().to(health))
             .service(
                 resource("/login")
-                    .route(web::get().to(login_form))
-                    .route(web::post().to(login)),
+                    .route(web::get().to(login))
+                    .route(web::post().to(authenticate)),
             )
             .service(
                 web::scope("/dashboard")
@@ -124,24 +124,27 @@ pub async fn run(
                     .route("/", web::get().to(dashboard::page))
                     .route("", web::get().to(dashboard::page))
                     .route("/loading", web::get().to(deploying))
-                    .route("/view", web::get().to(view))
                     .route("/custom_domain", web::get().to(check_custom_domain))
                     .route("/shared_domain", web::get().to(check_shared_domain))
                     .service(
-                        resource("/new")
-                            .route(web::get().to(new::get))
-                            .route(web::post().to(new::post)),
-                    )
-                    .service(resource("/logs").route(web::get().to(logs::get)))
-                    .service(
-                        resource("/edit")
-                            .route(web::get().to(edit::get))
-                            .route(web::post().to(edit::post)),
-                    )
-                    .service(
-                        resource("/delete")
-                            .route(web::get().to(delete::page))
-                            .route(web::post().to(delete::form)),
+                        web::scope("/tapp")
+                            .route("/view", web::get().to(view))
+                            .service(
+                                resource("/new")
+                                    .route(web::get().to(new::page))
+                                    .route(web::post().to(new::form)),
+                            )
+                            .service(resource("/logs").route(web::get().to(logs::get)))
+                            .service(
+                                resource("/edit")
+                                    .route(web::get().to(edit::get))
+                                    .route(web::post().to(edit::post)),
+                            )
+                            .service(
+                                resource("/delete")
+                                    .route(web::get().to(delete::page))
+                                    .route(web::post().to(delete::form)),
+                            ),
                     ),
             )
             .service(resource(claim_path).route(web::post().to(claim)))

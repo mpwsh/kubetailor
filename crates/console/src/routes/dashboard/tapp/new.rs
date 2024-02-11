@@ -1,22 +1,24 @@
 use crate::routes::prelude::*;
 
-pub async fn get(
+pub async fn page(
     hb: web::Data<Handlebars<'_>>,
-    session: TypedSession,
+    req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
+
+    let action = Action::new("Deploy").form().url("/dashboard/tapp/new");
+
     let data = json!({
-        "title": "Editing deployment",
-        "head": "New Tapp",
-        "is_form": true,
-        "show_back": true,
-        "action": "Deploy",
+        "title": "New Deployment",
+        "return_url": "/dashboard",
+        "action": action,
         "user": user,
     });
+
     let body = hb.render("new", &data).unwrap();
 
     Ok(HttpResponse::Ok()
@@ -24,16 +26,17 @@ pub async fn get(
         .body(body))
 }
 
-pub async fn post(
+pub async fn form(
     mut tapp: web::Json<TappConfig>,
-    session: TypedSession,
     kubetailor: web::Data<Kubetailor>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
+
     tapp.owner = user;
 
     let res = kubetailor

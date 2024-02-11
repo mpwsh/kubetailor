@@ -28,32 +28,18 @@ cargo run --bin operator
 CONFIG_PATH=config/server/conf.yaml cargo run --bin server
 ```
 
-Use the API to deploy something
+Use the API to deploy an NGINX container with a static `index.html` file [basic.json](./examples/basic.json)
 
 ```bash
-curl --request POST \
-  --url http://127.0.0.1:8080/ \
-  --header 'Content-Type: application/json' \
-  --data '{
-	"name": "example",
-	"group": "Default",
-	"owner": "test@example.com",
-	"domain": {
-		"custom": "my-domain.com",
-		"shared": "example.kubetailor.io"
-	},
-	"container": {
-		"image": "nginx",
-		"port": 8080,
-		"replicas": 1,
-		"files": {
-			"/usr/share/nginx/html/index.html": "Hello from kubetailor"
-		}
-	},
-	"env": {
-		"test": "test2"
-	}
-}'
+curl --request POST --url http://127.0.0.1:8080/ \
+  --header 'Content-Type: application/json' --data "@tapp-example.json"
+```
+
+Or deploy a base NGINX container that syncs to a repo hosting your static site [git.json](./examples/git.json)
+
+```bash
+curl --request POST --url http://127.0.0.1:8080/ \
+  --header 'Content-Type: application/json' --data "@tapp-git.json"
 ```
 
 You should be see a `Deployment`, `ConfigMap` and `Ingress` being created now.

@@ -59,3 +59,28 @@ struct TappListResponse {
 fn is_empty_string(opt: &Option<String>) -> bool {
     matches!(opt, Some(s) if s.trim().is_empty())
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct Action {
+    pub name: String,
+    pub url: String,
+    pub is_form: bool,
+}
+impl Action {
+    pub fn new(name: &str) -> Self {
+        Action {
+            name: name.to_string(),
+            url: String::new(), // Initialize with an empty URL
+            is_form: false,
+        }
+    }
+
+    pub fn url(mut self, url: &str) -> Self {
+        self.url = url.to_string();
+        self
+    }
+    pub fn form(mut self) -> Self {
+        self.is_form = true;
+        self
+    }
+}
