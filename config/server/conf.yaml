@@ -4,7 +4,7 @@ server:
   port: 8080
 quickwit:
   apiVersion: v1
-  url: "http://192.168.1.216:7280"
+  url: "http://localhost:7280"
   index: otel-logs-v0_6
 kubetailor:
   namespace: kubetailor
@@ -17,12 +17,13 @@ kubetailor:
     # Limit connectivity to:
     # - internet
     # - pods owned by the same (owner) deployer
+    # - pods on the same Group
     deployNetworkPolicies: true
     serviceAccount: limited
-    # if false, services in the same namespace won't be listed in env vars.
-    enableServiceLinks: false
+    enableServiceLinks: false #if false, services in the same namespace won't be listed in env vars.
     allowPrivilegeEscalation: false
     allowRoot: true
+    architectures: ["amd64", "arm64"]
     allowedImages:
       - nginx
       - postgres
@@ -30,28 +31,30 @@ kubetailor:
       - node
       - nicolaka/netshoot
       - tsl0922/ttyd:latest
-    maxVolumeSize: 1Gi
-    # Image to deploy. If not specified, container will be provided by the client via POST request
-    #container:
-    #  image: nginx
-    #  port: 80
-    #  gitRepository: ""
-    #  buildCommand: ["ping", "1.1.1.1"]
-    #  runCommand: ["echo", "build something"]
-    #  replicas: 1
-    #  volumes:
-    # PathtoMount: Size
-    #    /home/test/123: 40Mi
-    #    /home/test/anotherone: 100Mi
-    #  fileMounts:
-    # PathToMount: Content
-    #    /etc/config.toml: |-
-    #      [someconfig]
-    #      avalue= true
+    resources:
+      cpu:
+        min: 0.2
+        max: 1
+      memory:
+        min: 128Mib
+        max: 2Gi
+      volume:
+        count:
+          min: 0
+          max: 2
+        size:
+          min: 100Mib
+          max: 10Gi
+    replicas:
+      min: 1
+      max: 3
   ingress:
+    baseDomain: kubetailor.io
+    loadBalancerEndpoint: lb.kubetailor.io
     className: nginx
     matchLabels:
       app.kubernetes.io/name: ingress-nginx
+    # Add these annotations to all created ingresses
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
       nginx.ingress.kubernetes.io/affinity: cookie
@@ -62,5 +65,3 @@ kubetailor:
       nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
       nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
       nginx.ingress.kubernetes.io/session-cookie-name: route
-    baseDomain: mpw.sh
-    loadBalancerEndpoint: k3s.mpw.sh

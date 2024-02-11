@@ -11,13 +11,13 @@ pub struct BasicForm {
 pub async fn page(
     hb: web::Data<Handlebars<'_>>,
     kubetailor: web::Data<Kubetailor>,
-    session: TypedSession,
+    req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
 
     let items: Vec<String> = kubetailor
         .client
@@ -32,15 +32,18 @@ pub async fn page(
         .await
         .unwrap();
 
+    let action = json!({
+        "name": "New",
+        "url": "/dashboard/tapp/new",
+    });
     let data = json!({
         "title": "Dashboard",
         "head": "Tapps",
         "deployments": items,
-        "home": true,
-        "action": "New",
+        "action": action,
         "user": user,
     });
-    let body = hb.render("home", &data).unwrap();
+    let body = hb.render("dashboard", &data).unwrap();
 
     Ok(HttpResponse::Ok().body(body))
 }
@@ -48,25 +51,33 @@ pub async fn page(
 pub async fn view(
     hb: web::Data<Handlebars<'_>>,
     params: web::Query<BasicForm>,
-    session: TypedSession,
+    req: HttpRequest,
     kubetailor: web::Data<Kubetailor>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
+
+    // Detect HTMX request
+    let is_htmx = req.headers().contains_key("HX-Request");
+
+    // Decide which template to render based on HTMX request
+    let template = if is_htmx { "summary" } else { "view" };
+
     let tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
+
+    let action = Action::new("Edit").url(&format!("/dashboard/tapp/edit?name={}", tapp.name));
+
     let data = json!({
         "title": format!("{} Details", params.name),
-        "head": format!("{} Details", params.name),
-        "show_back": true,
-        "view": true,
-        "action": "Edit",
+        "return_url": "/dashboard",
+        "action": action,
         "user": user,
         "tapp": tapp,
     });
-    let body = hb.render("view", &data).unwrap();
+    let body = hb.render(template, &data).unwrap();
     if tapp.name.is_empty() {
         Ok(HttpResponse::NotFound().body(""))
     } else {
@@ -75,15 +86,16 @@ pub async fn view(
 }
 
 pub async fn check_shared_domain(
-    session: TypedSession,
     params: web::Query<BasicForm>,
     kubetailor: web::Data<Kubetailor>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
+
     let tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
     if tapp.name.is_empty() {
         return Ok(HttpResponse::BadRequest().body(format!("Tapp: {} -not found-", tapp.name)));
@@ -106,15 +118,15 @@ pub async fn check_shared_domain(
     }
 }
 pub async fn check_custom_domain(
-    session: TypedSession,
     params: web::Query<BasicForm>,
     kubetailor: web::Data<Kubetailor>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
     let tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
     if tapp.name.is_empty() {
         return Ok(HttpResponse::BadRequest().body(format!("Tapp: {} -not found-", tapp.name)));
@@ -142,25 +154,26 @@ pub async fn check_custom_domain(
 
 pub async fn deploying(
     hb: web::Data<Handlebars<'_>>,
-    session: TypedSession,
     params: web::Query<BasicForm>,
     kubetailor: web::Data<Kubetailor>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
+
     let tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
     if tapp.name.is_empty() {
         return Ok(HttpResponse::NotFound().body(format!("Tapp: {} -not found-", tapp.name)));
     };
+
     let data = json!({
         "title": "Deploying tapp",
         "head": format!("Deploying Tapp: {}", params.name),
         "subtitle": "Processing changes",
         "show_back": true,
-        "home": true,
         "tapp": tapp,
         "user": user,
     });

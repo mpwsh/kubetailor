@@ -8,15 +8,16 @@ pub struct Form {
 
 pub async fn get(
     hb: web::Data<Handlebars<'_>>,
-    session: TypedSession,
     params: web::Query<Form>,
     kubetailor: web::Data<Kubetailor>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
+
     let url = if let Some(query) = &params.query {
         format!(
             "{}/{}/logs?owner={}&query={}",
@@ -25,6 +26,7 @@ pub async fn get(
     } else {
         format!("{}/{}/logs?owner={}", kubetailor.url, params.name, user)
     };
+
     // Send the request
     let logs = kubetailor
         .client
@@ -37,10 +39,8 @@ pub async fn get(
         .unwrap();
     let data = json!({
         "title": "Application logs",
-        "head": format!("{} logs", params.name),
-        "is_form": false,
-        "show_back": true,
-        "action": "Search",
+        "return_url": "/dashboard",
+        "big_container": true,
         "logs": logs,
         "user": user,
     });

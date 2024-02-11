@@ -8,20 +8,28 @@ pub struct BasicForm {
 
 pub async fn get(
     hb: web::Data<Handlebars<'_>>,
-    session: TypedSession,
     params: web::Query<BasicForm>,
     kubetailor: web::Data<Kubetailor>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
+
+    // Detect HTMX request
+    let is_htmx = req.headers().contains_key("HX-Request");
+
+    // Decide which template to render based on HTMX request
+    let template = if is_htmx { "forms/edit" } else { "edit" };
+
     let mut tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
-    log::info!("{}", serde_json::to_string(&tapp).unwrap());
-    //todo replace when merging server code here
+
+    let action = Action::new("Save").form().url("/dashboard/tapp/edit");
+
+    //TODO: replace when merging server code here
     tapp.domains.shared = tapp.domains.shared.replace(".kubetailor.io", "");
-    //workaround for files index
 
     let mut print_files: Vec<(String, String, String)> = Vec::new();
     if let Some(files) = tapp.container.files.clone() {
@@ -32,30 +40,29 @@ pub async fn get(
 
     let data = json!({
         "title": "Editing deployment",
-        "head": format!("Editing {}", params.name),
-        "is_form": true,
-        "show_back": true,
+        "head": format!("Editing {}", tapp.name),
         "custom_enabled": tapp.domains.custom.is_some(),
-        "action": "Save",
+        "return_url": "/dashboard",
+        "action": action,
         "tapp": tapp,
         "files": print_files,
         "user": user,
     });
 
-    let body = hb.render("edit", &data).unwrap();
+    let body = hb.render(template, &data).unwrap();
 
     Ok(HttpResponse::Ok().body(body))
 }
 pub async fn post(
     mut tapp: web::Json<TappConfig>,
-    session: TypedSession,
     kubetailor: web::Data<Kubetailor>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
     let old_tapp = tapp::get(&tapp.name, &user, kubetailor.clone()).await;
     if old_tapp.name.is_empty() {
         return Ok(HttpResponse::NotFound().body(format!("Tapp: {} -not found-", tapp.name)));

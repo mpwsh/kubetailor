@@ -1,4 +1,4 @@
-use crate::{errors::ApiError, routes::prelude::*};
+use crate::routes::prelude::*;
 
 #[derive(Deserialize)]
 pub struct BasicForm {
@@ -8,14 +8,15 @@ pub struct BasicForm {
 
 pub async fn page(
     hb: web::Data<Handlebars<'_>>,
-    session: TypedSession,
     params: web::Query<BasicForm>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = if let Some(email) = session.get_user().map_err(e500)? {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
+
     let data = json!({
         "title": "Destroying tapp",
         "head": format!("Destroying Tapp: {}", params.name),
@@ -31,14 +32,15 @@ pub async fn page(
 
 pub async fn form(
     form: web::Form<BasicForm>,
-    session: TypedSession,
     kubetailor: web::Data<Kubetailor>,
-) -> Result<HttpResponse, ApiError> {
-    let user = if let Some(email) = session.get_user().map_err(e500).unwrap() {
-        email
-    } else {
-        return Ok(see_other("/login"));
-    };
+    req: HttpRequest,
+) -> Result<HttpResponse, actix_web::Error> {
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
+
     //Check if owner.
     let items: Vec<String> = kubetailor
         .client

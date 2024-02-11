@@ -1,32 +1,39 @@
-<div class="form-group">
-  <span class="subtitle no-select">Name:</span>
-  <div class="subtitle-white">{{tapp.name}}</div>
-</div>
-<div class="form-group">
-  <span class="subtitle no-select">Image:</span>
-  <div class="subtitle-white">{{tapp.container.image}}</div>
-</div>
-<div class="form-group">
-  <span class="subtitle no-select">Port:</span>
-  <div class="subtitle-white">{{tapp.container.port}}</div>
-</div>
-<div class="form-group">
-  <span class="subtitle no-select">Shared Domain:</span>
-  <div class="subtitle-white">{{tapp.domains.shared}}</div>
-</div>
-<div class="form-group">
-  <span class="subtitle no-select">Custom Domain:</span>
-  <div class="subtitle-white">{{#if
-      tapp.domains.custom
-    }}{{tapp.domains.custom}}{{else}}N/A{{/if}}</div>
-</div>
-<div class="form-group">
-  <span class="subtitle no-select">Environment Variables:</span>
-  <div id="key-value-pairs">
-    {{#each tapp.config}}
-      <div class="form-group-inline key-value-group">
-        <div class="subtitle-white">{{@key}}: {{this}}</div>
-      </div>
-    {{/each}}
+{{> top }}
+<div id="content" class="content">
+  <div class="form-group">
+    <span class="subtitle no-select">Name:</span>
+    <div class="subtitle-white">{{tapp.name}}</div>
+  </div>
+  <div class="form-group">
+    <span class="subtitle no-select">Image:</span>
+    <div class="subtitle-white">{{tapp.container.image}}</div>
+  </div>
+  <div class="form-group">
+    <span class="subtitle no-select">Port:</span>
+    <div class="subtitle-white">{{tapp.container.port}}</div>
+  </div>
+  <div class="form-group">
+    <span class="subtitle no-select">Shared Domain:</span>
+    <div class="subtitle-white">{{tapp.domains.shared}}</div>
+  </div>
+  <div class="form-group">
+    <span class="subtitle no-select">Custom Domain:</span>
+    <div class="subtitle-white">
+      {{#if tapp.domains.custom}}
+        {{tapp.domains.custom}}
+      {{else}}
+        N/A
+      {{/if}}
+    </div>
+  </div>
+  <div class="form-group">
+    <span class="subtitle no-select">Environment Variables:</span>
+    <div id="key-value-pairs">
+      {{#each tapp.config}}
+        <div class="form-group-inline key-value-group">
+          <div class="subtitle-white">{{@key}}: {{this}}</div>
+        </div>
+      {{/each}}
+    </div>
   </div>
 </div>
