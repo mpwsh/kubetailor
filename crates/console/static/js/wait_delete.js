@@ -12,7 +12,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     responseContainer.style.display = "none";
     while (true) {
       try {
-        const response = await fetch(`/dashboard/view?name=${tapp_name.value}`);
+        const response = await fetch(
+          `/dashboard/tapp/view?name=${tapp_name.value}`,
+        );
         if (response.status === 404) {
           window.location.href = "/dashboard";
         }

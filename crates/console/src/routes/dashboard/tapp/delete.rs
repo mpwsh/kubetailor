@@ -63,7 +63,7 @@ pub async fn form(
             .await
             .unwrap();
         Ok(see_other(&format!(
-            "/dashboard/delete?name={}&loading=true",
+            "/dashboard/tapp/delete?name={}&loading=true",
             form.name
         )))
     } else {
