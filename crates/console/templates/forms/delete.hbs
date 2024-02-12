@@ -9,11 +9,11 @@
         </center>
         </div>
         <div id="response-container" class="confirm-button-container">
-          <form id="form" action="/dashboard/delete" method="post">
+          <form id="form" action="/dashboard/tapp/delete" method="post">
             <input id="tapp-name" type="hidden" name="name" value="{{tapp_name}}" />
             <button id="yes-btn" class="yes-danger-btn">Yes</button>
           </form>
           <a href="/dashboard"><button class="no-danger-btn">No</button></a>
-          <script src="/static/wait_delete.js"></script>
+          <script src="/static/js/wait_delete.js"></script>
 {{>footer}} 
 
