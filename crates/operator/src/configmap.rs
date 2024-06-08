@@ -23,7 +23,7 @@ pub async fn deploy(
     let api: Api<ConfigMap> = Api::namespaced(client.clone(), &meta.namespace);
     match api.create(&PostParams::default(), &cm).await {
         Ok(cm) => Ok(cm),
-        Err(kube::Error::Api(e)) if e.code == 409 => update(client, meta, data).await,
+        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => update(client, meta, data).await,
         Err(e) => Err(Error::KubeError { source: e }),
     }
 }

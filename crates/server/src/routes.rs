@@ -5,16 +5,21 @@ use actix_web::{
     web::{Data, Json},
     HttpResponse, Responder,
 };
-use kube::{
-    api::{Api as KubeApi, DeleteParams, ListParams, PostParams},
-    Client, ResourceExt,
+use kubetailor::{
+    //k8s_openapi::api::{apps::v1::Deployment, core::v1::Pod, networking::v1::Ingress},
+    kube::{
+        api::{Api as KubeApi, DeleteParams, ListParams, PostParams},
+        core::NamespaceResourceScope,
+        Client, ResourceExt,
+    },
+    prelude::*,
 };
-use kubetailor::prelude::*;
 use log::info;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::{config::Kubetailor, quickwit, tapp::TappRequest};
+use crate::{config::Kubetailor, health::Health, quickwit, tapp::TappRequest};
 
 #[derive(Deserialize)]
 pub struct BasicParams {
@@ -35,22 +40,14 @@ pub struct LogsParams {
 enum ListFilter {
     Name,
     Spec,
+    Status,
 }
 
 #[derive(Serialize)]
 #[serde(untagged)]
-enum ListOutput {
-    Spec(Vec<TailoredAppSpec>),
+enum ListOutput<T> {
+    Spec(Vec<T>),
     Name(Vec<String>),
-}
-
-#[derive(Deserialize)]
-enum TappFilter {
-    Container,
-    Ingress,
-    Certificate,
-    Config,
-    Secrets,
 }
 
 impl FromStr for ListFilter {
@@ -60,6 +57,7 @@ impl FromStr for ListFilter {
         match s.to_ascii_lowercase().as_str() {
             "name" => Ok(ListFilter::Name),
             "spec" => Ok(ListFilter::Spec),
+            "status" => Ok(ListFilter::Status),
             _ => Err(()),
         }
     }
@@ -128,18 +126,43 @@ pub async fn update(
     }
 }
 
-async fn fetch_tapps(
-    client: &Client,
-    owner: &str,
-    kubetailor: &Kubetailor,
-) -> Option<Vec<TailoredApp>> {
-    let api: KubeApi<TailoredApp> =
-        KubeApi::namespaced(client.to_owned(), kubetailor.namespace.as_str());
+pub async fn fetch_resources<T>(client: &Client, owner: &str, namespace: &str) -> Option<Vec<T>>
+where
+    T: Clone
+        + DeserializeOwned
+        + Resource<DynamicType = (), Scope = NamespaceResourceScope>
+        + ResourceExt
+        + std::fmt::Debug,
+{
+    let api: KubeApi<T> = KubeApi::namespaced(client.to_owned(), namespace);
     let owner = owner.replace('@', "-");
-    let list_params = ListParams::default().labels(&format!("owner={}", owner));
+    let list_params = ListParams::default().labels(&format!("owner={owner}"));
 
     match api.list(&list_params).await {
-        Ok(tapps) => Some(tapps.items),
+        Ok(res) => Some(res.items),
+        Err(_) => None,
+    }
+}
+
+async fn fetch_resource<T>(
+    client: &Client,
+    owner: &str,
+    namespace: &str,
+    tapp_name: &str,
+) -> Option<Vec<T>>
+where
+    T: Clone
+        + DeserializeOwned
+        + Resource<DynamicType = (), Scope = NamespaceResourceScope>
+        + ResourceExt
+        + std::fmt::Debug,
+{
+    let api: KubeApi<T> = KubeApi::namespaced(client.to_owned(), namespace);
+    let owner = owner.replace('@', "-");
+    let list_params = ListParams::default().labels(&format!("owner={owner},tapp={tapp_name}"));
+
+    match api.list(&list_params).await {
+        Ok(res) => Some(res.items),
         Err(_) => None,
     }
 }
@@ -150,12 +173,16 @@ pub async fn list(
     params: web::Query<BasicParams>,
     kubetailor: Data<Kubetailor>,
 ) -> impl Responder {
-    let items = fetch_tapps(&client, &params.owner, &kubetailor).await;
+    let items: Option<Vec<TailoredApp>> =
+        fetch_resources(&client, &params.owner, &kubetailor.namespace).await;
 
     match items {
         Some(tapps) => {
-            let list = match ListFilter::from_str(params.filter.as_deref().unwrap_or("spec")) {
+            let results = match ListFilter::from_str(params.filter.as_deref().unwrap_or("spec")) {
                 Ok(ListFilter::Spec) => {
+                    ListOutput::Spec(tapps.iter().map(|tapp| tapp.spec.clone()).collect())
+                },
+                Ok(ListFilter::Status) => {
                     ListOutput::Spec(tapps.iter().map(|tapp| tapp.spec.clone()).collect())
                 },
                 Ok(ListFilter::Name) => ListOutput::Name(
@@ -167,7 +194,7 @@ pub async fn list(
                 Err(_) => return HttpResponse::BadRequest().body("Invalid filter value"),
             };
 
-            HttpResponse::Ok().json(list)
+            HttpResponse::Ok().json(results)
         },
         None => HttpResponse::NotFound().body("No TailoredApps found"),
     }
@@ -180,7 +207,8 @@ pub async fn delete(
     params: web::Query<BasicParams>,
     kubetailor: Data<Kubetailor>,
 ) -> impl Responder {
-    let items = fetch_tapps(&client, &params.owner, &kubetailor).await;
+    let items: Option<Vec<TailoredApp>> =
+        fetch_resources(&client, &params.owner, &kubetailor.namespace).await;
 
     match items {
         Some(tapps) => {
@@ -195,11 +223,11 @@ pub async fn delete(
                     .delete(&tapp.metadata.name.unwrap(), &DeleteParams::default())
                     .await
                 {
-                    Ok(_) => HttpResponse::Ok().body(format!("Deleted TailoredApp: {}", app_name)),
+                    Ok(_) => HttpResponse::Ok().body(format!("Deleted TailoredApp: {app_name}")),
                     Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
                 }
             } else {
-                HttpResponse::NotFound().body(format!("TailoredApp '{}' not found", app_name))
+                HttpResponse::NotFound().body(format!("TailoredApp {app_name} not found"))
             }
         },
         None => HttpResponse::NotFound().body("No TailoredApps found"),
@@ -213,7 +241,8 @@ pub async fn get(
     params: web::Query<BasicParams>,
     kubetailor: Data<Kubetailor>,
 ) -> impl Responder {
-    let items = fetch_tapps(&client, &params.owner, &kubetailor).await;
+    let items: Option<Vec<TailoredApp>> =
+        fetch_resources(&client, &params.owner, &kubetailor.namespace).await;
 
     match items {
         Some(tapps) => {
@@ -231,6 +260,26 @@ pub async fn get(
     }
 }
 
+#[get("/{tapp_name}/health")]
+pub async fn health(
+    client: Data<Client>,
+    tapp_name: web::Path<String>,
+    params: web::Query<BasicParams>,
+    kubetailor: Data<Kubetailor>,
+) -> impl Responder {
+    let resources = Resources {
+        cert: fetch_resource(&client, &params.owner, &kubetailor.namespace, &tapp_name).await,
+        pods: fetch_resource(&client, &params.owner, &kubetailor.namespace, &tapp_name).await,
+        deployment: fetch_resource(&client, &params.owner, &kubetailor.namespace, &tapp_name).await,
+        ingress: fetch_resource(&client, &params.owner, &kubetailor.namespace, &tapp_name).await,
+    };
+    if let Ok(status) = Health::try_from(resources) {
+        HttpResponse::Ok().json(status)
+    } else {
+        HttpResponse::Ok().body(format!("Unable to get status of {tapp_name}"))
+    }
+}
+
 #[get("/{app_name}/logs")]
 pub async fn logs(
     client: Data<Client>,
@@ -239,7 +288,8 @@ pub async fn logs(
     kubetailor: Data<Kubetailor>,
     quickwit: Data<quickwit::Client>,
 ) -> impl Responder {
-    let items = fetch_tapps(&client, &params.owner, &kubetailor).await;
+    let items: Option<Vec<TailoredApp>> =
+        fetch_resources(&client, &params.owner, &kubetailor.namespace).await;
     let owner = params.owner.replace('@', "-");
 
     match items {
@@ -248,19 +298,17 @@ pub async fn logs(
                 .into_iter()
                 .find(|tapp| tapp.metadata.name.as_ref() == Some(&app_name.to_string()))
             {
+                let tapp_name = tapp.metadata.name.unwrap();
                 let base_query = format!(
-                    "resource_attributes.tapp:{} AND resource_attributes.owner:{} AND NOT resource_attributes.k8s.container.name:init AND NOT resource_attributes.k8s.container.name:git-sync",
-                    tapp.metadata.name.unwrap(),
-                    owner
+                    "resource_attributes.tapp:{tapp_name} AND resource_attributes.owner:{owner} AND NOT resource_attributes.k8s.container.name:init AND NOT resource_attributes.k8s.container.name:git-sync",
                 );
                 //Here we query for logs
                 let query = if let Some(query) = &params.query {
                     json!({
                         "query":
                             format!(
-                                "{} AND body.message:{}",
-                                base_query,
-                                query.replace(' ', "+")
+                                "{base_query} AND body.message:{query}",
+                                query = query.replace(' ', "+")
                             )
                     })
                 } else {
@@ -281,6 +329,7 @@ pub async fn logs(
                     .unwrap();
                 let res: Vec<String> = logs
                     .hits
+                    .unwrap_or_default()
                     .iter()
                     .map(|log| log.body.message.clone())
                     .collect();

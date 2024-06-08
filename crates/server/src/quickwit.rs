@@ -7,7 +7,8 @@ pub struct Client {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Logs {
-    pub hits: Vec<LogBody>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hits: Option<Vec<LogBody>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

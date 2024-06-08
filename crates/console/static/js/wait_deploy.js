@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", async function () {
+document.body.addEventListener("htmx:afterSwap", function (event) {
   let container = {
     spinner: document.getElementById("tapp-spinner-container"),
     success: document.getElementById("tapp-success-container"),
@@ -41,9 +41,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   ) {
     if (container.available === false) {
       try {
-        const response = await fetch(
-          `/dashboard/tapp/view?name=${container.value}`,
-        );
+        const response = fetch(`/dashboard/tapp/view?name=${container.value}`);
         if (response.status === 200) {
           console.log("Container ready");
           container.spinner.style.display = "none";
@@ -57,7 +55,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
     if (custom_domain.available === false && custom_domain.value != "") {
       try {
-        const response = await fetch(`http://${custom_domain.value}`);
+        const response = fetch(`http://${custom_domain.value}`);
         if (response.status === 308 || response.status === 200) {
           console.log("Custom domain ready");
           custom_domain.spinner.style.display = "none";
@@ -72,7 +70,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
     if (custom_domain_ssl.available === false && custom_domain.value != "") {
       try {
-        const response = await fetch(`https://${custom_domain.value}`);
+        const response = fetch(`https://${custom_domain.value}`);
         if (response.status === 200) {
           console.log("Custom domain SSL ready");
           custom_domain_ssl.spinner.style.display = "none";
@@ -86,8 +84,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
     if (shared_domain.available === false) {
       try {
-        const response = await fetch(`http://${shared_domain.value}`);
-        if (response.status === 308 || response.status === 200) {
+        const response = fetch(`http://${shared_domain.value}`);
+        if (
+          response.status === 308 ||
+          response.status === 200 ||
+          response.status === 303
+        ) {
           console.log("Shared domain ready");
           shared_domain.spinner.style.display = "none";
           shared_domain.success.style.display = "inline-flex";
@@ -100,7 +102,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
     if (shared_domain_ssl.available === false) {
       try {
-        const response = await fetch(`https://${shared_domain.value}`);
+        const response = fetch(`https://${shared_domain.value}`);
         if (response.status === 200) {
           console.log("Shared domain SSL ready");
           shared_domain_ssl.spinner.style.display = "none";
@@ -113,7 +115,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    new Promise((resolve) => setTimeout(resolve, 3000));
   }
   window.location.href = `https://${shared_domain.value}`;
 });

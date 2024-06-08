@@ -1,0 +1,53 @@
+{{> top}}
+<div id="content" class="content">
+  <center>
+    <div class="deploy-group">
+    <span id="subtitle" class="subtitle-status-modal">Containers ready: {{status.tapp.replicas.ready}}/{{status.tapp.replicas.desired}}</span> 
+    {{#if status.tapp.ready}} 
+      <div class="status-container">
+        <object  type="image/svg+xml" data="/static/svg/success.svg"></object>
+      </div>
+    {{else}}
+      <div class="status-container">
+        <object type="image/svg+xml" data="/static/svg/loading.svg"></object>
+      </div>
+    {{/if}}
+    </div>
+    <br>
+    <div class="deploy-group">
+    {{#if status.domains.dns}}
+      <span id="subtitle" class="subtitle-status-modal">Domain ready</span>
+      <div class="status-container">
+        <object  type="image/svg+xml" data="/static/svg/success.svg"></object>
+      </div>
+    {{else}}
+      <span id="subtitle" class="subtitle-status-modal">Configuring domain...</span>
+      <div class="status-container">
+        <object type="image/svg+xml" data="/static/svg/loading.svg"></object>
+      </div>
+    {{/if}}
+    </div>
+    <br>
+    <div class="deploy-group">
+    {{#if status.domains.ssl}}
+      <span id="subtitle" class="subtitle-status-modal">Certificate ready</span>
+      <div class="status-container">
+        <object  type="image/svg+xml" data="/static/svg/success.svg"></object>
+      </div>
+    {{else}}
+      <span id="subtitle" class="subtitle-status-modal">Configuring SSL Cert...</span>
+      <div class="status-container">
+        <object type="image/svg+xml" data="/static/svg/loading.svg"></object>
+      </div>
+    {{/if}}
+    </div>
+  </center>
+</div>
+<script>
+  if ({{status.tapp.ready}} && {{status.domains.dns}} && {{status.domains.ssl}}) {
+          //window.location.href = "/dashboard";
+      } else {
+        window.location.href = "/dashboard/tapp/deploying?name={{tapp_name}}";
+        setTimeout(function() {window.location.reload();}, 3000);
+      }
+</script>

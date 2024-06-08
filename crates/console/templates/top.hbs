@@ -1,6 +1,11 @@
-<div class="title-container">
+<div id="title-container" class="title-container" hx-swap-oob="true">
   {{#if return_url}}
-    <a href="{{return_url}}">
+    <a
+      href="{{return_url}}"
+      hx-get="{{return_url}}"
+      hx-target="#content"
+      hx-push-url="{{return_url}}"
+    >
       <button class="back-btn"><i class="fa-solid fa-arrow-left"></i></button>
     </a>
   {{/if}}
@@ -13,6 +18,7 @@
         class="action-btn"
         type="submit"
         form="editForm"
+        hx-push-url="{{action.url}}"
       >{{action.name}}</button>
     {{else}}
       <a href="{{action.url}}">
@@ -21,4 +27,4 @@
     {{/if}}
   {{/if}}
 </div>
-<br />
+<title>{{title}}</title>

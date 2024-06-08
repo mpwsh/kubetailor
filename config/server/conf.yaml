@@ -1,11 +1,11 @@
 server:
-  logLevel: info
+  logLevel: debug
   addr: 0.0.0.0
   port: 8080
 quickwit:
   apiVersion: v1
   url: "http://localhost:7280"
-  index: otel-logs-v0_6
+  index: otel-logs-v0_7
 kubetailor:
   namespace: kubetailor
   gitSync:

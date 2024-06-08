@@ -1,4 +1,4 @@
-use kube::runtime::controller::Action;
+use kubetailor::kube::{self, runtime::controller::Action};
 use tokio::time::Duration;
 
 use crate::prelude::*;

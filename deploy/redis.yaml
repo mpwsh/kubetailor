@@ -1,0 +1,8 @@
+fullnameOverride: "redis"
+architecture: standalone
+auth:
+  enabled: false
+master:
+  persistence:
+    storageClass: "longhorn"
+    size: 1Gi

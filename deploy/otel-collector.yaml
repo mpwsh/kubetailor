@@ -1,0 +1,22 @@
+mode: daemonset
+presets:
+  logsCollection:
+    enabled: true
+  kubernetesAttributes:
+    enabled: true
+    extractAllPodLabels: true
+config:
+  exporters:
+    otlp:
+      endpoint: quickwit-indexer.quickwit.svc.cluster.local:7281
+      tls:
+        insecure: true
+      # By default, logs are sent to the otel-logs-v0_7.
+      # You can customize the index ID By setting this header.
+      #headers:
+      #  qw-otel-logs-index: otel-logs-v0_6
+  service:
+    pipelines:
+      logs:
+        exporters:
+          - otlp

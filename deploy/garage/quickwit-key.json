@@ -1,0 +1,9 @@
+{
+  "name": "quickwit",
+  "accessKeyId": "GK5b00b484476df21e0e72b650",
+  "secretAccessKey": "4c0ac15bffdbdc0cd83f5fb0e187cf50ed9a762e22e5812cdf36ab4fe3afe0e8",
+  "permissions": {
+    "createBucket": false
+  },
+  "buckets": []
+}

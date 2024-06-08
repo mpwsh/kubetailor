@@ -1,0 +1,41 @@
+{{> top}}
+<div id="content" class="content">
+    {{#if deployments}}
+      <ul class="ul-container" style="list-style-type: none">
+        {{#each deployments}}
+          <li>
+            <span class="button-group">
+              <a href="/dashboard/tapp/view?name={{this}}" 
+                class="list-item" 
+                hx-get="/dashboard/tapp/view?name={{this}}"
+                hx-target="#content"
+                hx-push-url="/dashboard/tapp/view?name={{this}}">
+                <span>> {{this}}</span>
+              </a>
+              <a href="/dashboard/tapp/logs?name={{this}}" title="View logs">
+                <button class="logs-btn">
+                  <i class="fas fa-file-text"></i>
+                </button>
+              </a>
+              <a href="/dashboard/tapp/edit?name={{this}}" 
+                hx-get="/dashboard/tapp/edit?name={{this}}" 
+                hx-target="#content"
+                hx-push-url="/dashboard/tapp/edit?name={{this}}"
+                title="Edit">
+                <button class="edit-btn">
+                  <i class="fas fa-edit"></i>
+                </button>
+              </a>
+              <a href="/dashboard/tapp/delete?name={{this}}" title="Delete">
+                <button class="delete-btn">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </a>
+            </span>
+          </li>
+        {{/each}} 
+      </ul>
+    {{else}}
+      <span class="subtitle-white">No deployments found.</span>
+    {{/if}}
+</div>

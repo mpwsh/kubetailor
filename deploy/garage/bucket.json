@@ -1,0 +1,12 @@
+{
+  "globalAlias": "quickwit",
+  "localAlias": {
+    "accessKeyId": "GK4cc5e3d78eb2a8a804e02429",
+    "alias": "quickwit",
+    "allow": {
+      "read": true,
+      "write": true,
+      "owner": true
+    }
+  }
+}

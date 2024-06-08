@@ -1,4 +1,4 @@
-use k8s_openapi::api::networking::v1::{
+use kubetailor::k8s_openapi::api::networking::v1::{
     IPBlock, NetworkPolicyEgressRule, NetworkPolicyIngressRule, NetworkPolicyPeer,
     NetworkPolicyPort, NetworkPolicySpec,
 };
@@ -97,6 +97,7 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
             ]),
             policy_types: Some(vec!["Ingress".to_string(), "Egress".to_string()]),
         }),
+        ..NetworkPolicy::default()
     }
 }
 
@@ -109,7 +110,7 @@ pub async fn deploy(
     let api: Api<NetworkPolicy> = Api::namespaced(client.clone(), &meta.namespace);
     match api.create(&PostParams::default(), &netpol).await {
         Ok(cm) => Ok(cm),
-        Err(kube::Error::Api(e)) if e.code == 409 => update(client, meta, app).await,
+        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => update(client, meta, app).await,
         Err(e) => Err(Error::KubeError { source: e }),
     }
 }

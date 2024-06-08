@@ -1,0 +1,8 @@
+[
+  {
+    "id": "4f57c5d16b7befb673e18547d1a2214a1b9740332ae1fcdbf954d366d8b31d2f",
+    "zone": "fsn1",
+    "capacity": 19500000000,
+    "tags": ["worker-1"]
+  }
+]
