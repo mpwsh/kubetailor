@@ -286,7 +286,7 @@ config:
       flavor: garage
       region: garage
       access_key_id: "GK4cc5e3d78eb2a8a804e02429"
-      secret_access_key: "bbdbe518e7795c85f6d03886bfce8f38e87a5744e401e8eaed6916215536411b"
+      secret_access_key: "your-admin-key"
 
   default_index_root_uri: s3://quickwit/indexes
   # Indexer settings
