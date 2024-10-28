@@ -28,13 +28,17 @@ jobs:
           version: "latest"
 
       - name: Build
-        run: cargo build --bin operator --verbose
+        run: cargo build --bin operator
 
       - name: Run tests
-        run: cargo test --bin operator --verbose
+        run: cargo test --bin operator
 
       - name: Apply the custom resource definition and cluster role
-        run: kubectl apply -f deploy/kubetailor/ns.yaml -f deploy/kubetailor/crd.yaml -f deploy/kubetailor/clusterrole.yaml -f deploy/kubetailor/no-role-sa.yaml
+        run: |
+          kubectl create namespace kubetailor && \
+          kubectl -f deploy/kubetailor/crd.yaml \
+          -f deploy/clusterrole.yaml \
+          -f deploy/no-role-sa.yaml
 
       - name: Run the operator
         run: cargo run --bin operator &
@@ -45,14 +49,14 @@ jobs:
       - name: Get pods
         run: sleep 2 && kubectl get pods -A
 
-      #- name: Validate that the resources has been created after a small pause
-      #  run: sleep 5 && kubectl wait --for=condition=available -n kubetailor --timeout=240s deployment/tailored-app
+      - name: Validate that the resources has been created after a small pause
+        run: kubectl wait --for=condition=available -n kubetailor --timeout=240s deployment/tailored-app
 
       - name: Get tailored apps
-        run: sleep 60 && kubectl get tapps -n kubetailor
+        run: kubectl get tapps -n kubetailor
 
       - name: Get all resources
         run: kubectl get deploy,svc,pv,pvc,ing -n kubetailor
 
-      - name: Validate that the two pods have been created
+      - name: Validate that the pod have been created
         run: kubectl get pods -l owner=test -n kubetailor

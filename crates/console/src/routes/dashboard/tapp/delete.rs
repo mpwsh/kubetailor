@@ -55,7 +55,7 @@ pub async fn form(
     if items.into_iter().any(|name| name == form.name) {
         kubetailor
             .client
-            .delete(&format!("{}/{}?owner={user}", kubetailor.url, form.name))
+            .delete(format!("{}/{}?owner={user}", kubetailor.url, form.name))
             .send()
             .await
             .unwrap()
