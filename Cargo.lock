@@ -1754,7 +1754,7 @@ dependencies = [
 
 [[package]]
 name = "kubetailor"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "k8s-openapi",
  "kube",
@@ -2102,7 +2102,7 @@ dependencies = [
 
 [[package]]
 name = "operator"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2833,7 +2833,7 @@ dependencies = [
 
 [[package]]
 name = "server"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "actix-web",
  "anyhow",

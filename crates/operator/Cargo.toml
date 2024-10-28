@@ -1,13 +1,13 @@
 [package]
 name = "operator"
-version = "0.1.0"
-authors = ["mpw <x@mpw.sh>"]
-edition = "2021"
-license = "Apache-2.0"
-repository = "https://github.com/mpwsh/kubetailor"
-readme = "README.md"
-keywords = ["kubernetes", "controller", "runtime", "cncf"]
 default-run = "operator"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
 
 [dependencies]
 tokio = { version = "1.35", features = [
