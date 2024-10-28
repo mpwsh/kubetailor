@@ -1,10 +1,11 @@
 use actix_web::{web::Data, App, HttpServer};
-use kube::{Client, Config as KubeConfig};
+use kubetailor::kube::{Client, Config as KubeConfig};
 
 mod config;
 mod deployment;
 mod error;
 mod git;
+mod health;
 mod ingress;
 mod quickwit;
 mod routes;
@@ -33,6 +34,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(config.kubetailor.clone()))
             .service(routes::create)
             .service(routes::list)
+            .service(routes::health)
             .service(routes::get)
             .service(routes::logs)
             .service(routes::update)

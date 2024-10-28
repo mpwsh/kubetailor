@@ -1,4 +1,4 @@
-use k8s_openapi::api::networking::v1::{
+use kubetailor::k8s_openapi::api::networking::v1::{
     HTTPIngressPath, HTTPIngressRuleValue, IngressBackend, IngressRule, IngressServiceBackend,
     IngressSpec, IngressTLS, ServiceBackendPort,
 };
@@ -72,7 +72,7 @@ pub async fn deploy(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Resu
     let api: Api<Ingress> = Api::namespaced(client.to_owned(), &meta.namespace);
     match api.create(&PostParams::default(), &ingress).await {
         Ok(s) => Ok(s),
-        Err(kube::Error::Api(e)) if e.code == 409 => update(client, meta, app).await,
+        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => update(client, meta, app).await,
         Err(e) => Err(Error::KubeError { source: e }),
     }
 }

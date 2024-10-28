@@ -1,4 +1,4 @@
-use k8s_openapi::api::{
+use kubetailor::k8s_openapi::api::{
     apps::v1::DeploymentSpec,
     core::v1::{
         ConfigMapEnvSource, ConfigMapVolumeSource, Container, ContainerPort, EmptyDirVolumeSource,
@@ -267,7 +267,9 @@ pub async fn deploy(
     let api: Api<Deployment> = Api::namespaced(client.clone(), &meta.namespace);
     match api.create(&PostParams::default(), &deployment).await {
         Ok(d) => Ok(d),
-        Err(kube::Error::Api(e)) if e.code == 409 => update(client, meta, app, &volumes).await,
+        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => {
+            update(client, meta, app, &volumes).await
+        },
         Err(e) => {
             warn!(
                 "Error while trying to update deployment {name}",

@@ -19,6 +19,10 @@ pub async fn page(
         .expect("UserId should be present after middleware check")
         .to_string();
 
+    let is_htmx = req.headers().contains_key("HX-Request");
+
+    let template = if is_htmx { "home" } else { "dashboard" };
+
     let items: Vec<String> = kubetailor
         .client
         .get(format!(
@@ -32,10 +36,7 @@ pub async fn page(
         .await
         .unwrap();
 
-    let action = json!({
-        "name": "New",
-        "url": "/dashboard/tapp/new",
-    });
+    let action = Action::new("New").url("/dashboard/tapp/new");
     let data = json!({
         "title": "Dashboard",
         "head": "Tapps",
@@ -43,7 +44,7 @@ pub async fn page(
         "action": action,
         "user": user,
     });
-    let body = hb.render("dashboard", &data).unwrap();
+    let body = hb.render(template, &data).unwrap();
 
     Ok(HttpResponse::Ok().body(body))
 }
@@ -60,10 +61,8 @@ pub async fn view(
         .expect("UserId should be present after middleware check")
         .to_string();
 
-    // Detect HTMX request
     let is_htmx = req.headers().contains_key("HX-Request");
 
-    // Decide which template to render based on HTMX request
     let template = if is_htmx { "summary" } else { "view" };
 
     let tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
@@ -85,73 +84,6 @@ pub async fn view(
     }
 }
 
-pub async fn check_shared_domain(
-    params: web::Query<BasicForm>,
-    kubetailor: web::Data<Kubetailor>,
-    req: HttpRequest,
-) -> Result<HttpResponse, actix_web::Error> {
-    let user = req
-        .extensions()
-        .get::<UserId>()
-        .expect("UserId should be present after middleware check")
-        .to_string();
-
-    let tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
-    if tapp.name.is_empty() {
-        return Ok(HttpResponse::BadRequest().body(format!("Tapp: {} -not found-", tapp.name)));
-    };
-
-    let url = url::Url::parse(&format!("https://{}", tapp.domains.shared))
-        .unwrap()
-        .to_string();
-    log::error!("Using URL: {}", tapp.domains.shared);
-    match kubetailor.client.get(url).send().await {
-        Ok(response) => match response.status() {
-            StatusCode::OK => Ok(HttpResponse::Ok().finish()),
-            StatusCode::NOT_FOUND => Ok(HttpResponse::NotFound().finish()),
-            _ => Ok(HttpResponse::Created().finish()),
-        },
-        Err(err) => {
-            log::error!("{:?}", err);
-            Ok(HttpResponse::NotFound().finish())
-        },
-    }
-}
-pub async fn check_custom_domain(
-    params: web::Query<BasicForm>,
-    kubetailor: web::Data<Kubetailor>,
-    req: HttpRequest,
-) -> Result<HttpResponse, actix_web::Error> {
-    let user = req
-        .extensions()
-        .get::<UserId>()
-        .expect("UserId should be present after middleware check")
-        .to_string();
-    let tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
-    if tapp.name.is_empty() {
-        return Ok(HttpResponse::BadRequest().body(format!("Tapp: {} -not found-", tapp.name)));
-    };
-
-    if let Some(domain) = tapp.domains.custom {
-        let url = url::Url::parse(&format!("https://{}", domain))
-            .unwrap()
-            .to_string();
-        match kubetailor.client.get(url).send().await {
-            Ok(response) => match response.status() {
-                StatusCode::OK => Ok(HttpResponse::Ok().finish()),
-                StatusCode::NOT_FOUND => Ok(HttpResponse::NotFound().finish()),
-                _ => Ok(HttpResponse::Created().finish()),
-            },
-            Err(err) => {
-                log::error!("{:?}", err);
-                Ok(HttpResponse::NotFound().finish())
-            },
-        }
-    } else {
-        Ok(HttpResponse::Created().finish())
-    }
-}
-
 pub async fn deploying(
     hb: web::Data<Handlebars<'_>>,
     params: web::Query<BasicForm>,
@@ -164,20 +96,23 @@ pub async fn deploying(
         .expect("UserId should be present after middleware check")
         .to_string();
 
-    let tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
-    if tapp.name.is_empty() {
-        return Ok(HttpResponse::NotFound().body(format!("Tapp: {} -not found-", tapp.name)));
-    };
+    let is_htmx = req.headers().contains_key("HX-Request");
+    let template = if is_htmx { "status" } else { "deploying" };
+    let status = tapp::health::get(&params.name, &user, kubetailor.clone()).await;
+    let action = Action::new("Confirm").url("/dashboard");
 
     let data = json!({
         "title": "Deploying tapp",
         "head": format!("Deploying Tapp: {}", params.name),
         "subtitle": "Processing changes",
         "show_back": true,
-        "tapp": tapp,
+        "tapp_name": params.name,
+        "action": action,
+        "status": status,
         "user": user,
     });
-    let body = hb.render("loading", &data).unwrap();
+
+    let body = hb.render(template, &data).unwrap();
 
     Ok(HttpResponse::Ok().body(body))
 }

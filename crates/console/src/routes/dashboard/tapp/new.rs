@@ -49,15 +49,13 @@ pub async fn form(
     match res {
         Ok(response) => {
             if response.status().is_success() {
-                Ok(see_other(&format!("/dashboard/loading?name={}", tapp.name)))
+                Ok(see_other(&format!(
+                    "/dashboard/tapp/deploying?name={}",
+                    tapp.name
+                )))
             } else {
-                // Ok(HttpResponse::BadRequest().body(response.text().await.unwrap().to_string()))
-                FlashMessage::info(format!(
-                    "Internal server error. Unable to initialize session. Please try again\n{err}",
-                    err = response.text().await.unwrap(),
-                ))
-                .send();
-                Ok(see_other("/dashboard/new"))
+                FlashMessage::info(response.text().await.unwrap()).send();
+                Ok(see_other("/dashboard/error"))
             }
         },
         Err(e) => Ok(HttpResponse::BadRequest().body(e.to_string())),

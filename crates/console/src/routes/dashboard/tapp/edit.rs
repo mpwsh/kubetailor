@@ -18,10 +18,8 @@ pub async fn get(
         .expect("UserId should be present after middleware check")
         .to_string();
 
-    // Detect HTMX request
     let is_htmx = req.headers().contains_key("HX-Request");
 
-    // Decide which template to render based on HTMX request
     let template = if is_htmx { "forms/edit" } else { "edit" };
 
     let mut tapp = tapp::get(&params.name, &user, kubetailor.clone()).await;
@@ -79,5 +77,8 @@ pub async fn post(
         .text()
         .await
         .unwrap();
-    Ok(see_other(&format!("/dashboard/loading?name={}", tapp.name)))
+    Ok(see_other(&format!(
+        "/dashboard/tapp/deploying?name={}",
+        tapp.name
+    )))
 }

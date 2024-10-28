@@ -5,11 +5,11 @@ use actix_session::{config::PersistentSession, storage::RedisSessionStore, Sessi
 use actix_web::{
     cookie::{self, Key},
     dev::Server,
+    middleware::from_fn,
     web::{self, resource},
     App, HttpServer, Result,
 };
 use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
-use actix_web_lab::middleware::from_fn;
 use handlebars::{DirectorySourceOptions, Handlebars};
 use portier::Client;
 use secrecy::{ExposeSecret, Secret};
@@ -20,8 +20,7 @@ use crate::{
     config::{Kubetailor, Settings},
     errors::error_handlers,
     routes::{
-        authenticate, check_custom_domain, check_shared_domain, claim, dashboard, deploying,
-        health, login, logout, tapp::*, view, whoami,
+        authenticate, claim, dashboard, deploying, error, login, logout, tapp::*, view, whoami,
     },
 };
 
@@ -112,7 +111,6 @@ pub async fn run(
             .app_data(web::Data::new(kubetailor.clone()))
             .app_data(web::Data::new(handlebars.clone()))
             .route("/", web::get().to(login))
-            .route("/health", web::get().to(health))
             .service(
                 resource("/login")
                     .route(web::get().to(login))
@@ -123,11 +121,10 @@ pub async fn run(
                     .wrap(from_fn(reject_anonymous_users))
                     .route("/", web::get().to(dashboard::page))
                     .route("", web::get().to(dashboard::page))
-                    .route("/loading", web::get().to(deploying))
-                    .route("/custom_domain", web::get().to(check_custom_domain))
-                    .route("/shared_domain", web::get().to(check_shared_domain))
+                    .route("/error", web::get().to(error::page))
                     .service(
                         web::scope("/tapp")
+                            .route("/deploying", web::get().to(deploying))
                             .route("/view", web::get().to(view))
                             .service(
                                 resource("/new")

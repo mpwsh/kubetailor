@@ -5,29 +5,31 @@ pub use std::{
     sync::Arc,
 };
 
-pub use k8s_openapi::{
-    api::{
-        apps::v1::Deployment,
-        core::v1::{ConfigMap, PersistentVolumeClaim, Secret, Service, ServicePort},
-        networking::v1::{Ingress, NetworkPolicy},
+pub use kubetailor::{
+    crd::TailoredApp,
+    k8s_openapi::{
+        api::{
+            apps::v1::Deployment,
+            core::v1::{ConfigMap, PersistentVolumeClaim, Secret, Service, ServicePort},
+            networking::v1::{Ingress, NetworkPolicy},
+        },
+        apimachinery::pkg::{
+            apis::meta::v1::{LabelSelector, OwnerReference},
+            util::intstr::IntOrString,
+        },
+        ByteString, NamespaceResourceScope, ResourceScope,
     },
-    apimachinery::pkg::{
-        apis::meta::v1::{LabelSelector, OwnerReference},
-        util::intstr::IntOrString,
+    kube::{
+        api::{DeleteParams, ListParams, ObjectMeta, Patch, PatchParams, PostParams},
+        core::object::HasSpec,
+        runtime::{
+            controller::Action,
+            watcher::{self, Config},
+            Controller, WatchStreamExt,
+        },
+        Api, Client, Resource, ResourceExt,
     },
-    ByteString, NamespaceResourceScope, ResourceScope,
 };
-pub use kube::{
-    api::{DeleteParams, ListParams, ObjectMeta, Patch, PatchParams, PostParams},
-    core::object::HasSpec,
-    runtime::{
-        controller::Action,
-        watcher::{self, Config},
-        Controller, WatchStreamExt,
-    },
-    Api, Client, Resource, ResourceExt,
-};
-pub use kubetailor::crd::TailoredApp;
 pub use log::{error, info, warn};
 pub use serde::{Deserialize, Serialize};
 pub use tokio::time::Duration;

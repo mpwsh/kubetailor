@@ -30,7 +30,7 @@ pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> 
     let mut vol_mounts = BTreeMap::new();
     if let Some(volumes) = app.spec.deployment.container.volumes.clone() {
         for (i, (path, storage)) in volumes.iter().enumerate() {
-            let pvc_name = format!("pvc-{}-{}", &name, i);
+            let pvc_name = format!("pvc-{name}-{i}");
             let new_meta = TappMeta {
                 name: pvc_name,
                 labels: meta.labels.clone(),
@@ -61,7 +61,7 @@ pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> 
 
         // Create a configMap for each path group
         for (i, (parent_dir, files)) in groups.into_iter().enumerate() {
-            let cm_name = format!("files-{}-{}", name, i);
+            let cm_name = format!("files-{name}-{i}");
             let mut cm = BTreeMap::new();
             vol_mounts.insert(cm_name.to_owned(), parent_dir.clone());
             for (path, data) in files {
@@ -131,14 +131,14 @@ where
     let labels_str = meta
         .labels
         .iter()
-        .map(|(k, v)| format!("{}={}", k, v))
+        .map(|(k, v)| format!("{k}={v}"))
         .collect::<Vec<String>>()
         .join(",");
     let lp = ListParams::default().labels(&labels_str);
     let dp = DeleteParams::default();
     match api.delete_collection(&dp, &lp).await {
         Ok(_) => Ok(()),
-        Err(kube::Error::Api(e)) if e.code == 404 => {
+        Err(kubetailor::kube::Error::Api(e)) if e.code == 404 => {
             warn!("Resource {meta:?} already deleted");
             Ok(())
         },
@@ -157,13 +157,13 @@ where
     let labels_str = meta
         .labels
         .iter()
-        .map(|(k, v)| format!("{}={}", k, v))
+        .map(|(k, v)| format!("{k}={v}"))
         .collect::<Vec<String>>()
         .join(",");
     let lp = ListParams::default().labels(&labels_str);
     match api.list(&lp).await {
         Ok(resources) => Ok(!resources.items.is_empty()),
-        Err(kube::Error::Api(e)) if e.code == 404 => Ok(false),
+        Err(kubetailor::kube::Error::Api(e)) if e.code == 404 => Ok(false),
         Err(e) => Err(Error::KubeError { source: e }),
     }
 }

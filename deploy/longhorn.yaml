@@ -1,0 +1,17 @@
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  host: lh.kubetailor.io
+  tls: true
+  secureBackends: false
+  tlsSecret: longhorn-tls
+  path: /
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/hostname: lh.kubetailor.io
+    external-dns.alpha.kubernetes.io/target: lb.kubetailor.io
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+    external-dns.alpha.kubernetes.io/ttl: "60"
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Authentication Required"

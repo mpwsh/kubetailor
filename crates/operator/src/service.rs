@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::{ServicePort, ServiceSpec};
+use kubetailor::k8s_openapi::api::core::v1::{ServicePort, ServiceSpec};
 
 use crate::prelude::*;
 
@@ -34,7 +34,7 @@ pub async fn deploy(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Resu
     let api: Api<Service> = Api::namespaced(client.clone(), &meta.namespace);
     match api.create(&PostParams::default(), &service).await {
         Ok(s) => Ok(s),
-        Err(kube::Error::Api(e)) if e.code == 409 => update(client, meta, app).await,
+        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => update(client, meta, app).await,
         Err(e) => Err(Error::KubeError { source: e }),
     }
 }

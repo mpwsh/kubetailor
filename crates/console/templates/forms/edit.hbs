@@ -1,6 +1,10 @@
 {{> top}}
-<div id="this" class="content">
-  <form id="editForm" onsubmit="processFormData(event, '{{ action.url }}');">
+<div class="content" id="content" hx-swap-oob="true">
+    <form id="editForm" hx-post="{{ action.url }}" hx-trigger="submit">
      {{> forms/wizard}}
-  </form> 
+    </form> 
+  <center>
+    <div id="tabsContainer" class="tabs" hx-swap-oob="true"></div>
+  </center>
 </div>
+<script src="/static/js/wizard.js"></script> 

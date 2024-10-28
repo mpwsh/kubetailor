@@ -132,3 +132,12 @@ jobs:
           inputs: ${{ env.DOCKERHUB_INIT_REPO }}:latest,${{ env.DOCKERHUB_INIT_REPO }}:${{ github.sha }}
           images: ${{ env.DOCKERHUB_INIT_REPO }}:latest-amd64,${{ env.DOCKERHUB_INIT_REPO }}:latest-arm64
           push: true
+
+      - name: Invoke workflow in kubes repo
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          ref: main
+          token: ${{ secrets.ACTIONS_TOKEN }}
+          workflow: release.yml
+          repo: mpwsh/k3s-arm
+          inputs: '{ "service": "${{ env.SERVICE_NAME }}", "commit_hash": "${{ github.sha }}"}'

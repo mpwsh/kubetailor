@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::{self, Display};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Logs {
@@ -54,11 +55,11 @@ pub enum Format {
     PrettyJson,
 }
 
-impl ToString for Format {
-    fn to_string(&self) -> String {
+impl Display for Format {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Format::Json => "json".to_string(),
-            Format::PrettyJson => "pretty_json".to_string(),
+            Format::Json => write!(f, "json"),
+            Format::PrettyJson => write!(f, "pretty_json"),
         }
     }
 }

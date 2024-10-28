@@ -1,19 +1,28 @@
 [package]
 name = "kubetailor"
-version = "0.1.0"
-edition = "2021"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords.workspace = true
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-kube = { version = "0.82", default-features = true, features = [
-    "derive",
-    "runtime",
-] } # Library for talking to Kubernetes API
-k8s-openapi = { version = "0.18", default-features = false, features = [
-    "v1_23",
-] } # Kube-rs depends on k8s-openapi
+k8s-openapi = { version = "0.21", default-features = false, features = [
+  "v1_27",
+] }
+kube-core = "0.88.1"
 schemars = "0.8"
-
+kube = { version = "0.88.1", default-features = false, features = [
+  "derive",
+  "client",
+  "runtime",
+  "openssl-tls"
+] }

@@ -1,4 +1,4 @@
-use k8s_openapi::{
+use kubetailor::k8s_openapi::{
     api::core::v1::{PersistentVolumeClaim, PersistentVolumeClaimSpec, ResourceRequirements},
     apimachinery::pkg::api::resource::Quantity,
 };
@@ -39,7 +39,9 @@ pub async fn deploy(
     let api: Api<PersistentVolumeClaim> = Api::namespaced(client.to_owned(), &meta.namespace);
     match api.create(&PostParams::default(), &pvc).await {
         Ok(pvc) => Ok(pvc),
-        Err(kube::Error::Api(e)) if e.code == 409 => update(client, meta, &storage).await,
+        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => {
+            update(client, meta, &storage).await
+        },
         Err(e) => Err(Error::KubeError { source: e }),
     }
 }

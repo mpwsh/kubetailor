@@ -1,4 +1,4 @@
-window.onload = function () {
+document.addEventListener("DOMContentLoaded", function () {
   // Define your form ids
   var formIds = [
     "tapp-input",
@@ -52,4 +52,4 @@ window.onload = function () {
 
   // Add 'active' class to first tab
   document.querySelector(".tab").classList.add("active");
-};
+});

@@ -1,5 +1,6 @@
 pub mod delete;
 pub mod edit;
+pub mod health;
 pub mod logs;
 pub mod new;
 
@@ -32,4 +33,25 @@ pub async fn get(tapp_name: &str, owner: &str, kubetailor: web::Data<Kubetailor>
     } else {
         TappConfig::default()
     }
+}
+
+pub async fn deploying(
+    hb: web::Data<Handlebars<'_>>,
+    req: HttpRequest,
+) -> Result<HttpResponse, actix_web::Error> {
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
+
+    let data = json!({
+        "user": user,
+    });
+
+    let body = hb.render("new", &data).unwrap();
+
+    Ok(HttpResponse::Ok()
+        .insert_header(ContentType(mime::TEXT_HTML))
+        .body(body))
 }
