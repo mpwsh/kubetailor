@@ -36,7 +36,7 @@ jobs:
       - name: Apply the custom resource definition and cluster role
         run: |
           kubectl create namespace kubetailor && \
-          kubectl -f deploy/kubetailor/crd.yaml \
+          kubectl apply -f deploy/kubetailor/crd.yaml \
           -f deploy/clusterrole.yaml \
           -f deploy/no-role-sa.yaml
 
