@@ -4,9 +4,9 @@ use actix_web::{
     body::MessageBody,
     dev::{ServiceRequest, ServiceResponse},
     error::InternalError,
+    middleware::Next,
     FromRequest, HttpMessage,
 };
-use actix_web_lab::middleware::Next;
 
 use crate::{
     session_state::TypedSession,

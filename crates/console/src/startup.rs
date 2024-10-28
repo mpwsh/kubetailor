@@ -5,11 +5,11 @@ use actix_session::{config::PersistentSession, storage::RedisSessionStore, Sessi
 use actix_web::{
     cookie::{self, Key},
     dev::Server,
+    middleware::from_fn,
     web::{self, resource},
     App, HttpServer, Result,
 };
 use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
-use actix_web_lab::middleware::from_fn;
 use handlebars::{DirectorySourceOptions, Handlebars};
 use portier::Client;
 use secrecy::{ExposeSecret, Secret};
