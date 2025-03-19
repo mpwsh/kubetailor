@@ -4,5 +4,5 @@ auth:
   enabled: false
 master:
   persistence:
-    storageClass: "longhorn"
+    #storageClass: "longhorn"
     size: 1Gi

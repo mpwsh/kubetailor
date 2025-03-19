@@ -1,3 +1,4 @@
 application:
-  base_url: "http://localhost:8000"
-redis_dsn: "redis://192.168.1.210:6379"
+  host: 0.0.0.0
+  base_url: "http://127.0.0.1:8000"
+#redis_dsn: "redis://192.168.1.210:6379"

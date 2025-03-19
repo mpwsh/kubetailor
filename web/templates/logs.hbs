@@ -1,0 +1,242 @@
+{{> top}}
+<div x-data="{ 
+    shouldPoll: true,
+    selectedDeployment: new URLSearchParams(window.location.search).get('name') || 'Select Deployment',
+    searchTerm: '',
+    logs: [],
+    intervals: [
+        { label: '10s', value: 10000 },
+        { label: '30s', value: 30000 },
+        { label: '1m', value: 60000 },
+        { label: '5m', value: 300000 }
+    ],
+    pollingIntervalLabel() {
+        return this.intervals.find(i => i.value === this.pollingInterval)?.label || '10 seconds';
+    },
+    isPollingDropdownOpen: false,
+    pollingInterval: 10000,
+    currentInterval: null,
+    async fetchLogs() {
+        if (this.selectedDeployment === 'Select Deployment') return;
+        try {
+            const response = await fetch(`/logs?name=${this.selectedDeployment}&plain=true`);
+            const data = await response.json();
+            this.logs = Array.isArray(data) ? data : []; // Ensure logs is always an array
+            history.pushState({}, '', `/logs?name=${this.selectedDeployment}`);
+        } catch (error) {
+            console.error('Failed to fetch logs:', error);
+            this.logs = [];
+        }
+    },
+    get filteredLogs() {
+        if (!this.searchTerm) return this.logs || [];
+        const searchLower = this.searchTerm.toLowerCase();
+        return (this.logs || []).filter(log => log.toLowerCase().includes(searchLower));
+    },
+    startPolling() {
+        this.stopPolling();
+        if (this.shouldPoll) {
+            this.currentInterval = setInterval(() => {
+                if (this.shouldPoll && this.selectedDeployment !== 'Select Deployment') {
+                    this.fetchLogs();
+                }
+            }, this.pollingInterval);
+        }
+    },
+    stopPolling() {
+        if (this.currentInterval) {
+            clearInterval(this.currentInterval);
+        }
+    }
+}" 
+x-init="
+    $nextTick(() => {
+        if (selectedDeployment !== 'Select Deployment') {
+            fetchLogs();
+        }
+        startPolling();
+        $watch('pollingInterval', () => startPolling());
+    });
+    $watch('shouldPoll', () => startPolling());"
+class="flex flex-col gap-6 pb-64">
+    <!-- Header section with controls -->
+    <div class="flex flex-col gap-4">
+        <div class="flex flex-wrap items-end gap-4">
+            <!-- Deployment Selector -->
+              <div class="relative w-64">
+                <label for="deployment" class="mb-1 block text-sm text-neutral-600 dark:text-neutral-300">Deployment</label>
+                <div x-data="{ 
+                    isOpen: false,
+                    filteredDeployments: [],
+                    searchQuery: '',
+                    deployments: [],
+                    async fetchDeployments() {
+                        try {
+                            const response = await fetch('/deployments/list');
+                            const data = await response.json();
+                            this.deployments = data.deployments.map(dep => ({ label: dep, value: dep }));
+                            this.filteredDeployments = this.deployments;
+                        } catch (error) {
+                            console.error('Failed to fetch deployments:', error);
+                        }
+                    },
+                    filterDeployments() {
+                        this.filteredDeployments = this.deployments.filter(dep =>
+                            dep.label.toLowerCase().includes(this.searchQuery.toLowerCase())
+                        );
+                    }
+                }" 
+                @click.outside="isOpen = false"
+                x-init="fetchDeployments()"
+                class="relative">
+                    
+                    <!-- Trigger button -->
+                    <button 
+                        type="button"
+                        @click="isOpen = !isOpen; filteredDeployments = deployments"
+                        class="flex w-full items-center justify-between gap-2 rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800">
+                        <span x-text="selectedDeployment"></span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
+                            <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"/>
+                        </svg>
+                    </button>
+
+                    <!-- Dropdown -->
+                    <div x-show="isOpen" 
+                         x-transition
+                         class="absolute left-0 z-50 mt-1 w-full overflow-hidden rounded-md border border-neutral-300 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+                        
+                        <!-- Search input -->
+                        <div class="relative border-b border-neutral-200 dark:border-neutral-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" class="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-neutral-400">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+                            </svg>
+                            <input
+                                type="search"
+                                x-model="searchQuery"
+                                @input="filterDeployments()"
+                                class="w-full border-0 bg-transparent py-2 pl-9 pr-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none dark:text-neutral-100"
+                                placeholder="Search deployments..."
+                            />
+                        </div>
+
+                        <!-- Options list -->
+                        <ul class="max-h-64 overflow-y-auto py-1">
+                            <template x-for="deployment in filteredDeployments" :key="deployment.value">
+                                <li>
+                                    <button
+                                        @click="
+                                            selectedDeployment = deployment.value; 
+                                            logs = []; 
+                                            isOpen = false;
+                                            fetchLogs();
+                                        "
+                                        class="flex w-full items-center justify-between px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                        :class="{'font-semibold': selectedDeployment === deployment.value}">
+                                        <span x-text="deployment.label"></span>
+                                        <svg x-show="selectedDeployment === deployment.value" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" class="size-4">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+                                        </svg>
+                                    </button>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+<!-- Polling Controls -->
+        <div class="flex items-end gap-4">    
+            <!-- Interval Selector -->
+            <div class="relative w-32">
+                <label class="mb-1 block text-sm text-neutral-600 dark:text-neutral-300">Interval</label>
+                <button
+                    type="button"
+                    @click="isPollingDropdownOpen = !isPollingDropdownOpen"
+                    class="flex w-full items-center justify-between gap-2 rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800">
+                    <span x-text="pollingIntervalLabel()"></span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
+                        <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"/>
+                    </svg>
+                </button>
+            </div>
+
+        <!-- Polling Toggle -->
+        <button @click="shouldPoll = !shouldPoll" 
+                x-text="shouldPoll ? 'Pause Updates' : 'Resume Updates'"
+                type="button"
+                class="cursor-pointer whitespace-nowrap rounded-md bg-black px-4 py-2 text-sm font-medium tracking-wide text-neutral-100 transition hover:opacity-75 text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black active:opacity-100 active:outline-offset-0 disabled:opacity-75 disabled:cursor-not-allowed dark:bg-white dark:text-black dark:focus-visible:outline-white">
+        </button>
+                 <!-- Interval Dropdown -->
+                <div x-show="isPollingDropdownOpen"
+                     @click.outside="isPollingDropdownOpen = false"
+                     x-transition
+                     class="absolute right-0 z-50 mt-1 w-40 overflow-hidden rounded-md border border-neutral-300 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+                    <ul class="py-1">
+                        <template x-for="interval in intervals" :key="interval.value">
+                            <li>
+                                <button
+                                    @click="pollingInterval = interval.value; isPollingDropdownOpen = false"
+                                    class="flex w-full items-center justify-between px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                    :class="{'font-semibold': pollingInterval === interval.value}">
+                                    <span x-text="interval.label"></span>
+                                    <svg x-show="pollingInterval === interval.value" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" class="size-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+                                    </svg>
+                                </button>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+                </div>
+                </div>
+            </div>
+
+            <!-- Search box -->
+            <div class="w-full">
+                <label for="log-search" class="mb-1 block text-sm text-neutral-600 dark:text-neutral-300">Search Logs</label>
+                <div class="relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" class="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-neutral-600/50 dark:text-neutral-300/50">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+                    </svg>
+                    <input 
+                        type="search"
+                        id="log-search"
+                        x-model="searchTerm"
+                        class="w-full rounded-md border border-neutral-300 bg-neutral-50 py-2 pl-11 pr-4 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:focus-visible:outline-white"
+                        placeholder="Search logs..."
+                    />
+                </div>
+            </div>
+    </div>
+
+    <!-- Logs section -->
+    <div class="mt-6 rounded-lg border border-neutral-300 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 flex-1">
+        <div id="logs-content" class="flex flex-col">
+            <template x-if="filteredLogs.length > 0">
+                <div class="flex flex-col">
+               <template x-for="(log, index) in filteredLogs" :key="index">
+                        <div class="log-entry border-b border-neutral-300 last:border-b-0 font-mono text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300 p-2" x-text="log"></div>
+                    </template>
+                </div>
+            </template>
+            
+            <!-- Empty states -->
+            <template x-if="selectedDeployment === 'Select Deployment'">
+                <div class="px-4 py-8 text-center text-sm text-neutral-600 dark:text-neutral-300">
+                    <p>Select a deployment to view logs</p>
+                </div>
+            </template>
+
+            <template x-if="selectedDeployment !== 'Select Deployment' && !logs.length">    
+                <div class="px-4 py-8 text-center text-sm text-neutral-600 dark:text-neutral-300">
+                    <p x-text="`No logs available for deployment ${selectedDeployment}`"></p>
+                </div>
+            </template>
+
+            <template x-if="logs.length > 0 && filteredLogs.length === 0">
+                <div class="px-4 py-8 text-center text-sm text-neutral-600 dark:text-neutral-300">
+                    <p>No logs match your search</p>
+                </div>
+            </template>
+        </div>
+    </div>
+</div>
+{{> footer}}

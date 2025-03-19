@@ -9,36 +9,37 @@ readme.workspace = true
 keywords.workspace = true
 
 [dependencies]
-actix-web = "4.4.1"
+actix-web = "4.10.2"
 actix-session = { version = "0.10.1", features = ["redis-session-native-tls"] }
-chrono = "0.4.31"
-log = "0.4.20"
+chrono = "0.4.40"
+log = "0.4.26"
 portier = "0.2.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-serde = { version = "1.0.195", features = ["derive"] }
+serde = { version = "1.0.219", features = ["derive"] }
 tracing = { version = "0.1", features = ["log"] }
-tracing-actix-web = "0.7.9"
-anyhow = "1.0.79"
+tracing-actix-web = "0.7.16"
+anyhow = "1.0.97"
 secrecy = { version = "0.8", features = ["serde"] }
 config = { version = "0.14", default-features = false, features = ["yaml"] }
-thiserror = "1.0.56"
+thiserror = "1.0.69"
 actix-web-flash-messages = { version = "0.5", features = ["cookies"] }
 #actix-web-lab = "0.23.0"
-serde-aux = "4.4"
-tracing-bunyan-formatter = "0.3.9"
+serde-aux = "4.6"
+tracing-bunyan-formatter = "0.3.10"
 tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
 tracing-log = "0.2.0"
 rand = { version = "0.8", features = ["std_rng"] }
-actix-files = "0.6.5"
-handlebars = { version = "6.2.0", features = ["dir_source"] }
+actix-files = "0.6.6"
+handlebars = { version = "6.3.2", features = ["dir_source"] }
 mime = "0.3.17"
-serde_json = "1.0.111"
+serde_json = "1.0.140"
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
   "rustls-tls",
   "cookies",
 ] }
-url = "2.5.0"
+url = "2.5.4"
+actix-utils = "3.0.1"
 
 [lib]
 path = "src/lib.rs"

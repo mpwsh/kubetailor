@@ -1,0 +1,66 @@
+<div class="form-group">
+  <span class="subtitle no-select">Volumes:</span>
+  <div id="volume-error-message"></div>
+  <div id="volume-pairs">
+    {{#each tapp.container.volumes}}
+      <div class="form-group-inline volume-group">
+        <input
+          class="kv-input"
+          type="text"
+          name="volume_key"
+          placeholder="Mount Path"
+          value="{{@key}}"
+        />
+        <input
+          class="kv-input"
+          type="text"
+          name="volume_value"
+          placeholder="Size"
+          value="{{this}}"
+        />
+        <button type="button" class="delete-btn">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    {{/each}}
+  </div>
+</div>
+<button type="button" id="add-volume-btn" class="add-resource-btn">+</button>
+<div class="form-group">
+  <span class="subtitle no-select">Files:</span>
+  <div id="file-error-message"></div>
+  <div id="file-pairs">
+    {{#each files}}
+      <div class="form-group-inline file-group">
+        <input
+          class="kv-input"
+          type="text"
+          name="file_key[]"
+          placeholder="File Path"
+          value="{{this.0}}"
+        />
+        <button type="button" class="content-btn" data-id="{{this.2}}">Add content</button>
+        <input
+          class="hidden-input"
+          type="hidden"
+          name="hidden-file-content-{{this.2}}"
+          value="{{this.1}}"
+        />
+        <button type="button" class="delete-btn">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    {{/each}}
+  </div>
+</div>
+<button type="button" id="add-file-btn" class="add-resource-btn">+</button>
+<div id="editor-modal" class="editor-modal">
+  <div class="editor-modal-content">
+    <textarea
+      id="editor-textarea"
+      placeholder="Enter file content here..."
+    ></textarea>
+    <button type="button" id="editor-ok-btn">OK</button>
+    <button type="button" id="editor-cancel-btn">Cancel</button>
+  </div>
+</div>

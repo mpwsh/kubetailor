@@ -1,0 +1,44 @@
+<div x-data="{ isOpen: false, openedWithKeyboard: false }" 
+     class="relative" 
+     @keydown.esc.window="isOpen = false, openedWithKeyboard = false">
+    <!-- Dropdown Button -->
+    <button type="button" 
+        @click="isOpen = !isOpen" 
+        x-ref="button"
+        class="inline-flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-md border border-neutral-300 bg-neutral-50 px-4 py-2 text-sm font-medium tracking-wide transition hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-800 dark:border-neutral-700 dark:bg-neutral-900 dark:focus-visible:outline-neutral-300"
+        aria-haspopup="true"
+        @keydown.space.prevent="openedWithKeyboard = true"
+        @keydown.enter.prevent="openedWithKeyboard = true"
+        @keydown.down.prevent="openedWithKeyboard = true"
+        :class="isOpen || openedWithKeyboard ? 'text-neutral-900 dark:text-white' : 'text-neutral-600 dark:text-neutral-300'"
+        :aria-expanded="isOpen || openedWithKeyboard">
+        {{title}}
+        <svg aria-hidden="true" fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 rotate-0">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
+        </svg>
+    </button>
+
+    <!-- Dropdown Menu -->
+    <div x-cloak 
+        x-show="isOpen || openedWithKeyboard" 
+        x-transition 
+        x-trap="openedWithKeyboard"
+        @click.outside="isOpen = false, openedWithKeyboard = false"
+        @keydown.down.prevent="$focus.wrap().next()"
+        @keydown.up.prevent="$focus.wrap().previous()"
+        class="fixed right-0 z-[100] mt-1 flex w-48 flex-col overflow-hidden rounded-md border border-neutral-300 bg-neutral-50 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
+        role="menu">
+        
+        <template x-for="item in items" :key="item.title">
+            <a :href="item.link"
+                :hx-get="item.htmx ? item.link : null"
+                :hx-target="#content"
+                :hx-push-url="item.htmx ? item.link : null"
+                class="flex items-center gap-2 bg-neutral-50 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-900/5 hover:text-neutral-900 focus-visible:bg-neutral-900/10 focus-visible:text-neutral-900 focus-visible:outline-none dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-50/5 dark:hover:text-white dark:focus-visible:bg-neutral-50/10 dark:focus-visible:text-white"
+                role="menuitem">
+                <i :class="item.icon"></i>
+                <span x-text="item.title"></span>
+            </a>
+        </template>
+    </div>
+</div>

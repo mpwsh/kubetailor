@@ -1,0 +1,63 @@
+
+<!--
+{{> cmp/text-input
+  title = "Shared Domain"
+  name = "shared" 
+  placeholder = "<your-subdomain>.kubetailor.io"
+  value = tapp.name
+}}
+{{> cmp/text-toggle
+  title = "Custom Domain"
+  name = "custom" 
+  placeholder = "www.example.com"
+  value = tapp.domains.custom
+}}
+-->
+<div class="form-group">
+  <span class="subtitle no-select">Shared Domain:</span>
+  <div class="subdomain-container">
+    <input
+      type="text"
+      name="shared"
+      class="subdomain-input"
+      maxlength="20"
+      value="{{tapp.domains.shared}}"
+    />
+    <span class="static-subdomain no-select">.kubetailor.io</span>
+  </div>
+</div>
+<div class="form-group">
+  <span class="subtitle no-select">Custom Domain:</span>
+
+  <div class="subdomain-container">
+    {{#if custom_enabled}}
+      <input
+        type="text"
+        id="customDomain"
+        name="custom"
+        value="{{tapp.domains.custom}}"
+        class="custom-domain-input"
+      />
+      <button
+        type="button"
+        id="toggleCustomDomain"
+        class="toggle-custom-domain-btn active"
+      >Disable</button>
+    {{else}}
+      <input
+        type="text"
+        id="customDomain"
+        name="custom"
+        value="{{tapp.domains.custom}}"
+        disabled
+        class="custom-domain-input"
+      />
+      <button
+        type="button"
+        id="toggleCustomDomain"
+        class="toggle-custom-domain-btn"
+      >Enable</button>
+    {{/if}}
+    <input type="hidden" id="enableCustomDomain" name="enableCustomDomain" />
+  </div>
+</div>

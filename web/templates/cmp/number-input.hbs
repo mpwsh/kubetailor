@@ -1,0 +1,37 @@
+<div x-data="{
+        current: '{{value}}' || '{{init}}',
+        min: {{min}} || 0,
+        max: {{max}} || 100
+    }" 
+    class="flex flex-col gap-1">
+    <label for="{{name}}Input" class="pl-1 text-sm text-neutral-600 dark:text-neutral-300">{{title}}</label>
+    <div @dblclick.prevent class="flex items-center">
+        <button 
+            @click="current = Math.max(min, Number(current) - 1)" 
+            type="button"
+            class="flex h-10 items-center justify-center rounded-md border border-neutral-300 bg-neutral-50 px-4 py-2 text-neutral-600 hover:opacity-75 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black active:opacity-100 active:outline-offset-0 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:focus-visible:outline-white" 
+            aria-label="subtract">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" stroke="currentColor" fill="none" stroke-width="2" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12h-15"/>
+            </svg>
+        </button>
+        <input 
+            x-model="current"
+            id="{{name}}Input"
+            name="{{name}}"
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            class="h-10 w-20 rounded-none border-y border-neutral-300 bg-transparent text-center text-neutral-900 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black dark:border-neutral-700 dark:text-white dark:focus-visible:outline-white [-moz-appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        />
+        <button 
+            @click="current = Math.min(max, Number(current) + 1)" 
+            type="button"
+            class="flex h-10 items-center justify-center rounded-md border border-neutral-300 bg-neutral-50 px-4 py-2 text-neutral-600 hover:opacity-75 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black active:opacity-100 active:outline-offset-0 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:focus-visible:outline-white" 
+            aria-label="add">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" stroke="currentColor" fill="none" stroke-width="2" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            </svg>
+        </button>
+    </div>
+</div>

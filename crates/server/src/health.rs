@@ -6,13 +6,13 @@ use std::convert::TryFrom;
 
 #[derive(Deserialize, Serialize)]
 pub struct Health {
-    tapp: TappStatus,
-    domains: DomainsStatus,
+    deployment: Deployment,
+    domains: Domains,
 }
 
 #[derive(Deserialize, Serialize)]
-struct TappStatus {
-    replicas: ReplicaStatus,
+struct Deployment {
+    replicas: Replicas,
     restarts: i32,
     ready: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -20,13 +20,13 @@ struct TappStatus {
 }
 
 #[derive(Deserialize, Serialize)]
-struct ReplicaStatus {
+struct Replicas {
     desired: i32,
     ready: i32,
 }
 
 #[derive(Deserialize, Serialize)]
-struct DomainsStatus {
+struct Domains {
     domains: Vec<String>,
     dns: bool,
     ssl: bool,
@@ -88,8 +88,8 @@ impl TryFrom<Resources> for Health {
         let ready = status.ready;
 
         Ok(Health {
-            tapp: TappStatus {
-                replicas: ReplicaStatus {
+            deployment: Deployment {
+                replicas: Replicas {
                     desired: deploy_spec.replicas.unwrap_or(0),
                     ready: deploy_status.ready_replicas.unwrap_or(0),
                 },
@@ -97,7 +97,7 @@ impl TryFrom<Resources> for Health {
                 ready,
                 state: status.state.clone(),
             },
-            domains: DomainsStatus {
+            domains: Domains {
                 domains: domains_in_use.first().unwrap().clone(),
                 dns: lb_status,
                 ssl: cert_status,

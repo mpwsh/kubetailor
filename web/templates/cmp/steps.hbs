@@ -1,0 +1,61 @@
+<ol class="flex w-full items-center gap-2" aria-label="deployment progress">
+    <template x-for="(step, index) in steps" :key="index">
+        <li class="text-sm" 
+            :class="index > 0 ? 'flex w-full items-center' : ''"
+            :aria-current="currentStep === index + 1 ? 'step' : null"
+            :aria-label="step.title">
+            
+            <!-- First step is special - no line before it -->
+            <template x-if="index === 0">
+                <button 
+                    @click="currentStep = 1"
+                    type="button"
+                    class="flex items-center gap-2 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 dark:focus:ring-white">
+                    <!-- Show checkmark if completed -->
+                    <span x-show="currentStep > 1" class="flex size-6 items-center justify-center rounded-full border border-black bg-black text-neutral-100 dark:border-white dark:bg-white dark:text-black">
+                        <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+                        </svg>
+                        <span class="sr-only">completed</span>
+                    </span>
+                    <!-- Show number if current or upcoming -->
+                    <span x-show="currentStep <= 1" class="flex size-6 items-center justify-center rounded-full border"
+                          :class="currentStep === 1 ? 'border-black bg-black text-neutral-100 outline outline-2 outline-offset-2 outline-black dark:border-white dark:bg-white dark:text-black dark:outline-white' : 'border-neutral-300 bg-neutral-50 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300'">1</span>
+                    <span class="hidden w-max sm:inline" 
+                          :class="currentStep === 1 ? 'font-bold text-black dark:text-white' : 'text-neutral-600 dark:text-neutral-300'"
+                          x-text="step.title"></span>
+                </button>
+            </template>
+
+            <!-- All other steps include a line before them -->
+            <template x-if="index > 0">
+                <div class="flex w-full items-center">
+                    <!-- Line color changes based on completion -->
+                    <span class="h-0.5 w-full" 
+                          :class="currentStep > index + 1 ? 'bg-black dark:bg-white' : 'bg-neutral-300 dark:bg-neutral-700'"
+                          aria-hidden="true"></span>
+                    <button 
+                        type="button"
+                        @click="currentStep = index + 1"
+                        class="flex items-center gap-2 pl-2 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 dark:focus:ring-white">
+                        <!-- Show checkmark if completed -->
+                        <span x-show="currentStep > index + 1" class="flex size-6 items-center justify-center rounded-full border border-black bg-black text-neutral-100 dark:border-white dark:bg-white dark:text-black">
+                            <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+                            </svg>
+                            <span class="sr-only">completed</span>
+                        </span>
+                        <!-- Show number if current or upcoming -->
+                        <span x-show="currentStep <= index + 1" 
+                              class="flex size-6 items-center justify-center rounded-full border"
+                              :class="currentStep === index + 1 ? 'border-black bg-black text-neutral-100 outline outline-2 outline-offset-2 outline-black dark:border-white dark:bg-white dark:text-black dark:outline-white' : 'border-neutral-300 bg-neutral-50 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300'"
+                              x-text="index + 1"></span>
+                        <span class="hidden w-max sm:inline"
+                              :class="currentStep === index + 1 ? 'font-bold text-black dark:text-white' : 'text-neutral-600 dark:text-neutral-300'"
+                              x-text="step.title"></span>
+                    </button>
+                </div>
+            </template>
+        </li>
+    </template>
+</ol>

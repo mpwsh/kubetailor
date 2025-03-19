@@ -10,7 +10,7 @@ use actix_web::{
     App, HttpServer, Result,
 };
 use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
-use handlebars::{DirectorySourceOptions, Handlebars};
+
 use portier::Client;
 use secrecy::{ExposeSecret, Secret};
 use tracing_actix_web::TracingLogger;
@@ -18,10 +18,9 @@ use tracing_actix_web::TracingLogger;
 use crate::{
     authentication::reject_anonymous_users,
     config::{Kubetailor, Settings},
-    errors::error_handlers,
-    routes::{
-        authenticate, claim, dashboard, deploying, error, login, logout, tapp::*, view, whoami,
-    },
+    errors::{error_handlers, handle_not_found},
+    handlebars,
+    routes::{authenticate, claim, dashboard::*, error, login, logout, whoami},
 };
 
 static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
@@ -73,8 +72,7 @@ pub async fn run(
     let claim_path = "/claim";
     let redirect_url = format!("{base_url}{claim_path}").parse().unwrap();
 
-    let mut handlebars = Handlebars::new();
-    handlebars.register_templates_directory("./templates", DirectorySourceOptions::default())?;
+    let handlebars = handlebars::create_handlebars()?;
 
     let client = Client::builder(redirect_url)
         .broker(portier_url.expose_secret().parse().unwrap())
@@ -95,6 +93,7 @@ pub async fn run(
     };
     let server = HttpServer::new(move || {
         App::new()
+            .wrap(error_handlers())
             .wrap(message_framework.clone())
             .wrap(
                 SessionMiddleware::builder(redis_store.clone(), secret_key.clone())
@@ -105,53 +104,62 @@ pub async fn run(
                     )
                     .build(),
             )
-            .wrap(error_handlers())
             .wrap(TracingLogger::default())
             .app_data(web::Data::new(client.clone()))
             .app_data(web::Data::new(kubetailor.clone()))
             .app_data(web::Data::new(handlebars.clone()))
-            .route("/", web::get().to(login))
+            .service(fs::Files::new("/web/static/", "./web/static/"))
             .service(
                 resource("/login")
                     .route(web::get().to(login))
                     .route(web::post().to(authenticate)),
             )
+            .service(resource(claim_path).route(web::post().to(claim)))
+           // .service(
+           //     resource("/logout")
+            .route("/logout", web::get().to(logout))
+                    //.route(web::post().to(logout)),
+           // )
             .service(
-                web::scope("/dashboard")
+                web::scope("")
                     .wrap(from_fn(reject_anonymous_users))
-                    .route("/", web::get().to(dashboard::page))
-                    .route("", web::get().to(dashboard::page))
+                    .route("/", web::get().to(home::page))
+                    .route("/logs", web::get().to(logs::page))
+                    .route("/whoami", web::get().to(whoami))
                     .route("/error", web::get().to(error::page))
                     .service(
-                        web::scope("/tapp")
-                            .route("/deploying", web::get().to(deploying))
-                            .route("/view", web::get().to(view))
+                        web::scope("/deployments")
+
+                            .route("/", web::get().to(deployments::page))
+                            .route("", web::get().to(deployments::page))
+                            .route("/deploying", web::get().to(deployments::deploying))
+                            .route("/view", web::get().to(deployments::view))
+                            .route("/list", web::get().to(deployments::list))
+                            .route("/health", web::get().to(deployments::health::handler))
                             .service(
                                 resource("/new")
-                                    .route(web::get().to(new::page))
-                                    .route(web::post().to(new::form)),
+                                    .route(web::get().to(deployments::new::page))
+                                    .route(web::post().to(deployments::new::form)),
                             )
-                            .service(resource("/logs").route(web::get().to(logs::get)))
                             .service(
                                 resource("/edit")
-                                    .route(web::get().to(edit::get))
-                                    .route(web::post().to(edit::post)),
+                                    .route(web::get().to(deployments::edit::page))
+                                    .route(web::post().to(deployments::edit::form)),
                             )
                             .service(
                                 resource("/delete")
-                                    .route(web::get().to(delete::page))
-                                    .route(web::post().to(delete::form)),
-                            ),
+                                    .route(web::get().to(deployments::delete::page))
+                                    .route(web::post().to(deployments::delete::form)),
+                            )
+                            .service(
+                                resource("/restart")
+                                    .route(web::get().to(deployments::restart::page))
+                                    .route(web::post().to(deployments::restart::form)),
+                            )
+                        ,
                     ),
             )
-            .service(resource(claim_path).route(web::post().to(claim)))
-            .service(
-                resource("/logout")
-                    .route(web::get().to(logout))
-                    .route(web::post().to(logout)),
-            )
-            .service(resource("/whoami").route(web::get().to(whoami)))
-            .service(fs::Files::new("/static/", "./static/"))
+            .default_service(web::route().to(handle_not_found))
     })
     .listen(listener)?
     .run();

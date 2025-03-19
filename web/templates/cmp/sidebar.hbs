@@ -1,0 +1,188 @@
+<nav 
+    x-cloak 
+    class="fixed left-0 z-20 flex h-svh w-60 shrink-0 flex-col border-r border-neutral-300 bg-neutral-50 p-4 transition-transform duration-300 md:w-64 md:translate-x-0 md:relative dark:border-neutral-700 dark:bg-neutral-900" 
+    x-bind:class="showSidebar ? 'translate-x-0' : '-translate-x-60'" 
+    aria-label="sidebar navigation"> 
+    
+    <!-- Logo -->
+    <a href="#" class="ml-2 w-fit text-2xl font-bold text-neutral-900 dark:text-white">
+        <span class="sr-only">homepage</span>
+        <img src="/api/placeholder/96/40" alt="Kubetailor" class="w-24" />
+    </a>
+
+    <!-- Search -->
+    <div class="relative my-4 flex w-full max-w-xs flex-col gap-1 text-neutral-600 dark:text-neutral-300">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" class="absolute left-2 top-1/2 size-5 -translate-y-1/2 text-neutral-600/50 dark:text-neutral-300/50" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+        </svg>
+        <input type="search" 
+               class="w-full border border-neutral-300 rounded-md bg-white px-2 py-1.5 pl-9 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:opacity-75 dark:border-neutral-700 dark:bg-neutral-950/50 dark:focus-visible:outline-white" 
+               name="search" 
+               aria-label="Search" 
+               placeholder="Search"/>
+    </div>
+
+    <!-- Navigation Groups -->
+    <div class="flex flex-col gap-2 overflow-y-auto pb-6">
+        <!-- Application group -->
+        <div class="flex flex-col">
+            {{#each groups.[0].items}}
+                <a href="{{link}}" 
+                   @click="currentPath = '{{link}}'; showSidebar = false"
+                   hx-get="{{link}}"
+                   hx-target="#content"
+                   hx-swap="innerHTML"
+                   hx-push-url="true"
+                   :class="isActive('{{link}}') ? 'bg-black/10 text-neutral-900 dark:bg-white/10 dark:text-white' : ''"
+                   class="flex items-center rounded-md gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white">
+                    <i class="{{icon}} size-5 shrink-0"></i>
+                    {{title}}
+                    <span class="sr-only" x-show="isActive('{{link}}')">current page</span>
+                </a>
+            {{/each}}
+        </div>
+
+        <!-- Account group -->
+        <div class="border-t border-neutral-300 dark:border-neutral-700"></div>
+        <div class="flex flex-col">
+            {{#each groups.[1].items}}
+                <a href="{{link}}"
+                   @click="currentPath = '{{link}}'; showSidebar = false"
+                   hx-get="{{link}}"
+                   hx-target="#content"
+                   hx-swap="innerHTML"
+                   hx-push-url="true"
+                   :class="isActive('{{link}}') ? 'bg-black/10 text-neutral-900 dark:bg-white/10 dark:text-white' : ''"
+                   class="flex items-center rounded-md gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white">
+                    <i class="{{icon}} size-5 shrink-0"></i>
+                    {{title}}
+                    <span class="sr-only" x-show="isActive('{{link}}')">current page</span>
+                </a>
+            {{/each}}
+        </div>
+    </div>
+
+    <!-- Support group -->
+    <div class="mt-auto">
+        <div class="border-t border-neutral-300 dark:border-neutral-700"></div>
+        <div class="flex flex-col py-1.5">
+            {{#each groups.[2].items}}
+                <a href="{{link}}"
+                   {{#unless (eq link "https://github.com/mpwsh/kubetailor")}}
+                   @click="currentPath = '{{link}}'; showSidebar = false"
+                   hx-get="{{link}}"
+                   hx-target="#content"
+                   hx-swap="innerHTML"
+                   hx-push-url="true"
+                   :class="isActive('{{link}}') ? 'bg-black/10 text-neutral-900 dark:bg-white/10 dark:text-white' : ''"
+                   {{/unless}}
+                   class="flex items-center rounded-md gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white">
+                    <i class="{{icon}} size-5 shrink-0"></i>
+                    {{title}}
+                    <span class="sr-only" x-show="isActive('{{link}}')">current page</span>
+                </a>
+            {{/each}}
+        </div>
+    </div>
+
+    <!-- User Info Section with Dropdown -->
+    <div x-data="{ menuIsOpen: false }" class="relative border-t border-neutral-300 dark:border-neutral-700" x-on:keydown.esc.window="menuIsOpen = false">
+        <button type="button" 
+                class="flex w-full items-center gap-2 p-4 text-left hover:bg-black/5 dark:hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:focus-visible:outline-white"
+                x-bind:class="menuIsOpen ? 'bg-black/10 dark:bg-white/10' : ''" 
+                aria-haspopup="true" 
+                x-on:click="menuIsOpen = !menuIsOpen" 
+                x-bind:aria-expanded="menuIsOpen">
+            <div class="flex items-center justify-center size-10 rounded-full bg-neutral-100 dark:bg-neutral-800">
+                <i class="fa-solid fa-user text-neutral-600 dark:text-neutral-300 text-lg"></i>
+            </div>
+            <div class="flex flex-col flex-1">
+                <span class="text-sm font-medium text-neutral-900 dark:text-white">Connected as:</span>
+                <p class="text-xs text-neutral-600 dark:text-neutral-300 truncate">{{email}}</p>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" class="size-4 shrink-0 -rotate-90 md:rotate-0 text-neutral-600 dark:text-neutral-300" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/>
+            </svg>
+        </button>
+
+        <!-- User Menu Dropdown -->
+        <div x-cloak 
+             x-show="menuIsOpen" 
+             class="absolute bottom-20 right-6 z-20 w-48 divide-y divide-neutral-300 rounded-md border border-neutral-300 bg-white dark:divide-neutral-700 dark:border-neutral-700 dark:bg-neutral-950 md:-right-44 md:bottom-4" 
+             role="menu" 
+             x-on:click.outside="menuIsOpen = false" 
+             x-on:keydown.down.prevent="$focus.wrap().next()" 
+             x-on:keydown.up.prevent="$focus.wrap().previous()" 
+             x-transition 
+             x-trap="menuIsOpen">
+            
+            <!-- Profile Section -->
+            <div class="flex flex-col py-1.5">
+                <a href="/profile" 
+                   @click="currentPath = '/profile'"
+                   class="flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white" 
+                   role="menuitem"
+                   hx-get="/profile"
+                   hx-target="#content"
+                   hx-swap="innerHTML"
+                   hx-push-url="true">
+                    <i class="fa-solid fa-user size-5 shrink-0"></i>
+                    <span>Profile</span>
+                </a>
+            </div>
+
+            <!-- Settings & Payments -->
+            <div class="flex flex-col py-1.5">
+                <a href="/settings"
+                   @click="currentPath = '/settings'"
+                   class="flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white" 
+                   role="menuitem"
+                   hx-get="/settings"
+                   hx-target="#content"
+                   hx-swap="innerHTML"
+                   hx-push-url="true">
+                    <i class="fa-solid fa-gear size-5 shrink-0"></i>
+                    <span>Settings</span>
+                </a>
+                <a href="/payments"
+                   @click="currentPath = '/payments'" 
+                   class="flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white" 
+                   role="menuitem"
+                   hx-get="/payments"
+                   hx-target="#content"
+                   hx-swap="innerHTML"
+                   hx-push-url="true">
+                    <i class="fa-solid fa-credit-card size-5 shrink-0"></i>
+                    <span>Payments</span>
+                </a>
+            </div>
+
+            <!-- Logout -->
+            <div class="flex flex-col py-1.5">
+                <a href="/logout" 
+                   class="flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white" 
+                   role="menuitem">
+                    <i class="fa-solid fa-right-from-bracket size-5 shrink-0"></i>
+                    <span>Sign Out</span>
+                </a>
+            </div>
+        </div>
+    </div> 
+</nav>
+<!-- Dark overlay for mobile -->
+    <div x-cloak 
+         x-show="showSidebar" 
+         class="fixed inset-0 z-10 bg-neutral-950/10 backdrop-blur-sm md:hidden" 
+         aria-hidden="true" 
+         x-on:click="showSidebar = false" 
+         x-transition.opacity></div>
+<!-- toggle button for small screen  -->
+    <button x-cloak class="fixed left-4 bottom-4 z-20 rounded-full bg-black p-4 md:hidden text-neutral-100 dark:bg-white dark:text-black" x-on:click="showSidebar = ! showSidebar">
+        <svg x-show="showSidebar" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-5" aria-hidden="true">
+            <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/>
+        </svg>
+        <svg x-show="! showSidebar" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-5" aria-hidden="true">
+            <path d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm5-1v12h9a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zM4 2H2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h2z"/>
+        </svg>
+        <span class="sr-only">sidebar toggle</span>
+        </button>

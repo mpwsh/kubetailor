@@ -1,0 +1,12 @@
+{{> top}}
+<div hx-get="/deployments/deploying?name={{tapp_name}}"
+    hx-trigger="every 2s"
+    hx-swap="innerHTML"
+    hx-push-url="/deployments/deploying?name={{tapp_name}}"
+  >
+  <center>
+    <span class="subtitle-white">Verifying deployment...</span>
+    {{> deployments/status}}
+  </center>
+</div>
+{{> footer}}

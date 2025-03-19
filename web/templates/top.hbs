@@ -1,0 +1,36 @@
+{{#if initial}}
+{{> head/main}}
+{{> body }}
+{{/if}}
+<title>{{title}}</title>
+{{#if user}}
+<div class="overflow-hidden w-full overflow-x-auto rounded-md border border-neutral-300 dark:border-neutral-700">
+    <div class="flex h-14 items-center justify-between border-b border-neutral-300 bg-neutral-50/60 px-5 py-2 dark:border-neutral-700 dark:bg-neutral-900/20">
+        <div class="flex items-center gap-2">
+            {{#if return_url}}
+                {{> cmp/button-primary 
+                    title="Back"
+                    url=return_url
+                }}
+            {{/if}}
+            <h1 class="text-lg font-semibold text-neutral-900 dark:text-white">{{title}}</h1>
+        </div>
+        <div class="flex items-center">
+            {{#if action}}
+                {{#if action.is_form}}
+                    {{> cmp/button-primary
+                        title=action.name
+                        type="submit"
+                        form="editForm"
+                    }}
+                {{else}}
+                    {{> cmp/button-primary
+                        title=action.name
+                        url=action.url
+                    }}
+                {{/if}}
+            {{/if}}
+        </div>
+    </div>
+    <div class="p-4 space-y-4">
+{{/if}}

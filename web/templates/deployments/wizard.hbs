@@ -1,0 +1,77 @@
+<div class="space-y-8">
+<div x-show="currentStep === 1" class="space-y-6">
+  {{> cmp/custom-radio
+      columns=2
+      group="editor"
+      items=[
+        {"title": "Wizard", "description": "Deploy using the step-by-step UI", "icon": "fa-solid fa-hat-wizard", "checked": true},
+        {"title": "Manifest", "description": "Deploy from text editor", "icon": "fa-solid fa-code"}
+      ]
+  }}
+</div>
+
+<div x-show="editor === 'Wizard'" class="space-y-6">
+  {{> cmp/steps }} 
+
+  {{!-- Step Content --}}
+  <div x-show="currentStep === 1" class="space-y-4">
+    {{> cmp/text-input
+      name = "name" 
+      title = "Name" 
+      placeholder = "Name of your deployment"
+      value = tapp.name
+    }}
+    {{> cmp/text-input
+      name="group"
+      title="Group"
+      placeholder="Network group"
+      value = tapp.group
+    }}
+  </div>
+
+  <div x-show="currentStep === 2" class="space-y-6">
+    {{> cmp/custom-radio
+      columns=2
+      group="source"
+      items=[
+        {"title": "Docker", "description": "Image from docker hub", "icon": "fa-brands fa-docker", "checked": true},
+        {"title": "Git", "description": "Any Git repository", "icon": "fa-solid fa-code-branch"}
+      ]
+    }}
+    <div x-show="source === 'Docker'" class="mt-4">{{> inputs/container}}</div>
+    <div x-show="source === 'Git'" class="mt-4">{{> inputs/git}}</div>
+  </div>
+
+  <div x-show="currentStep === 3">
+    {{> inputs/mounts}}
+  </div>
+
+  <div x-show="currentStep === 4">
+    {{> inputs/environment}}
+  </div>
+
+  <div x-show="currentStep === 5">
+    {{> inputs/domain}}
+  </div>
+
+  {{!-- Navigation --}}
+  <div class="flex justify-between mt-4">
+    <a href="{{return_url}}" hx-get="{{return_url}}" hx-target="#content" hx-push-url="{{return_url}}" x-show="currentStep <= 1">
+      {{> cmp/button-secondary title="Cancel"}}
+    </a>
+    <a x-show="currentStep > 1"
+      @click="currentStep--">
+      {{> cmp/button-secondary title="Previous"}}
+      </a>
+    
+    <a 
+      x-show="currentStep < steps.length"
+      @click="currentStep++"
+      {{> cmp/button-primary title="Next"}}
+    </a>
+  </div>
+</div> 
+</div>
+<script src="/static/js/key_value.js"></script>
+<script src="/static/js/file_content.js"></script>
+<script src="/static/js/post.js"></script>

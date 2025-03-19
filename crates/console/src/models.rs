@@ -2,7 +2,7 @@ pub use std::collections::HashMap;
 
 pub use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 pub struct TappConfig {
     pub name: String,
     pub group: Option<String>,
@@ -15,13 +15,13 @@ pub struct TappConfig {
     pub secrets: Option<HashMap<String, String>>,
 }
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 pub struct Domains {
     pub custom: Option<String>,
     pub shared: String,
 }
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 pub struct Git {
     #[serde(skip_serializing_if = "is_empty_string")]
     pub repository: Option<String>,
@@ -29,7 +29,7 @@ pub struct Git {
     pub branch: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 pub struct Container {
     pub image: String,
     pub replicas: u32,
@@ -66,6 +66,7 @@ pub struct Action {
     pub url: String,
     pub is_form: bool,
 }
+
 impl Action {
     pub fn new(name: &str) -> Self {
         Action {

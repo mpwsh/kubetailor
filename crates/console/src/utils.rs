@@ -10,5 +10,6 @@ where
 pub fn see_other(location: &str) -> HttpResponse {
     HttpResponse::SeeOther()
         .insert_header((LOCATION, location))
+        .append_header(("HX-Redirect", location))
         .finish()
 }

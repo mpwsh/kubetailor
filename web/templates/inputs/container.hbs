@@ -1,0 +1,25 @@
+<div class="image-port-group">
+{{> cmp/text-input
+  name = "image" 
+  title = "Image" 
+  placeholder = "repository/image:tag"
+  value = tapp.container.image
+}}
+{{> cmp/number-input 
+  name="port"
+  title="Port"
+  value=tapp.container.port
+  init=80
+  min=1
+  max=65535
+}}
+
+{{> cmp/number-input 
+  name="replicas"
+  title="Instances"
+  value=tapp.container.replicas
+  init=1
+  min=1
+  max=10
+}}
+</div>

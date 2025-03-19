@@ -37,8 +37,7 @@ RUN apt-get update -y \
     && rm -rf /var/lib/apt/lists/*
 
 FROM base AS console
-COPY crates/console/static /app/static
-COPY crates/console/templates /app/templates
+COPY web /app/web
 COPY --from=builder-console /app/target/release/console console
 ENTRYPOINT ["./console"]
 

@@ -1,0 +1,19 @@
+<div class="flex w-full max-w-md flex-col overflow-hidden rounded-md border border-neutral-300 text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
+	<div class="bg-neutral-50/50 dark:bg-neutral-900/50 p-2">
+		<textarea class="scroll-on z-10 w-full resize-none bg-transparent p-4 text-sm focus:outline-none" name="message" rows="6" placeholder="Type your message here..."></textarea>
+	</div>
+	<!-- Footer Container -->
+	<div class="flex w-full items-center justify-between border-t border-neutral-300 bg-neutral-50 px-2.5 py-2 dark:border-neutral-700 dark:bg-neutral-900">
+		<!-- Action Buttons -->
+		<div class="flex items-center gap-2">
+
+      {{#each actions}}
+      <button class="rounded-full p-1 text-neutral-600/75 hover:bg-neutral-950/10 hover:text-neutral-600 focus:outline-none focus-visible:text-neutral-600 focus-visible:outline focus-visible:outline-offset-0 focus-visible:outline-black active:bg-neutral-950/5 active:-outline-offset-2 dark:text-neutral-300/75 dark:hover:bg-white/10 dark:hover:text-neutral-300 dark:focus-visible:text-neutral-300 dark:focus-visible:outline-white dark:active:bg-white/5" title="{{title}}" aria-label="{{title}}">
+        <i class="{{icon}}"></i>
+			</button>
+      {{/each}}
+		</div>
+		<!-- Send Button -->
+		<button class="cursor-pointer whitespace-nowrap rounded-md bg-black px-4 py-2 text-center text-xs font-medium tracking-wide text-neutral-100 transition hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black active:opacity-100 active:outline-offset-0 dark:bg-white dark:text-black dark:focus-visible:outline-white" type="button" aria-label="send">Send</button>
+	</div>
+</div>

@@ -1,0 +1,48 @@
+<body>
+
+{{#if user}}
+<div 
+x-data="{ 
+    showSidebar: false,
+    currentPath: window.location.pathname,
+    isActive(link) {
+        return this.currentPath === link;
+    }
+}" 
+  class="flex h-screen w-full overflow-hidden bg-neutral-50 dark:bg-neutral-900">
+  {{> cmp/sidebar
+    email=user
+    groups=[
+        {
+            "title": "application",
+            "items": [
+                {"title": "Home", "icon": "fa-solid fa-home", "link": "/"},
+                {"title": "Deployments", "icon": "fa-solid fa-server", "link": "/deployments"},
+                {"title": "Cron Jobs", "icon": "fa-regular fa-clock", "link": "/cron"},
+                {"title": "Logs", "icon": "fa-regular fa-file-lines", "link": "/logs"},
+                {"title": "Metrics", "icon": "fa-solid fa-chart-line", "link": "/metrics"},
+                {"title": "Alerts", "icon": "fa-solid fa-triangle-exclamation", "link": "/alerts"}
+            ]
+        },
+        {
+            "title": "services",
+            "items": [
+                {"title": "Buckets", "icon": "fa-solid fa-folder-open", "link": "/buckets"},
+                {"title": "Databases", "icon": "fa-solid fa-database", "link": "/databases"}
+            ]
+        },
+        {
+            "title": "support",
+            "items": [
+                {"title": "Documentation", "icon": "fa-solid fa-book", "link": "/docs"},
+                {"title": "Repository", "icon": "fa-brands fa-github", "link": "https://github.com/mpwsh/kubetailor"},
+                {"title": "Support", "icon": "fa-solid fa-headset", "link": "/support"}
+            ]
+        }
+      ]
+  }}
+
+<main class="flex-1 overflow-hidden">
+  <div class="h-full overflow-y-auto px-4 py-6">
+    <div id="content" hx-swap-oob="true">
+{{/if}}

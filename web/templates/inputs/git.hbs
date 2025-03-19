@@ -1,0 +1,55 @@
+{{> cmp/custom-radio
+      columns=2
+      group="type"
+      items=[
+        {"title": "Service", "description": "Server/service deployment (node, python, rust, etc)", "icon": "fa-solid fa-server", "checked": true},
+        {"title": "Static site", "description": "Static files (served from nginx:latest)", "icon": "fa-solid fa-file"}
+      ]
+}}
+<div class="image-port-group">
+{{> cmp/text-input
+  name = "image" 
+  title = "Base Image to build your source" 
+  placeholder = "repository/image:tag"
+  value = tapp.container.image
+}}
+{{> cmp/number-input 
+  name="port"
+  title="Port"
+  value=tapp.container.port
+  init=80
+  min=1
+  max=65535
+}}
+
+{{> cmp/number-input 
+  name="replicas"
+  title="Instances"
+  value=tapp.container.replicas
+  init=1
+  min=1
+  max=10
+}}
+</div>
+{{> cmp/text-input
+      title = "Repository URL" 
+      placeholder = "Name of your deployment"
+      value = tapp.git.repository
+}}
+{{> cmp/text-input
+  title = "Branch" 
+  placeholder = "Git branch name"
+  default = main
+}}
+{{> cmp/text-input
+  title = "Build command" 
+  name = "buildcmd"
+  placeholder = "npm install"
+  value = tapp.container.buildCommand
+}}
+{{> cmp/text-input
+  title = "Run Command" 
+  name = "runcmd"
+  placeholder = "npm start"
+  value = tapp.container.runCommand
+}}

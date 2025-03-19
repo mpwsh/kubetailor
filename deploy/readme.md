@@ -48,7 +48,7 @@ Please install following in the correct order.
 
 ```bash
 kubectl create ns external-dns
-kubectl create secret generic cloudflare-creds --from-literal=token="<your-cloudflare-token>"
+kubectl create secret generic cloudflare-creds -n external-dns --from-literal=token="<your-cloudflare-token>"
 kubectl apply -f external-dns.yaml
 ```
 
@@ -101,14 +101,12 @@ helm upgrade --install longhorn longhorn/longhorn -n longhorn-system --create-na
 helm repo add mpwsh https://charts.mpw.sh
 helm repo update
 helm upgrade --install --create-namespace --namespace garage garage mpwsh/garage -f garage/values.yaml
+
 #Expose the ADMIN API endpoint
-kubectl get svc -n garage
-#NAME     TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)                      AGE
-#garage   ClusterIP   10.43.156.35   <none>        3900/TCP,3902/TCP,3903/TCP   16h
-# Port 3903 should be exposed through the service
+kubectl patch service garage -n garage -p '{"spec":{"ports":[{"port":9303,"targetPort":9303,"protocol":"TCP"}]}}'
 # Port forward that port to your local
 kubectl port-forward svc/garage 3903:3903
-# Head over to garage
+# Head over to garage folder
 cd garage
 #Set the admin_key you set up in garage chart values
 export GARAGE_ADMIN_TOKEN="<your-key>"
@@ -164,12 +162,15 @@ helm upgrade --install redis -n kubetailor --create-namespace bitnami/redis -f r
 - [kubetailor](https://github.com/mpwsh/kubetailor)
 
 ```bash
-kubectl apply -f kubetailor/crd.yaml \
--f kubetailor/no-role-sa.yaml \
--f kubetailor/clusterrole.yaml
+kubectl apply -f crd.yaml \
+-f no-role-sa.yaml \
+-f clusterrole.yaml
 ```
 
-- keel.sh [not implemented]
 - apisix [not implemented]
 - keda [not implemented]
 - prometheus [not implemented]
+
+REsearch:
+
+- keel.sh [not implemented]

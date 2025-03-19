@@ -6,9 +6,9 @@ use actix_web::{
     HttpResponse, Responder,
 };
 use kubetailor::{
-    //k8s_openapi::api::{apps::v1::Deployment, core::v1::Pod, networking::v1::Ingress},
+    k8s_openapi::api::{apps::v1::Deployment, core::v1::Pod, networking::v1::Ingress},
     kube::{
-        api::{Api as KubeApi, DeleteParams, ListParams, PostParams},
+        api::{Api as KubeApi, DeleteParams, ListParams, Patch, PatchParams, PostParams},
         core::NamespaceResourceScope,
         Client, ResourceExt,
     },
@@ -112,16 +112,16 @@ pub async fn update(
         &app.namespace().unwrap_or(namespace),
     );
 
-    let app_name = &app.metadata.name.as_ref().unwrap();
-    let resource_version = match api.get(app_name).await {
+    let name = &app.metadata.name.as_ref().unwrap();
+    let resource_version = match api.get(name).await {
         Ok(manifest) => manifest.resource_version(),
         Err(_) => {
-            return HttpResponse::NotFound().body(format!("TailoredApp '{}' not found", app_name));
+            return HttpResponse::NotFound().body(format!("TailoredApp '{}' not found", name));
         },
     };
     app.metadata.resource_version = resource_version;
-    match api.replace(app_name, &PostParams::default(), &app).await {
-        Ok(_) => HttpResponse::Ok().body(format!("Updated TailoredApp: {}", app_name)),
+    match api.replace(name, &PostParams::default(), &app).await {
+        Ok(_) => HttpResponse::Ok().body(format!("Updated TailoredApp: {}", name)),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
@@ -148,7 +148,7 @@ async fn fetch_resource<T>(
     client: &Client,
     owner: &str,
     namespace: &str,
-    tapp_name: &str,
+    name: &str,
 ) -> Option<Vec<T>>
 where
     T: Clone
@@ -159,7 +159,7 @@ where
 {
     let api: KubeApi<T> = KubeApi::namespaced(client.to_owned(), namespace);
     let owner = owner.replace('@', "-");
-    let list_params = ListParams::default().labels(&format!("owner={owner},tapp={tapp_name}"));
+    let list_params = ListParams::default().labels(&format!("owner={owner},tapp={name}"));
 
     match api.list(&list_params).await {
         Ok(res) => Some(res.items),
@@ -200,10 +200,10 @@ pub async fn list(
     }
 }
 
-#[delete("/{app_name}")]
+#[delete("/{name}")]
 pub async fn delete(
     client: Data<Client>,
-    app_name: web::Path<String>,
+    name: web::Path<String>,
     params: web::Query<BasicParams>,
     kubetailor: Data<Kubetailor>,
 ) -> impl Responder {
@@ -214,7 +214,7 @@ pub async fn delete(
         Some(tapps) => {
             if let Some(tapp) = tapps
                 .into_iter()
-                .find(|tapp| tapp.metadata.name.as_ref() == Some(&app_name.to_string()))
+                .find(|tapp| tapp.metadata.name.as_ref() == Some(&name.to_string()))
             {
                 let api: KubeApi<TailoredApp> =
                     KubeApi::namespaced(client.get_ref().clone(), kubetailor.namespace.as_str());
@@ -223,21 +223,21 @@ pub async fn delete(
                     .delete(&tapp.metadata.name.unwrap(), &DeleteParams::default())
                     .await
                 {
-                    Ok(_) => HttpResponse::Ok().body(format!("Deleted TailoredApp: {app_name}")),
+                    Ok(_) => HttpResponse::Ok().body(format!("Deleted TailoredApp: {name}")),
                     Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
                 }
             } else {
-                HttpResponse::NotFound().body(format!("TailoredApp {app_name} not found"))
+                HttpResponse::NotFound().body(format!("TailoredApp {name} not found"))
             }
         },
         None => HttpResponse::NotFound().body("No TailoredApps found"),
     }
 }
 
-#[get("/{app_name}")]
+#[get("/{name}")]
 pub async fn get(
     client: Data<Client>,
-    app_name: web::Path<String>,
+    name: web::Path<String>,
     params: web::Query<BasicParams>,
     kubetailor: Data<Kubetailor>,
 ) -> impl Responder {
@@ -248,7 +248,7 @@ pub async fn get(
         Some(tapps) => {
             if let Some(tapp) = tapps
                 .into_iter()
-                .find(|tapp| tapp.metadata.name.as_ref() == Some(&app_name.to_string()))
+                .find(|tapp| tapp.metadata.name.as_ref() == Some(&name.to_string()))
             {
                 let tapp = TappRequest::try_from(tapp).unwrap();
                 HttpResponse::Ok().json(tapp)
@@ -260,30 +260,30 @@ pub async fn get(
     }
 }
 
-#[get("/{tapp_name}/health")]
+#[get("/{name}/health")]
 pub async fn health(
     client: Data<Client>,
-    tapp_name: web::Path<String>,
+    name: web::Path<String>,
     params: web::Query<BasicParams>,
     kubetailor: Data<Kubetailor>,
 ) -> impl Responder {
     let resources = Resources {
-        cert: fetch_resource(&client, &params.owner, &kubetailor.namespace, &tapp_name).await,
-        pods: fetch_resource(&client, &params.owner, &kubetailor.namespace, &tapp_name).await,
-        deployment: fetch_resource(&client, &params.owner, &kubetailor.namespace, &tapp_name).await,
-        ingress: fetch_resource(&client, &params.owner, &kubetailor.namespace, &tapp_name).await,
+        cert: fetch_resource(&client, &params.owner, &kubetailor.namespace, &name).await,
+        pods: fetch_resource(&client, &params.owner, &kubetailor.namespace, &name).await,
+        deployment: fetch_resource(&client, &params.owner, &kubetailor.namespace, &name).await,
+        ingress: fetch_resource(&client, &params.owner, &kubetailor.namespace, &name).await,
     };
     if let Ok(status) = Health::try_from(resources) {
         HttpResponse::Ok().json(status)
     } else {
-        HttpResponse::Ok().body(format!("Unable to get status of {tapp_name}"))
+        HttpResponse::Ok().body(format!("Unable to get status of {name}"))
     }
 }
 
-#[get("/{app_name}/logs")]
+#[get("/{name}/logs")]
 pub async fn logs(
     client: Data<Client>,
-    app_name: web::Path<String>,
+    name: web::Path<String>,
     params: web::Query<LogsParams>,
     kubetailor: Data<Kubetailor>,
     quickwit: Data<quickwit::Client>,
@@ -296,11 +296,11 @@ pub async fn logs(
         Some(tapps) => {
             if let Some(tapp) = tapps
                 .into_iter()
-                .find(|tapp| tapp.metadata.name.as_ref() == Some(&app_name.to_string()))
+                .find(|tapp| tapp.metadata.name.as_ref() == Some(&name.to_string()))
             {
-                let tapp_name = tapp.metadata.name.unwrap();
+                let name = tapp.metadata.name.unwrap();
                 let base_query = format!(
-                    "resource_attributes.tapp:{tapp_name} AND resource_attributes.owner:{owner} AND NOT resource_attributes.k8s.container.name:init AND NOT resource_attributes.k8s.container.name:git-sync",
+                    "resource_attributes.tapp:{name} AND resource_attributes.owner:{owner} AND NOT resource_attributes.k8s.container.name:init AND NOT resource_attributes.k8s.container.name:git-sync",
                 );
                 //Here we query for logs
                 let query = if let Some(query) = &params.query {
@@ -339,5 +339,58 @@ pub async fn logs(
             }
         },
         None => HttpResponse::NotFound().body("No TailoredApps found"),
+    }
+}
+
+#[post("/{name}/restart")]
+pub async fn restart(
+    client: Data<Client>,
+    name: web::Path<String>,
+    params: web::Query<BasicParams>,
+    kubetailor: Data<Kubetailor>,
+) -> impl Responder {
+    let deployments: Option<Vec<Deployment>> =
+        fetch_resource(&client, &params.owner, &kubetailor.namespace, &name).await;
+
+    match deployments {
+        Some(deps) => {
+            if let Some(deployment) = deps.first() {
+                // Get the deployment API for patching
+                let api: KubeApi<Deployment> =
+                    KubeApi::namespaced(client.get_ref().clone(), &kubetailor.namespace);
+
+                // Create patch to trigger restart
+                let patch = json!({
+                    "spec": {
+                        "template": {
+                            "metadata": {
+                                "annotations": {
+                                    "kubectl.kubernetes.io/restartedAt": chrono::Utc::now().to_rfc3339()
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Apply the patch
+                match api
+                    .patch(
+                        deployment.metadata.name.as_ref().unwrap(),
+                        &PatchParams::default(),
+                        &Patch::Strategic(patch),
+                    )
+                    .await
+                {
+                    Ok(_) => HttpResponse::Ok()
+                        .body(format!("Restarted deployment for TailoredApp: {}", name)),
+                    Err(e) => HttpResponse::InternalServerError()
+                        .body(format!("Failed to restart deployment: {}", e)),
+                }
+            } else {
+                HttpResponse::NotFound()
+                    .body(format!("No deployment found for TailoredApp {}", name))
+            }
+        },
+        None => HttpResponse::NotFound().body("No deployments found"),
     }
 }

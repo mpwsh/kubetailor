@@ -4,8 +4,18 @@ server:
   port: 8080
 quickwit:
   apiVersion: v1
-  url: "http://localhost:7280"
+  url: "http://192.168.1.215:7280"
   index: otel-logs-v0_7
+garage:
+  url: "http://garage.garage.svc.cluster.local:7280"
+  keys:
+    maxPerUser: 10
+  buckets:
+    maxPerUser: 10
+    quotas:
+      # Per bucket, in Mib
+      maxSize: 512
+      maxObjects: 5000
 kubetailor:
   namespace: kubetailor
   gitSync:
@@ -20,8 +30,9 @@ kubetailor:
     # - pods on the same Group
     deployNetworkPolicies: true
     serviceAccount: limited
-    enableServiceLinks: false #if false, services in the same namespace won't be listed in env vars.
-    allowPrivilegeEscalation: false
+    # enable to list services in the same namespace as env vars.
+    enableServiceLinks: false
+    allowPrivilegeEscalation: true
     allowRoot: true
     architectures: ["amd64", "arm64"]
     allowedImages:
@@ -49,8 +60,8 @@ kubetailor:
       min: 1
       max: 3
   ingress:
-    baseDomain: kubetailor.io
-    loadBalancerEndpoint: lb.kubetailor.io
+    baseDomain: mpw.sh
+    loadBalancerEndpoint: k3s.mpw.sh
     className: nginx
     matchLabels:
       app.kubernetes.io/name: ingress-nginx

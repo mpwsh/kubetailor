@@ -3,6 +3,7 @@ application:
   host: 0.0.0.0
   hmac_secret: "super-long-and-secret-random-key-needed-to-verify-message-integrity"
   session_ttl: 48
-redis_dsn: "redis://localhost:6379"
-portier_url: "https://broker.mpw.sh"
+redis_dsn: "redis://127.0.0.1:6379"
+#portier_url: "https://broker.mpw.sh"
+portier_url: "http://127.0.0.1:3333"
 kubetailor_url: "http://127.0.0.1:8080"

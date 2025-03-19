@@ -1,0 +1,54 @@
+apiVersion: kubetailor.io/v1
+kind: TailoredApp
+metadata:
+  labels:
+    fingerprint: e35004fd2deecd9c7015087baa04609e666bed33
+    group: test
+    owner: x-mpw.sh
+  name: simple-node
+  namespace: kubetailor
+spec:
+  deployment:
+    allowPrivilegeEscalation: false
+    allowRoot: true
+    annotations:
+      reloader.stakater.com/auto: "true"
+    container:
+      buildCommand: npm i
+      runCommand: npm start
+      files: {}
+      image: node:lts-slim
+      port: 3000
+      replicas: 1
+      volumes: {}
+    deployNetworkPolicies: true
+    enableServiceLinks: false
+    serviceAccount: limited
+  env: {}
+  git:
+    branch: master
+    repository: https://github.com/rat9615/simple-nodejs-app
+    image: registry.k8s.io/git-sync/git-sync:v3.6.6
+  ingress:
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      external-dns.alpha.kubernetes.io/hostname: test2.mpw.sh
+      external-dns.alpha.kubernetes.io/target: lb.mpw.sh
+      nginx.ingress.kubernetes.io/affinity: cookie
+      nginx.ingress.kubernetes.io/enable-cors: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "8096"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+      nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+      nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+      nginx.ingress.kubernetes.io/session-cookie-name: route
+    className: nginx
+    domains:
+      shared: node.mpw.sh
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+  labels:
+    fingerprint: e35004fd2deecd9c7015087baa04609e666bed33
+    group: test
+    owner: x-mpw.sh
+  secrets: {}

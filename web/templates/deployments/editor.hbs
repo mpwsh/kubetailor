@@ -1,0 +1,26 @@
+{{> top}}
+<form id="editForm" hx-post="{{ action.url }}" hx-trigger="submit">
+  <div x-data="{ 
+    editor: 'Wizard', 
+    source: 'Docker', 
+    currentStep: 1,
+    steps: [
+      {title: 'Basic', section: 'basics'},
+      {title: 'Source', section: 'source'},
+      {title: 'Data', section: 'data'},
+      {title: 'Environment', section: 'env'},
+      {title: 'Domain', section: 'domain'}
+    ]
+    }">
+    {{> deployments/wizard}}
+    <div x-show="editor === 'Manifest'">
+      {{> cmp/textarea-actions 
+        actions = [ 
+          {"title": "Paste", "description": "Image from docker hub", "icon": "fa-solid fa-clipboard", "checked": true}, 
+          {"title": "Git", "description": "Any Git repository", "icon": "fa-solid fa-code-branch"}
+        ]
+      }}
+    </div>
+  </div>
+</form> 
+{{> footer}}

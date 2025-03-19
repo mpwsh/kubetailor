@@ -37,6 +37,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::health)
             .service(routes::get)
             .service(routes::logs)
+            .service(routes::restart)
             .service(routes::update)
             .service(routes::delete)
     })

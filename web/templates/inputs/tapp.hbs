@@ -1,0 +1,15 @@
+<div class="form-group">
+  <span class="subtitle no-select">{{name}}</span>
+  {{#if tapp.name}}
+    <div class="subtitle-white">{{tapp.name}}</div>
+    <input type="hidden" name="name" value="{{tapp.name}}" />
+  {{else}}
+    <input type="text" name="name" value="{{tapp.name}}" />
+  {{/if}}
+  <span class="subtitle no-select">Group:</span>
+  {{#if tapp.group}}
+    <input type="hidden" name="group" value="{{tapp.group}}" />
+  {{else}}
+    <input type="text" name="group" value="Default" />
+  {{/if}}
+</div>

@@ -1,0 +1,27 @@
+
+<div x-data="{ isEnabled: false }" class="flex w-full max-w-xs flex-col gap-2 text-neutral-600 dark:text-neutral-300">
+    <label for="combinedInputToggle" class="w-fit pl-0.5 text-sm">{{title}}</label>
+    
+    <div class="flex items-center gap-3">
+        <input 
+            id="combinedInputToggle" 
+            type="text" 
+            class="w-full rounded-md border border-neutral-300 bg-neutral-50 px-2 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:opacity-75 dark:border-neutral-700 dark:bg-neutral-900/50 dark:focus-visible:outline-white" 
+            name="{{name}}" 
+            placeholder="{{placeholder}}" 
+            autocomplete="{{name}}" 
+            value="{{value}}" 
+            :disabled="!isEnabled" />
+
+        <label for="toggleWithContainer" class="inline-flex cursor-pointer items-center">
+            <input 
+                id="toggleWithContainer" 
+                type="checkbox" 
+                class="peer sr-only" 
+                role="switch" 
+                x-model="isEnabled" />
+            <div class="relative h-4 w-8 after:h-3 after:w-3 peer-checked:after:translate-x-4 rounded-full border border-neutral-300 bg-white after:absolute after:bottom-0 after:left-[0.0625rem] after:top-0 after:my-auto after:rounded-full after:bg-neutral-600 after:transition-all after:content-[''] peer-checked:bg-black peer-checked:after:bg-neutral-100 peer-focus:outline peer-focus:outline-2 peer-focus:outline-offset-2 peer-focus:outline-neutral-800 peer-focus:peer-checked:outline-black peer-active:outline-offset-0 peer-disabled:cursor-not-allowed peer-disabled:opacity-70 dark:border-neutral-700 dark:bg-neutral-950 dark:after:bg-neutral-300 dark:peer-checked:bg-white dark:peer-checked:after:bg-black dark:peer-focus:outline-neutral-300 dark:peer-focus:peer-checked:outline-white" aria-hidden="true"></div>
+        </label>
+    </div>
+</div>
+

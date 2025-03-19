@@ -1,6 +1,8 @@
 pub mod authentication;
 pub mod config;
 pub mod errors;
+pub mod handlebars;
+pub mod htmx;
 pub mod models;
 pub mod quickwit;
 pub mod routes;

@@ -1,0 +1,55 @@
+apiVersion: kubetailor.io/v1
+kind: TailoredApp
+metadata:
+  labels:
+    fingerprint: 6e1f0674bc18d41d38146b80721bfaf169cf963e
+    group: Default
+    owner: x-mpw.sh
+  name: smol-kv
+  namespace: kubetailor
+spec:
+  deployment:
+    allowPrivilegeEscalation: false
+    allowRoot: true
+    annotations:
+      reloader.stakater.com/auto: "true"
+    container:
+      files:
+        /test/file: |
+          some content
+      image: mpwsh/smol-kv:latest
+      port: 80
+      replicas: 1
+      volumes:
+        /data: "2"
+    deployNetworkPolicies: true
+    enableServiceLinks: false
+    serviceAccount: limited
+  env:
+    PORT: "80"
+    LOG_LEVEL: info
+    DATABASE_PATH: /data/rocksdb
+  ingress:
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      external-dns.alpha.kubernetes.io/hostname: rust.mpw.sh
+      external-dns.alpha.kubernetes.io/target: k3s.mpw.sh
+      nginx.ingress.kubernetes.io/affinity: cookie
+      nginx.ingress.kubernetes.io/enable-cors: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "8096"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+      nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+      nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+      nginx.ingress.kubernetes.io/session-cookie-name: route
+    className: nginx
+    domains:
+      shared: rust.mpw.sh
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+  labels:
+    fingerprint: 6e1f0674bc18d41d38146b80721bfaf169cf963e
+    group: Default
+    owner: x-mpw.sh
+  secrets:
+    mysecret: value

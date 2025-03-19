@@ -10,7 +10,7 @@ readme.workspace = true
 keywords.workspace = true
 
 [dependencies]
-tokio = { version = "1.35", features = [
+tokio = { version = "1.44", features = [
   "macros",
   "rt-multi-thread",
 ] } # Macros for easy project setup and testing, multi-threaded runtime for best utilization of resources
@@ -20,11 +20,11 @@ serde = "1"
 serde_json = "1.0"
 thiserror = "1"                                                                # Custom Error definitions and convenient error mappings
 base64 = "0.22"
-log = "0.4.20"
-env_logger = "0.11.1"
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["json", "env-filter"] }
+log = "0.4.26"
+env_logger = "0.11.7"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["json", "env-filter"] }
 tracing-opentelemetry = "0.18.0"
-chrono = { version = "0.4.31", features = ["serde"] }
+chrono = { version = "0.4.40", features = ["serde"] }
 opentelemetry = { version = "0.18.0", features = ["trace", "rt-tokio"] }
 kubetailor = { path = "../lib" }

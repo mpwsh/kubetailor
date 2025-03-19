@@ -27,21 +27,39 @@ pub struct UserData {
 }
 
 pub async fn claim(
-    form: web::Form<VerifyForm>,
+    form: Option<web::Form<VerifyForm>>,
     client: web::Data<Client>,
     session: TypedSession,
-) -> Result<HttpResponse, ApiError> {
-    let email = client
-        .verify(&form.id_token)
-        .await
-        .map_err(|err| {
-            error!("Portier verify error: {}", err);
-            ApiError::PortierVerifyError(err.to_string())
-        })
-        .unwrap();
-    session.insert_user(&email).unwrap();
-    session.renew();
-    Ok(see_other("/dashboard"))
+) -> HttpResponse {
+    match form {
+        Some(form) => {
+            let verification = client.verify(&form.id_token).await.map_err(|err| {
+                error!("Portier verify error: {}", err);
+                ApiError::PortierVerifyError(err.to_string())
+            });
+            let mut email = String::new();
+            match verification {
+                Ok(addr) => email = addr,
+                Err(e) => {
+                    FlashMessage::info(format!(
+                        "{e:?}. Unable to initialize session. Please try again"
+                    ))
+                    .send();
+                    see_other("/login");
+                },
+            };
+            session.insert_user(&email).unwrap();
+            session.renew();
+            see_other("/")
+        },
+        None => {
+            FlashMessage::info(
+                "Internal server error. Unable to initialize session. Please try again",
+            )
+            .send();
+            see_other("/login")
+        },
+    }
 }
 
 pub async fn whoami(session: TypedSession) -> Result<HttpResponse, ApiError> {

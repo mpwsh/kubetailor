@@ -1,0 +1,143 @@
+{{> top}}
+<div id="deployments-wrapper" x-data="{ shouldPoll: true }">
+    <button @click="shouldPoll = !shouldPoll" 
+            x-text="shouldPoll ? 'Pause Updates' : 'Resume Updates'"
+            class="text-sm text-gray-500">
+    </button>
+    
+    <div hx-get="/deployments" 
+         :hx-trigger="shouldPoll ? 'every 5s' : 'none'"
+         hx-target="#deployments-table-container"
+         hx-select="#deployments-table-container">
+        <div id="deployments-table-container">
+            {{#if deployments}}
+            <table class="w-full text-left text-sm text-neutral-600 dark:text-neutral-300">
+                <thead class="border-b border-neutral-300 bg-neutral-50 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">
+                    <tr>
+                        <th scope="col" class="p-4">Name</th>
+                        <th scope="col" class="hidden sm:table-cell p-4">Started At</th>
+                        <th scope="col" class="hidden sm:table-cell p-4">Endpoint</th>
+                        <th scope="col" class="hidden sm:table-cell p-4">SSL Cert</th>
+                        <th scope="col" class="p-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-neutral-300 dark:divide-neutral-700">
+                    {{#each deployments}}
+                    <tr x-data="{ 
+                        health: JSON.parse(localStorage.getItem('health_{{this}}') || '{}'),
+                        async pollHealth() {
+                            try {
+                                const response = await fetch(`/deployments/health?name={{this}}`);
+                                const newHealth = await response.json();
+                                this.health = newHealth;
+                                localStorage.setItem('health_{{this}}', JSON.stringify(newHealth));
+                            } catch (e) {
+                                console.error('Failed to fetch health:', e);
+                            }
+                        }
+                    }" 
+                    x-init="pollHealth()"
+                    @poll-health="if(shouldPoll) pollHealth()"
+                    x-effect="if(shouldPoll) { setInterval(() => $dispatch('poll-health'), 5000) }">
+                        <td class="p-4">
+                            <div class="flex w-max items-center gap-2">
+                                <span 
+                                    :class="{ 
+                                        'bg-green-500 dark:bg-green-500': health?.deployment?.ready,
+                                        'bg-red-500 dark:bg-red-500': health?.deployment?.ready === false,
+                                        'bg-neutral-300 dark:bg-neutral-600': !health?.deployment
+                                    }"
+                                    class="flex size-3 items-center justify-center rounded-full" 
+                                    :title="health?.deployment?.ready ? 'Deployment Healthy' : 'Deployment Unhealthy'">
+                                    <span 
+                                        :class="{
+                                            'bg-green-500 dark:bg-green-500': health?.deployment?.ready,
+                                            'bg-red-500 dark:bg-red-500': health?.deployment?.ready === false,
+                                            'bg-neutral-300 dark:bg-neutral-600': !health?.deployment
+                                        }"
+                                        class="size-3 animate-ping rounded-full motion-reduce:animate-none">
+                                    </span>
+                                </span>
+                                <div class="flex flex-col">
+                                    <p class="text-neutral-600 dark:text-neutral-300">
+                                        <a href="/deployments/view?name={{this}}" class="font-medium text-black underline-offset-2 hover:underline focus:underline focus:outline-none dark:text-white">
+                                            {{this}}
+                                        </a>
+                                    </p>
+                                    <span class="text-sm text-neutral-600 opacity-85 dark:text-neutral-300">{{tapp.container.image}}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="hidden sm:table-cell p-4">
+                            <span x-text="health?.deployment?.state?.running?.startedAt || 'N/A'"></span>
+                        </td>
+                        <td class="hidden sm:table-cell p-4">
+                            <a x-show="health?.domains?.domains?.[0]"
+                               :href="'https://' + health?.domains?.domains?.[0]"
+                               target="_blank"
+                               class="text-blue-600 hover:underline dark:text-blue-400"
+                               x-text="health?.domains?.domains?.[0]">
+                            </a>
+                            <span x-show="!health?.domains?.domains?.[0]">N/A</span>
+                        </td>
+                        <td class="hidden sm:table-cell p-4">
+                            <div class="flex justify-center">
+                                <span 
+                                    :class="{ 
+                                        'bg-green-500 dark:bg-green-500': health?.domains?.ssl,
+                                        'bg-red-500 dark:bg-red-500': health?.domains?.ssl === false,
+                                        'bg-neutral-300 dark:bg-neutral-600': !health?.domains
+                                    }"
+                                    class="flex size-3 items-center justify-center rounded-full" 
+                                    :title="health?.domains?.ssl ? 'SSL Active' : 'SSL Inactive'">
+                                    <span 
+                                        :class="{
+                                            'bg-green-500 dark:bg-green-500': health?.domains?.ssl,
+                                            'bg-red-500 dark:bg-red-500': health?.domains?.ssl === false,
+                                            'bg-neutral-300 dark:bg-neutral-600': !health?.domains
+                                        }"
+                                        class="size-3 animate-ping rounded-full motion-reduce:animate-none">
+                                    </span>
+                                </span>
+                            </div>
+                        </td>
+                        <td class="p-4" 
+                            x-data="{ 
+                                items: [
+                                    {
+                                        title: 'View Logs',
+                                        icon: 'fas fa-file-text',
+                                        link: '/logs?name={{this}}',
+                                    },
+                                    {
+                                        title: 'Edit',
+                                        icon: 'fas fa-edit',
+                                        link: '/deployments/edit?name={{this}}',
+                                    },
+                                    {
+                                        title: 'Restart',
+                                        icon: 'fa-solid fa-arrow-rotate-left',
+                                        link: '/deployments/restart?name={{this}}',
+                                    },
+                                    {
+                                        title: 'Delete',
+                                        icon: 'fas fa-trash',
+                                        link: '/deployments/delete?name={{this}}',
+                                    }
+                                ]
+                            }">
+                            <div class="flex justify-end">
+                                {{> cmp/dropdown title="Actions" }}
+                            </div>
+                        </td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+            {{else}}
+            <h1>No deployments found</h1>
+            {{/if}}
+        </div>
+    </div>
+</div>
+{{> footer}}

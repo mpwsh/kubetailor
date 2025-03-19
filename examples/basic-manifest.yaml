@@ -4,7 +4,7 @@ metadata:
   labels:
     fingerprint: 6e1f0674bc18d41d38146b80721bfaf169cf963e
     group: Default
-    owner: test
+    owner: x-mpw.sh
   name: tailored-app
   namespace: kubetailor
 spec:
@@ -29,8 +29,8 @@ spec:
   ingress:
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      external-dns.alpha.kubernetes.io/hostname: example.kubetailor.io
-      external-dns.alpha.kubernetes.io/target: k3s.kubetailor.io
+      external-dns.alpha.kubernetes.io/hostname: example.mpw.sh
+      external-dns.alpha.kubernetes.io/target: k3s.mpw.sh
       nginx.ingress.kubernetes.io/affinity: cookie
       nginx.ingress.kubernetes.io/enable-cors: "true"
       nginx.ingress.kubernetes.io/proxy-body-size: "8096"
@@ -41,12 +41,12 @@ spec:
       nginx.ingress.kubernetes.io/session-cookie-name: route
     className: nginx
     domains:
-      shared: example.kubetailor.io
+      shared: example.mpw.sh
     matchLabels:
       app.kubernetes.io/name: ingress-nginx
   labels:
     fingerprint: 6e1f0674bc18d41d38146b80721bfaf169cf963e
     group: Default
-    owner: test
+    owner: x-mpw.sh
   secrets:
     mysecret: value
