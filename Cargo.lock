@@ -1990,7 +1990,7 @@ dependencies = [
 
 [[package]]
 name = "kubetailor"
-version = "0.1.2"
+version = "0.1.0"
 dependencies = [
  "k8s-openapi",
  "kube",
