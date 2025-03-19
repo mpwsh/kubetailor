@@ -1,16 +1,12 @@
 [package]
 name = "kubetailor"
-
-version.workspace = true
+version = "0.0.1"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 readme.workspace = true
 keywords.workspace = true
-
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
