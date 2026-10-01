@@ -60,14 +60,43 @@ pub enum MountSource {
     Pvc(String),
 }
 
-/// One directory mounted into the app container.
+/// Something mounted into the app container: a whole volume at a directory, or one key of a
+/// ConfigMap volume at a file path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mount {
-    /// Pod volume name (a DNS label, 63 chars max, so not the resource name itself).
+    /// Pod volume name (a DNS label, 63 chars max, so not the resource name itself). Several
+    /// mounts may share one volume; the pod gets it once.
     pub volume: String,
     /// Mount path inside the container.
     pub path: String,
     pub source: MountSource,
+    /// Mount only this entry of the volume (`subPath`). A file is projected over the one path
+    /// and the rest of its directory stays what the image put there; a plain mount of a
+    /// ConfigMap at `/app` would hide `/app/server` and everything else in it.
+    pub sub_path: Option<String>,
+}
+
+/// Pod template annotation carrying a digest of everything the container reads at start-up
+/// (env, secrets, files): when any of it changes the digest changes, the template changes, and
+/// the Deployment rolls the pods. Env vars are only read at start, and a `subPath` file mount
+/// is not updated in place by the kubelet, so without this an edit would land in the ConfigMap
+/// and never reach a running container.
+pub const CONFIG_DIGEST_ANNOTATION: &str = "kubetailor.io/config-digest";
+
+/// FNV-1a over a canonical serialisation of env, secrets and files.
+pub fn config_digest(app: &TailoredApp) -> String {
+    let canonical = serde_json::json!({
+        "env": app.spec.env,
+        "secrets": app.spec.secrets,
+        "files": app.spec.deployment.container.files,
+    })
+    .to_string();
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in canonical.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("{hash:016x}")
 }
 
 pub fn new(meta: &TappMeta, app: &TailoredApp, mounts: &[Mount]) -> Deployment {
@@ -172,8 +201,12 @@ pub fn new(meta: &TappMeta, app: &TailoredApp, mounts: &[Mount]) -> Deployment {
         volume_mounts.push(VolumeMount {
             name: m.volume.clone(),
             mount_path: m.path.clone(),
+            sub_path: m.sub_path.clone(),
             ..VolumeMount::default()
         });
+        if pod_volumes.iter().any(|v: &Volume| v.name == m.volume) {
+            continue;
+        }
         pod_volumes.push(match &m.source {
             MountSource::ConfigMap(name) => Volume {
                 name: m.volume.clone(),
@@ -278,6 +311,10 @@ pub fn new(meta: &TappMeta, app: &TailoredApp, mounts: &[Mount]) -> Deployment {
     let pod_template_spec = PodTemplateSpec {
         metadata: Some(ObjectMeta {
             labels: Some(meta.labels.clone()),
+            annotations: Some(BTreeMap::from([(
+                CONFIG_DIGEST_ANNOTATION.to_owned(),
+                config_digest(app),
+            )])),
             ..ObjectMeta::default()
         }),
         spec: Some(pod_spec),

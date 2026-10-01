@@ -140,6 +140,56 @@ mod tests {
         }
     }
 
+    /// Two files of one directory: one pod volume, two `subPath` mounts; and the pod template
+    /// carries a digest that moves when a file (or env, or a secret) changes, so the pods roll.
+    #[test]
+    fn file_mounts_share_a_volume_and_change_the_digest() {
+        let (meta, mut app) = fixture();
+        let cm = deployment::MountSource::ConfigMap("files-web-1".into());
+        let mounts = vec![
+            deployment::Mount {
+                volume: "files-1".into(),
+                path: "/app/a.yaml".into(),
+                source: cm.clone(),
+                sub_path: Some("a.yaml".into()),
+            },
+            deployment::Mount {
+                volume: "files-1".into(),
+                path: "/app/b.yaml".into(),
+                source: cm,
+                sub_path: Some("b.yaml".into()),
+            },
+        ];
+        let d = deployment::new(&meta, &app, &mounts);
+        let template = d.spec.unwrap().template;
+        let pod = template.spec.unwrap();
+        let volumes = pod.volumes.unwrap();
+        assert_eq!(volumes.iter().filter(|v| v.name == "files-1").count(), 1);
+        let app_container = pod.containers.iter().find(|c| c.name == "app").unwrap();
+        let vm = app_container.volume_mounts.as_ref().unwrap();
+        let a = vm.iter().find(|m| m.mount_path == "/app/a.yaml").unwrap();
+        assert_eq!(a.sub_path.as_deref(), Some("a.yaml"));
+
+        let digest_before = template.metadata.unwrap().annotations.unwrap()
+            [deployment::CONFIG_DIGEST_ANNOTATION]
+            .clone();
+        app.spec.deployment.container.files = Some(BTreeMap::from([(
+            "/app/a.yaml".to_owned(),
+            "changed".to_owned(),
+        )]));
+        let d = deployment::new(&meta, &app, &mounts);
+        let digest_after = d
+            .spec
+            .unwrap()
+            .template
+            .metadata
+            .unwrap()
+            .annotations
+            .unwrap()[deployment::CONFIG_DIGEST_ANNOTATION]
+            .clone();
+        assert_ne!(digest_before, digest_after);
+    }
+
     /// Server-side apply rejects bodies without apiVersion/kind; make sure every builder's
     /// output carries them (k8s-openapi adds them on serialisation, but that is easy to lose by
     /// wrapping types).

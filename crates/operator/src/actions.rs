@@ -68,39 +68,20 @@ pub async fn apply_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> R
                 volume: format!("pvc-{id}"),
                 path: path.clone(),
                 source: MountSource::Pvc(pvc_meta.name),
+                sub_path: None,
             });
         }
     }
 
-    // Files: one ConfigMap per parent directory (a ConfigMap mounts as a directory).
+    // Files: one ConfigMap per parent directory, each file mounted on its own path with
+    // `subPath`, so a file dropped into `/app` leaves the image's `/app/server` in place.
     if let Some(files) = app.spec.deployment.container.files.as_ref() {
-        let mut groups: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
-        for (path, data) in files {
-            let path_buf = std::path::PathBuf::from(path);
-            let parent = path_buf
-                .parent()
-                .filter(|p| !p.as_os_str().is_empty())
-                .ok_or_else(|| {
-                    Error::UserInputError(format!("file `{path}`: no parent directory"))
-                })?;
-            let file_name = path_buf
-                .file_name()
-                .ok_or_else(|| Error::UserInputError(format!("file `{path}`: no file name")))?;
-            groups
-                .entry(parent.to_string_lossy().into_owned())
-                .or_default()
-                .insert(file_name.to_string_lossy().into_owned(), data.clone());
-        }
-        for (dir, data) in groups {
+        for (dir, data) in group_files(files)? {
             let id = path_id(&dir);
             let cm_meta = meta.child(format!("files-{name}-{id}"));
-            apply(client, ns, &configmap::new(&cm_meta, data)).await?;
+            apply(client, ns, &configmap::new(&cm_meta, data.clone())).await?;
             desired.configmaps.insert(cm_meta.name.clone());
-            mounts.push(Mount {
-                volume: format!("files-{id}"),
-                path: dir,
-                source: MountSource::ConfigMap(cm_meta.name),
-            });
+            mounts.extend(file_mounts(&dir, &id, &cm_meta.name, &data));
         }
     }
 
@@ -150,6 +131,61 @@ pub async fn apply_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> R
     prune::<NetworkPolicy>(client, meta, &desired.netpols).await?;
 
     Ok(())
+}
+
+/// Files by parent directory: `/app/server.yaml` and `/app/extra.toml` share one ConfigMap.
+/// Paths must be absolute, and a file name becomes a ConfigMap key, which limits its alphabet.
+fn group_files(
+    files: &BTreeMap<String, String>,
+) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
+    let mut groups: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
+    for (path, data) in files {
+        let path_buf = std::path::PathBuf::from(path);
+        if !path_buf.is_absolute() {
+            return Err(Error::UserInputError(format!(
+                "file `{path}`: path must be absolute"
+            )));
+        }
+        let parent = path_buf
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .ok_or_else(|| Error::UserInputError(format!("file `{path}`: no parent directory")))?;
+        let file_name = path_buf
+            .file_name()
+            .ok_or_else(|| Error::UserInputError(format!("file `{path}`: no file name")))?
+            .to_string_lossy()
+            .into_owned();
+        if !file_name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"-._".contains(&b))
+        {
+            return Err(Error::UserInputError(format!(
+                "file `{path}`: the name may only contain letters, digits, `-`, `_` and `.`"
+            )));
+        }
+        groups
+            .entry(parent.to_string_lossy().into_owned())
+            .or_default()
+            .insert(file_name, data.clone());
+    }
+    Ok(groups)
+}
+
+/// One `subPath` mount per file of a directory's ConfigMap.
+fn file_mounts(
+    dir: &str,
+    id: &str,
+    configmap: &str,
+    data: &BTreeMap<String, String>,
+) -> Vec<Mount> {
+    data.keys()
+        .map(|file_name| Mount {
+            volume: format!("files-{id}"),
+            path: format!("{}/{file_name}", dir.trim_end_matches('/')),
+            source: MountSource::ConfigMap(configmap.to_owned()),
+            sub_path: Some(file_name.clone()),
+        })
+        .collect()
 }
 
 /// Kubernetes refusing to change a field that cannot change in place (`422 Invalid`, "field is
@@ -258,5 +294,57 @@ mod tests {
         assert_eq!(path_id("/data"), path_id("/data"));
         assert_ne!(path_id("/data"), path_id("/data2"));
         assert_eq!(path_id("/usr/share/nginx/html").len(), 8);
+    }
+
+    #[test]
+    fn immutable_field_errors_are_recognised() {
+        use kubetailor::kube::core::ErrorResponse;
+        let immutable = Error::KubeError {
+            source: kubetailor::kube::Error::Api(ErrorResponse {
+                status: "Failure".into(),
+                message: "Deployment.apps \"game\" is invalid: spec.selector: Invalid value: ...: field is immutable".into(),
+                reason: "Invalid".into(),
+                code: 422,
+            }),
+        };
+        assert!(is_immutable_field(&immutable));
+        let other = Error::KubeError {
+            source: kubetailor::kube::Error::Api(ErrorResponse {
+                status: "Failure".into(),
+                message: "deployments.apps \"game\" not found".into(),
+                reason: "NotFound".into(),
+                code: 404,
+            }),
+        };
+        assert!(!is_immutable_field(&other));
+        assert!(!is_immutable_field(&Error::UserInputError("x".into())));
+    }
+
+    #[test]
+    fn files_mount_one_by_one_without_hiding_their_directory() {
+        let files = BTreeMap::from([
+            ("/app/server.yaml".to_owned(), "a".to_owned()),
+            ("/app/extra.toml".to_owned(), "b".to_owned()),
+            ("/config.json".to_owned(), "c".to_owned()),
+        ]);
+        let groups = group_files(&files).unwrap();
+        assert_eq!(groups.len(), 2, "one ConfigMap per directory");
+        let mounts = file_mounts("/app", "id1", "files-x-id1", &groups["/app"]);
+        assert_eq!(mounts.len(), 2);
+        let server = mounts
+            .iter()
+            .find(|m| m.path == "/app/server.yaml")
+            .unwrap();
+        assert_eq!(server.sub_path.as_deref(), Some("server.yaml"));
+        assert_eq!(server.volume, "files-id1");
+        // A file in `/` must not mount over `/`.
+        let root = file_mounts("/", "id2", "files-x-id2", &groups["/"]);
+        assert_eq!(root[0].path, "/config.json");
+        assert_eq!(root[0].sub_path.as_deref(), Some("config.json"));
+
+        let relative = BTreeMap::from([("app/x.yaml".to_owned(), String::new())]);
+        assert!(group_files(&relative).is_err());
+        let bad_key = BTreeMap::from([("/app/my file.yaml".to_owned(), String::new())]);
+        assert!(group_files(&bad_key).is_err());
     }
 }
