@@ -5,7 +5,7 @@ use kubetailor::k8s_openapi::{
 
 use crate::prelude::*;
 
-fn new(meta: &TappMeta, storage: &str) -> PersistentVolumeClaim {
+pub fn new(meta: &TappMeta, storage: &str) -> PersistentVolumeClaim {
     PersistentVolumeClaim {
         metadata: ObjectMeta {
             name: Some(meta.name.to_owned()),
@@ -28,36 +28,4 @@ fn new(meta: &TappMeta, storage: &str) -> PersistentVolumeClaim {
         }),
         ..Default::default()
     }
-}
-
-pub async fn deploy(
-    client: &Client,
-    meta: &TappMeta,
-    storage: String,
-) -> Result<PersistentVolumeClaim, Error> {
-    let pvc = new(meta, &storage);
-    let api: Api<PersistentVolumeClaim> = Api::namespaced(client.to_owned(), &meta.namespace);
-    match api.create(&PostParams::default(), &pvc).await {
-        Ok(pvc) => Ok(pvc),
-        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => {
-            update(client, meta, &storage).await
-        }
-        Err(e) => Err(Error::KubeError { source: e }),
-    }
-}
-
-pub async fn update(
-    client: &Client,
-    meta: &TappMeta,
-    storage: &str,
-) -> Result<PersistentVolumeClaim, Error> {
-    let mut pvc = new(meta, storage);
-    let api: Api<PersistentVolumeClaim> = Api::namespaced(client.to_owned(), &meta.namespace);
-
-    let resource_version = api.get(&meta.name).await?.metadata.resource_version;
-    pvc.metadata.resource_version = resource_version;
-
-    Ok(api
-        .replace(&meta.name, &PostParams::default(), &pvc)
-        .await?)
 }

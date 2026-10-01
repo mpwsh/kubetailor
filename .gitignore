@@ -1,4 +1,5 @@
 /target
+/skills
 .DS_Store
 /scripts
 .env

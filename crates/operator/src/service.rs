@@ -91,54 +91,13 @@ pub fn node_service_name(meta: &TappMeta) -> String {
     format!("{}{NODE_SERVICE_SUFFIX}", meta.name)
 }
 
-pub async fn deploy(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Result<(), Error> {
-    let api: Api<Service> = Api::namespaced(client.clone(), &meta.namespace);
-    for service in [cluster_service(meta, app), node_service(meta, app)]
+/// Every Service the app needs: the in-cluster one and, if any port is `nodePort`, the Local
+/// NodePort one.
+pub fn all(meta: &TappMeta, app: &TailoredApp) -> Vec<Service> {
+    [cluster_service(meta, app), node_service(meta, app)]
         .into_iter()
         .flatten()
-    {
-        apply(&api, service).await?;
-    }
-    Ok(())
-}
-
-async fn apply(api: &Api<Service>, mut service: Service) -> Result<Service, Error> {
-    let name = service
-        .metadata
-        .name
-        .clone()
-        .ok_or(Error::MissingObjectKey("metadata.name"))?;
-    match api.create(&PostParams::default(), &service).await {
-        Ok(s) => Ok(s),
-        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => {
-            let existing = api.get(&name).await?;
-            service.metadata.resource_version = existing.metadata.resource_version;
-            // Allocated values the API server owns; a replace without them is rejected or
-            // would churn the allocation.
-            if let (Some(new), Some(old)) = (service.spec.as_mut(), existing.spec.as_ref()) {
-                new.cluster_ip = old.cluster_ip.clone();
-                new.cluster_ips = old.cluster_ips.clone();
-                new.ip_families = old.ip_families.clone();
-                new.ip_family_policy = old.ip_family_policy.clone();
-                if new.type_.as_deref() == Some("NodePort") {
-                    if let (Some(new_ports), Some(old_ports)) =
-                        (new.ports.as_mut(), old.ports.as_ref())
-                    {
-                        for np in new_ports.iter_mut() {
-                            if let Some(op) = old_ports
-                                .iter()
-                                .find(|op| op.port == np.port && op.protocol == np.protocol)
-                            {
-                                np.node_port = op.node_port;
-                            }
-                        }
-                    }
-                }
-            }
-            Ok(api.replace(&name, &PostParams::default(), &service).await?)
-        }
-        Err(e) => Err(Error::KubeError { source: e }),
-    }
+        .collect()
 }
 
 #[cfg(test)]

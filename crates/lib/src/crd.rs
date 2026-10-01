@@ -171,6 +171,10 @@ pub struct Domains {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct TailoredAppStatus {
+    /// `metadata.generation` the operator last applied; equal to the current one means the
+    /// resources reflect the spec as it is now.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_generation: Option<i64>,
     /// Nodes running at least one pod of the app.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub nodes: Vec<PlacementNode>,

@@ -51,7 +51,26 @@ pub fn container_ports(container: &crd::Container) -> Vec<ContainerPort> {
     ports
 }
 
-fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -> Deployment {
+/// What backs a mount in the app container.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MountSource {
+    /// A ConfigMap holding the files of one directory.
+    ConfigMap(String),
+    /// A PersistentVolumeClaim.
+    Pvc(String),
+}
+
+/// One directory mounted into the app container.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Mount {
+    /// Pod volume name (a DNS label, 63 chars max, so not the resource name itself).
+    pub volume: String,
+    /// Mount path inside the container.
+    pub path: String,
+    pub source: MountSource,
+}
+
+pub fn new(meta: &TappMeta, app: &TailoredApp, mounts: &[Mount]) -> Deployment {
     let deployment = app.spec.deployment.clone();
     let mut containers = Vec::new();
     let mut volume_mounts = Vec::new();
@@ -149,36 +168,30 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
         ..Container::default()
     };
 
-    for (name, mount_path) in volumes.iter() {
-        // Create a volume mount for each volume
-        let vol_mount = VolumeMount {
-            name: name.clone(),
-            mount_path: mount_path.clone(),
+    for m in mounts {
+        volume_mounts.push(VolumeMount {
+            name: m.volume.clone(),
+            mount_path: m.path.clone(),
             ..VolumeMount::default()
-        };
-        volume_mounts.push(vol_mount);
-
-        if name.starts_with("files") {
-            let volume = Volume {
-                name: name.clone(),
+        });
+        pod_volumes.push(match &m.source {
+            MountSource::ConfigMap(name) => Volume {
+                name: m.volume.clone(),
                 config_map: Some(ConfigMapVolumeSource {
                     name: Some(name.clone()),
                     ..ConfigMapVolumeSource::default()
                 }),
                 ..Volume::default()
-            };
-            pod_volumes.push(volume);
-        } else if name.starts_with("pvc") {
-            let volume = Volume {
-                name: name.clone(),
+            },
+            MountSource::Pvc(name) => Volume {
+                name: m.volume.clone(),
                 persistent_volume_claim: Some(PersistentVolumeClaimVolumeSource {
                     claim_name: name.clone(),
                     ..PersistentVolumeClaimVolumeSource::default()
                 }),
                 ..Volume::default()
-            };
-            pod_volumes.push(volume);
-        }
+            },
+        });
     }
 
     if let Some(git_config) = app.spec.git.clone() {
@@ -292,44 +305,4 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
         spec: Some(deployment_spec),
         ..Deployment::default()
     }
-}
-
-pub async fn deploy(
-    client: &Client,
-    meta: &TappMeta,
-    app: &TailoredApp,
-    volumes: BTreeMap<String, String>,
-) -> Result<Deployment, Error> {
-    let deployment = new(meta, app, &volumes);
-    let api: Api<Deployment> = Api::namespaced(client.clone(), &meta.namespace);
-    match api.create(&PostParams::default(), &deployment).await {
-        Ok(d) => Ok(d),
-        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => {
-            update(client, meta, app, &volumes).await
-        }
-        Err(e) => {
-            warn!(
-                "Error while trying to update deployment {name}",
-                name = meta.name
-            );
-            Err(Error::KubeError { source: e })
-        }
-    }
-}
-
-pub async fn update(
-    client: &Client,
-    meta: &TappMeta,
-    app: &TailoredApp,
-    volumes: &BTreeMap<String, String>,
-) -> Result<Deployment, Error> {
-    let mut deployment = new(meta, app, volumes);
-    let api: Api<Deployment> = Api::namespaced(client.to_owned(), &meta.namespace);
-    let resource_version = api.get(&meta.name).await?.metadata.resource_version;
-
-    deployment.metadata.resource_version = resource_version;
-
-    Ok(api
-        .replace(&meta.name, &PostParams::default(), &deployment)
-        .await?)
 }

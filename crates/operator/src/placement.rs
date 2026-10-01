@@ -43,19 +43,11 @@ fn public_ip(node: &Node, label: &str) -> Option<String> {
     })
 }
 
-fn label_selector(meta: &TappMeta) -> String {
-    meta.labels
-        .iter()
-        .map(|(k, v)| format!("{k}={v}"))
-        .collect::<Vec<_>>()
-        .join(",")
-}
-
 /// Nodes currently running a scheduled, non-terminating pod of the app.
 async fn placed_nodes(client: &Client, meta: &TappMeta) -> Result<Vec<PlacementNode>, Error> {
     let pods: Api<Pod> = Api::namespaced(client.clone(), &meta.namespace);
     let pods = pods
-        .list(&ListParams::default().labels(&label_selector(meta)))
+        .list(&ListParams::default().labels(&meta.label_selector()))
         .await?;
     let node_names: BTreeSet<String> = pods
         .items
@@ -234,25 +226,55 @@ fn annotation<'a>(meta: &'a ObjectMeta, key: &str) -> Option<&'a str> {
         .map(String::as_str)
 }
 
-/// Resolves placement and publishes it (status + DNS). No-op for apps that are not node-bound.
+/// Publishes the app's status: the generation just applied and, for node-bound apps, where the
+/// pods run plus the DNS target. One status patch per change, none when nothing moved.
 pub async fn publish(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Result<(), Error> {
-    if !app.spec.is_node_bound() {
-        return Ok(());
-    }
-    let status = desired_status(client, meta, app).await?;
+    let mut status = if app.spec.is_node_bound() {
+        desired_status(client, meta, app).await?
+    } else {
+        TailoredAppStatus::default()
+    };
+    status.observed_generation = app.metadata.generation;
+
     if app.status.as_ref() != Some(&status) {
-        let api: Api<TailoredApp> = Api::namespaced(client.clone(), &meta.namespace);
-        // Every field spelled out (empty lists, explicit null): a merge patch only removes what
-        // it names, and the serde representation skips empty values.
-        let patch = json!({"status": {
-            "nodes": status.nodes,
-            "endpoints": status.endpoints,
-            "message": status.message,
-        }});
-        api.patch_status(&meta.name, &PatchParams::default(), &Patch::Merge(patch))
-            .await?;
+        patch_status(client, meta, &status).await?;
     }
-    point_dns(client, meta, app, &status.nodes).await
+    if app.spec.is_node_bound() {
+        point_dns(client, meta, app, &status.nodes).await?;
+    }
+    Ok(())
+}
+
+/// Puts the reason an apply failed on the object (`status.message`), so `kubectl get tapp -o yaml`
+/// explains itself. Best effort: a failure here is logged, the original error is what matters.
+pub async fn report_error(client: &Client, meta: &TappMeta, error: &Error) {
+    let api: Api<TailoredApp> = Api::namespaced(client.clone(), &meta.namespace);
+    let patch = json!({"status": {"message": error.to_string()}});
+    if let Err(e) = api
+        .patch_status(&meta.name, &PatchParams::default(), &Patch::Merge(patch))
+        .await
+    {
+        warn!("{}: could not record error in status: {e}", meta.name);
+    }
+}
+
+async fn patch_status(
+    client: &Client,
+    meta: &TappMeta,
+    status: &TailoredAppStatus,
+) -> Result<(), Error> {
+    let api: Api<TailoredApp> = Api::namespaced(client.clone(), &meta.namespace);
+    // Every field spelled out (empty lists, explicit null): a merge patch only removes what it
+    // names, and the serde representation skips empty values.
+    let patch = json!({"status": {
+        "observedGeneration": status.observed_generation,
+        "nodes": status.nodes,
+        "endpoints": status.endpoints,
+        "message": status.message,
+    }});
+    api.patch_status(&meta.name, &PatchParams::default(), &Patch::Merge(patch))
+        .await?;
+    Ok(())
 }
 
 #[cfg(test)]

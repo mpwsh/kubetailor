@@ -19,7 +19,7 @@ fn requirements(app: &TailoredApp) -> Result<(&kubetailor::crd::Ingress, i32), E
     Ok((ingress, port))
 }
 
-fn new(meta: &TappMeta, app: &TailoredApp) -> Result<Ingress, Error> {
+pub fn new(meta: &TappMeta, app: &TailoredApp) -> Result<Ingress, Error> {
     let (ingress, port) = requirements(app)?;
     let app = app.spec.clone();
     let paths = vec![HTTPIngressPath {
@@ -53,12 +53,20 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> Result<Ingress, Error> {
         Error::UserInputError("the `owner` label is required (it names the TLS secret)".to_owned())
     })?;
 
+    // For node-bound apps the external-dns target is owned by the placement step (it is the
+    // node's IP, known only once the pod is scheduled), so the spec's value is not applied:
+    // under server-side apply, a key we never send is a key we never fight over.
+    let mut annotations = ingress.annotations.clone();
+    if app.is_node_bound() {
+        annotations.remove(crate::placement::DNS_TARGET_ANNOTATION);
+    }
+
     Ok(Ingress {
         metadata: ObjectMeta {
             name: Some(meta.name.to_owned()),
             namespace: Some(meta.namespace.to_owned()),
             labels: Some(meta.labels.to_owned()),
-            annotations: Some(ingress.annotations.clone()),
+            annotations: Some(annotations),
             owner_references: Some(vec![meta.oref.to_owned()]),
             ..ObjectMeta::default()
         },
@@ -73,44 +81,4 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> Result<Ingress, Error> {
             }]),
         }),
     })
-}
-
-pub async fn deploy(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Result<Ingress, Error> {
-    let ingress = new(meta, app)?;
-    let api: Api<Ingress> = Api::namespaced(client.to_owned(), &meta.namespace);
-    match api.create(&PostParams::default(), &ingress).await {
-        Ok(s) => Ok(s),
-        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => update(client, meta, app).await,
-        Err(e) => Err(Error::KubeError { source: e }),
-    }
-}
-
-pub async fn update(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Result<Ingress, Error> {
-    let mut ingress = new(meta, app)?;
-    let api: Api<Ingress> = Api::namespaced(client.to_owned(), &meta.namespace);
-    let existing = api.get(&meta.name).await?;
-    ingress.metadata.resource_version = existing.metadata.resource_version;
-    // For node-bound apps the DNS target is owned by the placement step, not by the spec:
-    // carry the value it wrote over the rebuild instead of flapping back to the spec's.
-    if app.spec.is_node_bound() {
-        if let Some(target) = existing
-            .metadata
-            .annotations
-            .as_ref()
-            .and_then(|a| a.get(crate::placement::DNS_TARGET_ANNOTATION))
-        {
-            ingress
-                .metadata
-                .annotations
-                .get_or_insert_with(BTreeMap::new)
-                .insert(
-                    crate::placement::DNS_TARGET_ANNOTATION.to_owned(),
-                    target.clone(),
-                );
-        }
-    }
-
-    Ok(api
-        .replace(&meta.name, &PostParams::default(), &ingress)
-        .await?)
 }

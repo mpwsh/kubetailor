@@ -56,7 +56,7 @@ fn ingress_rules(
     rules
 }
 
-fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
+pub fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
     let mut labels = meta.labels.clone();
     labels.remove("tapp");
     NetworkPolicy {
@@ -131,34 +131,4 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
         }),
         ..NetworkPolicy::default()
     }
-}
-
-pub async fn deploy(
-    client: &Client,
-    meta: &TappMeta,
-    app: &TailoredApp,
-) -> Result<NetworkPolicy, Error> {
-    let netpol = new(meta, app);
-    let api: Api<NetworkPolicy> = Api::namespaced(client.clone(), &meta.namespace);
-    match api.create(&PostParams::default(), &netpol).await {
-        Ok(cm) => Ok(cm),
-        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => update(client, meta, app).await,
-        Err(e) => Err(Error::KubeError { source: e }),
-    }
-}
-
-pub async fn update(
-    client: &Client,
-    meta: &TappMeta,
-    app: &TailoredApp,
-) -> Result<NetworkPolicy, Error> {
-    let mut netpol = new(meta, app);
-    let api: Api<NetworkPolicy> = Api::namespaced(client.to_owned(), &meta.namespace);
-
-    let resource_version = api.get(&meta.name).await?.metadata.resource_version;
-    netpol.metadata.resource_version = resource_version;
-
-    Ok(api
-        .replace(&meta.name, &PostParams::default(), &netpol)
-        .await?)
 }

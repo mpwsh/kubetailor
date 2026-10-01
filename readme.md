@@ -120,9 +120,27 @@ Examples: [udp-echo.yaml](./examples/udp-echo.yaml) (UDP only, no ingress),
 node), [udp-echo.json](./examples/udp-echo.json) (the same through the server API; the server's
 `nodePortRange` config bounds the ports users may expose, default `1024-29999`).
 
-Updating an existing `TailoredApp` with `kubectl apply` does not re-render its resources (the
-operator only acts when the finalizer is absent, which the server's `PUT` guarantees); delete and
-re-create, or use the API.
+### Live updates
+
+Editing a `TailoredApp` (`kubectl apply`/`edit`, or the server's `PUT`) re-renders its resources
+at once. The operator is level-triggered: on every reconcile it server-side applies each child
+resource under the `kubetailor` field manager, so
+
+- fields the spec stopped setting are removed, resources the spec stopped asking for are pruned
+  (the env ConfigMap, the Ingress, the `nodePort` Service, ...);
+- what other controllers own is left alone: the Deployment controller's revision annotation, a
+  `kubectl rollout restart` stamp, allocated `clusterIP`s and node ports;
+- an unchanged spec is a no-op on the API server, so the periodic resync (every 60s) is cheap and
+  cannot feed back into itself.
+
+PersistentVolumeClaims are the exception: a volume removed from the spec keeps its PVC and data
+until the app is deleted. PVCs and file ConfigMaps are named after a hash of their mount path
+(`pvc-<app>-<id>`, `files-<app>-<id>`) rather than their position in the list, so adding one never
+renames the others.
+
+`status.observedGeneration` equal to `metadata.generation` means the resources reflect the spec as
+it is now; `status.message` carries the reason when an apply fails (for example an ingress with
+domains but no `container.port`).
 
 ## Services
 
