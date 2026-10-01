@@ -1,144 +1,203 @@
-name: Release Image
-on:
-  push:
-    branches:
-      - main
-      - release
+name: Release Images
 
+# Builds and pushes the operator, server, console and init images for linux/amd64 and
+# linux/arm64 on GitHub-hosted runners, then stitches the two into one multi-arch manifest per
+# image. No self-hosted runners, no QEMU: each architecture builds natively on its own runner.
+#
+# - Publishing a GitHub release `vX.Y.Z` (must equal the workspace version in Cargo.toml)
+#   pushes `:X.Y.Z`, `:latest` and `:sha-<short>`.
+# - Running the workflow by hand builds the selected ref and pushes `:edge` and `:sha-<short>`,
+#   for trying a commit on a cluster without cutting a release. `:latest` is never touched.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+# A release must never be cancelled half way through a push; queue instead.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 env:
-  DOCKERHUB_OPERATOR_REPO: ${{ vars.DOCKERHUB_USER }}/operator
-  DOCKERHUB_SERVER_REPO: ${{ vars.DOCKERHUB_USER }}/server
-  DOCKERHUB_CONSOLE_REPO: ${{ vars.DOCKERHUB_USER }}/console
-  DOCKERHUB_INIT_REPO: ${{ vars.DOCKERHUB_USER }}/init
+  # Docker Hub namespace the images live under (`kubetailor/operator`, ...).
+  NS: ${{ vars.DOCKERHUB_USER }}
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
-    runs-on: ${{ matrix.arch }}
-    environment: release
+  # Decide the tags once, so the build matrix and the merge job cannot disagree.
+  meta:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.tags.outputs.tag }}
+      latest: ${{ steps.tags.outputs.latest }}
+      sha: ${{ steps.tags.outputs.sha }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
-      - name: Set DOCKER_CONFIG
+      - name: Guard — release tag must match the workspace version
+        if: github.event_name == 'release'
+        # The image tag comes from Cargo.toml; a mismatched git tag would publish an image whose
+        # tag disagrees with what the binary reports. Fail here, before anything is pushed.
         run: |
-          mkdir -p ${{ github.workspace }}/.docker
-          echo "DOCKER_CONFIG=${{ github.workspace }}/.docker" >> $GITHUB_ENV
+          VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          TAG="${{ github.event.release.tag_name }}"
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::Release tag $TAG != workspace version v$VERSION — retag or bump Cargo.toml."
+            exit 1
+          fi
+
+      - name: Compute tags
+        id: tags
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            echo "latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=edge" >> "$GITHUB_OUTPUT"
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "sha=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: meta
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          # GitHub's Arm-hosted runners. Free for public repositories; a private repository
+          # needs a paid plan for this label (the alternative is QEMU on ubuntu-24.04, which
+          # turns a Rust release build into an hours-long affair).
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    environment: release
+    env:
+      TAG: ${{ needs.meta.outputs.tag }}-${{ matrix.arch }}
+      # One layer cache per architecture, shared by the three Rust images (same Dockerfile, same
+      # `builder` stage). Lives in a registry rather than the GitHub Actions cache: release runs
+      # execute on a tag ref, which can only restore Actions caches created on the default
+      # branch, and nothing runs there — a registry cache has no such scoping and no 10 GB cap.
+      RUST_CACHE: type=registry,ref=${{ vars.DOCKERHUB_USER }}/operator:buildcache-${{ matrix.arch }}
+      INIT_CACHE: type=registry,ref=${{ vars.DOCKERHUB_USER }}/init:buildcache-${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - run: |
-          docker context create desktop-linux || true
-          docker context use desktop-linux
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: image=moby/buildkit:master
-          version: v0.15.1
-          endpoint: desktop-linux
 
+      # The three Rust images are built back to back in the same builder instance, so the
+      # heavy `builder` stage is compiled once and reused by the other two. Only the last step
+      # exports the cache: with mode=max it contains every stage reachable from `console`,
+      # which is everything the other two need (their final stages are a single COPY).
       - name: Build and push operator
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./docker/Dockerfile
+          file: docker/Dockerfile
           target: operator
+          platforms: linux/${{ matrix.arch }}
           push: true
           provenance: false
-          platforms: linux/${{ matrix.arch }}
-          tags: ${{ env.DOCKERHUB_OPERATOR_REPO}}:latest-${{ matrix.arch }}
-          cache-from: type=gha,scope=operator-${{ github.ref}}-${{ matrix.arch }}
-          cache-to: type=gha,scope=operator-${{ github.ref}}-${{ matrix.arch }},mode=max
+          tags: ${{ env.NS }}/operator:${{ env.TAG }}
+          cache-from: ${{ env.RUST_CACHE }}
 
       - name: Build and push server
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./docker/Dockerfile
+          file: docker/Dockerfile
           target: server
+          platforms: linux/${{ matrix.arch }}
           push: true
           provenance: false
-          platforms: linux/${{ matrix.arch }}
-          tags: ${{ env.DOCKERHUB_SERVER_REPO}}:latest-${{ matrix.arch }}
-          cache-from: type=gha,scope=server-${{ github.ref}}-${{ matrix.arch }}
-          cache-to: type=gha,scope=server-${{ github.ref}}-${{ matrix.arch }},mode=max
+          tags: ${{ env.NS }}/server:${{ env.TAG }}
+          cache-from: ${{ env.RUST_CACHE }}
 
       - name: Build and push console
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./docker/Dockerfile
+          file: docker/Dockerfile
           target: console
+          platforms: linux/${{ matrix.arch }}
           push: true
           provenance: false
-          platforms: linux/${{ matrix.arch }}
-          tags: ${{ env.DOCKERHUB_CONSOLE_REPO}}:latest-${{ matrix.arch }}
-          cache-from: type=gha,scope=console-${{ github.ref}}-${{ matrix.arch }}
-          cache-to: type=gha,scope=console-${{ github.ref}}-${{ matrix.arch }},mode=max
+          tags: ${{ env.NS }}/console:${{ env.TAG }}
+          cache-from: ${{ env.RUST_CACHE }}
+          cache-to: ${{ env.RUST_CACHE }},mode=max,compression=zstd
 
       - name: Build and push init container
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile.initContainer
+          platforms: linux/${{ matrix.arch }}
           push: true
           provenance: false
-          platforms: linux/${{ matrix.arch }}
-          tags: ${{ env.DOCKERHUB_INIT_REPO}}:latest-${{ matrix.arch }}
-          cache-from: type=gha,scope=init-${{ github.ref}}-${{ matrix.arch }}
-          cache-to: type=gha,scope=init-${{ github.ref}}-${{ matrix.arch }},mode=max
+          tags: ${{ env.NS }}/init:${{ env.TAG }}
+          cache-from: ${{ env.INIT_CACHE }}
+          cache-to: ${{ env.INIT_CACHE }},mode=max
 
-  finalize:
-    needs: build
-    runs-on: ubuntu-latest
+      - name: Verify the binaries resolve their shared libraries
+        # This is the check that would have caught 0.1.x shipping a bullseye-built binary on a
+        # bookworm base ("libssl.so.1.1: cannot open shared object file"). The runner's own
+        # architecture matches the image, so it runs natively.
+        run: |
+          set -euo pipefail
+          for bin in operator server console; do
+            img="$NS/$bin:$TAG"
+            docker pull -q "$img"
+            echo "── $img ──"
+            out=$(docker run --rm --entrypoint ldd "$img" "/app/$bin")
+            echo "$out"
+            if grep -q 'not found' <<<"$out"; then
+              echo "::error::$img: unresolved shared libraries — builder and runtime images disagree"
+              exit 1
+            fi
+          done
+
+  merge:
+    needs: [meta, build]
+    runs-on: ubuntu-24.04
     environment: release
     steps:
-      - name: Set DOCKER_CONFIG
-        run: |
-          mkdir -p ${{ github.workspace }}/.docker
-          echo "DOCKER_CONFIG=${{ github.workspace }}/.docker" >> $GITHUB_ENV
-
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Merge operator image tags
-        uses: Noelware/docker-manifest-action@master
-        with:
-          inputs: ${{ env.DOCKERHUB_OPERATOR_REPO }}:latest,${{ env.DOCKERHUB_OPERATOR_REPO }}:${{ github.sha }}
-          images: ${{ env.DOCKERHUB_OPERATOR_REPO }}:latest-amd64,${{ env.DOCKERHUB_OPERATOR_REPO }}:latest-arm64
-          push: true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Merge server image tags
-        uses: Noelware/docker-manifest-action@master
-        with:
-          inputs: ${{ env.DOCKERHUB_SERVER_REPO }}:latest,${{ env.DOCKERHUB_SERVER_REPO }}:${{ github.sha }}
-          images: ${{ env.DOCKERHUB_SERVER_REPO }}:latest-amd64,${{ env.DOCKERHUB_SERVER_REPO }}:latest-arm64
-          push: true
-
-      - name: Merge console image tags
-        uses: Noelware/docker-manifest-action@master
-        with:
-          inputs: ${{ env.DOCKERHUB_CONSOLE_REPO }}:latest,${{ env.DOCKERHUB_CONSOLE_REPO }}:${{ github.sha }}
-          images: ${{ env.DOCKERHUB_CONSOLE_REPO }}:latest-amd64,${{ env.DOCKERHUB_CONSOLE_REPO }}:latest-arm64
-          push: true
-
-      - name: Merge init container image tags
-        uses: Noelware/docker-manifest-action@master
-        with:
-          inputs: ${{ env.DOCKERHUB_INIT_REPO }}:latest,${{ env.DOCKERHUB_INIT_REPO }}:${{ github.sha }}
-          images: ${{ env.DOCKERHUB_INIT_REPO }}:latest-amd64,${{ env.DOCKERHUB_INIT_REPO }}:latest-arm64
-          push: true
+      - name: Create multi-arch manifests
+        env:
+          TAG: ${{ needs.meta.outputs.tag }}
+          SHA: ${{ needs.meta.outputs.sha }}
+          LATEST: ${{ needs.meta.outputs.latest }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Images"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          for img in operator server console init; do
+            repo="$NS/$img"
+            tags=(-t "$repo:$TAG" -t "$repo:$SHA")
+            if [ "$LATEST" = "true" ]; then
+              tags+=(-t "$repo:latest")
+            fi
+            docker buildx imagetools create "${tags[@]}" "$repo:$TAG-amd64" "$repo:$TAG-arm64"
+            docker buildx imagetools inspect "$repo:$TAG"
+            echo "- \`$repo:$TAG\` (linux/amd64, linux/arm64)" >> "$GITHUB_STEP_SUMMARY"
+          done
