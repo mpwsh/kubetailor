@@ -1,8 +1,9 @@
+use std::convert::TryFrom;
+
 use kubetailor::{
     k8s_openapi::api::core::v1::{ContainerState, ContainerStatus},
     prelude::*,
 };
-use std::convert::TryFrom;
 
 #[derive(Deserialize, Serialize)]
 pub struct Health {

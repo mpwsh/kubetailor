@@ -195,10 +195,20 @@ impl TryFrom<TailoredApp> for TappRequest {
 
     fn try_from(tapp: TailoredApp) -> Result<Self, Self::Error> {
         let git_option = tapp.spec.git.as_ref();
+        // The group only lives in the labels. A read that dropped it made every edit save the
+        // app with an empty group, which changed its labels (and, before the operator stopped
+        // selecting pods on them, broke its Deployment).
+        let group = tapp
+            .metadata
+            .labels
+            .as_ref()
+            .and_then(|l| l.get("group"))
+            .cloned()
+            .unwrap_or_default();
         let app_config = TappRequest {
             name: tapp.metadata.name.unwrap(),
             owner: String::new(),
-            group: String::new(),
+            group,
             git: git_option.map(|git| Git {
                 repository: git.repository.clone(),
                 branch: git.branch.clone(),
@@ -216,5 +226,55 @@ impl TryFrom<TailoredApp> for TappRequest {
         };
 
         Ok(app_config)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use kubetailor::crd::{Container, Deployment as CrdDeployment, TailoredAppSpec};
+
+    use super::*;
+
+    #[test]
+    fn reading_an_app_back_keeps_its_group() {
+        let mut app = TailoredApp::new(
+            "game",
+            TailoredAppSpec {
+                labels: BTreeMap::new(),
+                deployment: CrdDeployment {
+                    annotations: BTreeMap::new(),
+                    enable_service_links: None,
+                    service_account: None,
+                    allow_privilege_escalation: None,
+                    allow_root: None,
+                    run_as_user: None,
+                    run_as_group: None,
+                    deploy_network_policies: None,
+                    region: None,
+                    container: Container {
+                        image: "game:1".into(),
+                        port: None,
+                        ports: vec![],
+                        run_command: None,
+                        build_command: None,
+                        volumes: None,
+                        files: None,
+                        replicas: 1,
+                    },
+                },
+                ingress: None,
+                env: None,
+                secrets: None,
+                git: None,
+            },
+        );
+        app.metadata.labels = Some(BTreeMap::from([
+            ("owner".to_string(), "x-y.z".to_string()),
+            ("group".to_string(), "games".to_string()),
+        ]));
+        let req = TappRequest::try_from(app).unwrap();
+        assert_eq!(req.group, "games");
     }
 }

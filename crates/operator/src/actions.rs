@@ -104,8 +104,19 @@ pub async fn apply_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> R
         }
     }
 
-    // Deployment
-    apply(client, ns, &deployment::new(meta, app, &mounts)).await?;
+    // Deployment. Its selector is immutable; Deployments made before the selector was reduced
+    // to `tapp=<name>` selected on every label, so the first edit that changes the group (or
+    // the first reconcile by this version) cannot apply in place. Such a Deployment is
+    // recreated once — its pods restart — and from then on edits apply live.
+    let desired_deployment = deployment::new(meta, app, &mounts);
+    match apply(client, ns, &desired_deployment).await {
+        Ok(_) => {}
+        Err(e) if is_immutable_field(&e) => {
+            warn!("{name}: Deployment selector is immutable; recreating it once (pods restart)");
+            recreate(client, ns, &desired_deployment).await?;
+        }
+        Err(e) => return Err(e),
+    }
 
     // Services
     for svc in service::all(meta, app) {
@@ -139,6 +150,49 @@ pub async fn apply_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> R
     prune::<NetworkPolicy>(client, meta, &desired.netpols).await?;
 
     Ok(())
+}
+
+/// Kubernetes refusing to change a field that cannot change in place (`422 Invalid`, "field is
+/// immutable"): a Deployment's `spec.selector`, a Service's `clusterIP`, a PVC's size downwards.
+fn is_immutable_field(error: &Error) -> bool {
+    matches!(
+        error,
+        Error::KubeError { source: kubetailor::kube::Error::Api(response) }
+            if response.code == 422 && response.message.contains("field is immutable")
+    )
+}
+
+/// Deletes `obj` (foreground, so its children go first), waits for it to be gone and applies it
+/// again. For the rare change that cannot be made in place.
+async fn recreate<K>(client: &Client, namespace: &str, obj: &K) -> Result<K, Error>
+where
+    K: Resource<DynamicType = (), Scope = NamespaceResourceScope>
+        + Serialize
+        + DeserializeOwned
+        + Clone
+        + Debug,
+{
+    let name = obj
+        .meta()
+        .name
+        .as_deref()
+        .ok_or(Error::MissingObjectKey("metadata.name"))?;
+    let api: Api<K> = Api::namespaced(client.clone(), namespace);
+    match api.delete(name, &DeleteParams::foreground()).await {
+        Ok(_) => {}
+        Err(kubetailor::kube::Error::Api(e)) if e.code == 404 => {}
+        Err(e) => return Err(Error::KubeError { source: e }),
+    }
+    for _ in 0..120 {
+        if api.get_opt(name).await?.is_none() {
+            return apply(client, namespace, obj).await;
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    Err(Error::UserInputError(format!(
+        "{} {name} is still being deleted; will retry",
+        K::kind(&())
+    )))
 }
 
 pub async fn delete_all(client: &Client, meta: &TappMeta) -> Result<Action, Error> {

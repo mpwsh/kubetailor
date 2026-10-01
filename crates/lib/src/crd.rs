@@ -271,8 +271,18 @@ mod tests {
         assert!(!spec.is_node_bound());
         // Unset settings must not come back as `null`: the CRD schema has no nullable fields.
         let json = serde_json::to_value(&spec.deployment).unwrap();
-        for key in ["runAsUser", "runAsGroup", "allowRoot", "serviceAccount", "region"] {
-            assert!(json.get(key).is_none(), "{key} serialized as {:?}", json.get(key));
+        for key in [
+            "runAsUser",
+            "runAsGroup",
+            "allowRoot",
+            "serviceAccount",
+            "region",
+        ] {
+            assert!(
+                json.get(key).is_none(),
+                "{key} serialized as {:?}",
+                json.get(key)
+            );
         }
     }
 

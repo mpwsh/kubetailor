@@ -30,6 +30,13 @@ impl TappMeta {
         }
     }
 
+    /// The labels pods are selected by: only the app's identity. `owner`, `group` and
+    /// `fingerprint` are on every pod too (the network policies match on them) but a Deployment's
+    /// selector is immutable, and a group can be edited.
+    pub fn selector(&self) -> BTreeMap<String, String> {
+        BTreeMap::from([("tapp".to_string(), self.name.clone())])
+    }
+
     /// `k=v,k=v` selector matching every resource this app owns (the labels include `tapp=<name>`).
     pub fn label_selector(&self) -> String {
         self.labels

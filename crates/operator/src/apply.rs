@@ -117,6 +117,29 @@ mod tests {
         (meta, app)
     }
 
+    /// A Deployment's selector cannot change, and the group label can: pods are selected by the
+    /// app's identity alone, while the pod template keeps the full label set for the network
+    /// policies. Services select the same way.
+    #[test]
+    fn pods_are_selected_by_identity_only() {
+        let (mut meta, app) = fixture();
+        meta.labels.insert("owner".to_owned(), "x".to_owned());
+        meta.labels.insert("group".to_owned(), "games".to_owned());
+        meta.labels
+            .insert("fingerprint".to_owned(), "abc".to_owned());
+        let d = deployment::new(&meta, &app, &[]);
+        let spec = d.spec.unwrap();
+        let only_tapp = BTreeMap::from([("tapp".to_owned(), "web".to_owned())]);
+        assert_eq!(spec.selector.match_labels, Some(only_tapp.clone()));
+        assert_eq!(
+            spec.template.metadata.unwrap().labels,
+            Some(meta.labels.clone())
+        );
+        for svc in service::all(&meta, &app) {
+            assert_eq!(svc.spec.unwrap().selector, Some(only_tapp.clone()));
+        }
+    }
+
     /// Server-side apply rejects bodies without apiVersion/kind; make sure every builder's
     /// output carries them (k8s-openapi adds them on serialisation, but that is easy to lose by
     /// wrapping types).

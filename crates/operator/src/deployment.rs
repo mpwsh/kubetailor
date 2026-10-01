@@ -286,7 +286,7 @@ pub fn new(meta: &TappMeta, app: &TailoredApp, mounts: &[Mount]) -> Deployment {
     let deployment_spec = DeploymentSpec {
         replicas: Some(deployment.container.replicas),
         selector: LabelSelector {
-            match_labels: Some(meta.labels.clone()),
+            match_labels: Some(meta.selector()),
             ..LabelSelector::default()
         },
         template: pod_template_spec,

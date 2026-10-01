@@ -15,8 +15,7 @@ use kubetailor::{
     prelude::*,
 };
 use log::info;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
 
 use crate::{

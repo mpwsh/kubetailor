@@ -50,7 +50,7 @@ fn cluster_service(meta: &TappMeta, app: &TailoredApp) -> Option<Service> {
     Some(Service {
         metadata: metadata(meta, meta.name.to_owned()),
         spec: Some(ServiceSpec {
-            selector: Some(meta.labels.clone()),
+            selector: Some(meta.selector()),
             ports: Some(ports),
             ..ServiceSpec::default()
         }),
@@ -77,7 +77,7 @@ fn node_service(meta: &TappMeta, app: &TailoredApp) -> Option<Service> {
     Some(Service {
         metadata: metadata(meta, node_service_name(meta)),
         spec: Some(ServiceSpec {
-            selector: Some(meta.labels.clone()),
+            selector: Some(meta.selector()),
             ports: Some(ports),
             type_: Some("NodePort".to_owned()),
             external_traffic_policy: Some("Local".to_owned()),
