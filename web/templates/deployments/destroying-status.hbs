@@ -1,0 +1,17 @@
+{{!--
+  Progress view after a delete. Polls its own status endpoint and replaces itself with the
+  answer (outerHTML), so the server decides when polling ends: while the tapp still exists it
+  returns this same fragment; once it is gone it answers with HX-Location to the list.
+--}}
+<div id="destroy-status"
+     hx-get="/deployments/delete/status?name={{tapp_name}}"
+     hx-trigger="every 2s"
+     hx-swap="outerHTML"
+     class="flex flex-col items-center gap-4 py-16 text-center text-neutral-600 dark:text-neutral-300">
+    <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-10 animate-spin motion-reduce:animate-none fill-neutral-900 dark:fill-white">
+        <path opacity="0.25" d="M12,1A11,11,0,1,0,23,12,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" />
+        <path d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z" />
+    </svg>
+    <p class="text-lg font-medium text-neutral-900 dark:text-white">Destroying {{tapp_name}}</p>
+    <p class="text-sm">Removing the deployment, its volumes and its network rules. You will be taken back to the list when it is gone.</p>
+</div>

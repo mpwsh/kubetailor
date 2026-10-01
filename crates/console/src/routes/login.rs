@@ -1,11 +1,10 @@
 use std::fmt::Write;
 
+use crate::{session_state::TypedSession, utils::see_other};
 use actix_web::{http::header::ContentType, web, HttpResponse};
 use actix_web_flash_messages::IncomingFlashMessages;
 use handlebars::Handlebars;
 use serde_json::json;
-
-use crate::{session_state::TypedSession, utils::see_other};
 
 pub async fn login(
     hb: web::Data<Handlebars<'_>>,

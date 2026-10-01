@@ -1,6 +1,5 @@
-use std::fmt::{self, Display};
-
 use serde::{Deserialize, Serialize};
+use std::fmt::{self, Display};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Logs {

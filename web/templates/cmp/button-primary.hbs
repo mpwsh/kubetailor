@@ -6,8 +6,9 @@
     {{#if url}}
       hx-get="{{url}}"
       hx-target="#content"
-      hx-swap="innerHTML"
+      hx-swap="innerHTML show:window:top"
       hx-push-url="true"
+      hx-indicator="#nav-indicator"
     {{/if}}
     class="cursor-pointer whitespace-nowrap rounded-md bg-black px-4 py-2 text-sm font-medium tracking-wide text-neutral-100 transition hover:opacity-75 text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black active:opacity-100 active:outline-offset-0 disabled:opacity-75 disabled:cursor-not-allowed dark:bg-white dark:text-black dark:focus-visible:outline-white {{default class ""}}"
 >

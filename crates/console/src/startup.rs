@@ -10,6 +10,7 @@ use actix_web::{
     App, HttpServer, Result,
 };
 use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
+
 use portier::Client;
 use secrecy::{ExposeSecret, Secret};
 use tracing_actix_web::TracingLogger;
@@ -132,8 +133,7 @@ pub async fn run(
                             .route("", web::get().to(deployments::page))
                             .route("/deploying", web::get().to(deployments::deploying))
                             .route("/view", web::get().to(deployments::view))
-                            .route("/list", web::get().to(deployments::list))
-                            .route("/health", web::get().to(deployments::health::handler))
+                            .route("/delete/status", web::get().to(deployments::delete::status))
                             .service(
                                 resource("/new")
                                     .route(web::get().to(deployments::new::page))

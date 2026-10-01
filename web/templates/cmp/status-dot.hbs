@@ -1,0 +1,5 @@
+{{!-- Pulsing status dot. Params: color (green|red|neutral), label --}}
+<span title="{{label}}" aria-label="{{label}}"
+      class="status-dot status-dot-{{color}} flex size-3 items-center justify-center rounded-full">
+    <span class="status-dot-{{color}} size-3 animate-ping rounded-full motion-reduce:animate-none"></span>
+</span>

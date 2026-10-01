@@ -15,19 +15,22 @@ pub async fn page(
     let data = json!({
         "initial": !req.is_htmx(),
         "title": "New Deployment",
+        "return_url": "/deployments",
         "action": action,
         "user": user,
     });
 
-    let body = hb.render("deployments/editor", &data).unwrap();
+    let body = hb.render("deployments/editor", &data).map_err(e500)?;
 
     Ok(HttpResponse::Ok()
         .insert_header(ContentType(mime::TEXT_HTML))
         .body(body))
 }
 
+/// Creates the deployment from the wizard's form post. Problems come back as an inline error
+/// (retargeted into `#form-errors`); success navigates to the progress view.
 pub async fn form(
-    mut tapp: web::Json<TappConfig>,
+    form: web::Form<Vec<(String, String)>>,
     kubetailor: web::Data<Kubetailor>,
     req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
@@ -37,28 +40,27 @@ pub async fn form(
         .expect("UserId should be present after middleware check")
         .to_string();
 
+    let mut tapp = match deployments::form::tapp_from_form(&form) {
+        Ok(tapp) => tapp,
+        Err(message) => return Ok(form_error(&message)),
+    };
     tapp.owner = user;
-    log::info!("{tapp:#?}");
+    log::info!("creating {}", tapp.name);
 
-    let res = kubetailor
+    let response = kubetailor
         .client
         .post(&kubetailor.url)
         .json(&tapp)
         .send()
-        .await;
-
-    match res {
-        Ok(response) => {
-            if response.status().is_success() {
-                Ok(see_other(&format!(
-                    "/deployments/deploying?name={}",
-                    tapp.name
-                )))
-            } else {
-                FlashMessage::info(response.text().await.unwrap()).send();
-                Ok(see_other("/error"))
-            }
-        }
-        Err(e) => Ok(HttpResponse::BadRequest().body(e.to_string())),
+        .await
+        .map_err(e500)?;
+    if response.status().is_success() {
+        Ok(redirect(
+            &req,
+            &format!("/deployments/deploying?name={}", tapp.name),
+        ))
+    } else {
+        let message = response.text().await.unwrap_or_default();
+        Ok(form_error(&message))
     }
 }

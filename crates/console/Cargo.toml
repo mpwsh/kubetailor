@@ -39,6 +39,7 @@ reqwest = { version = "0.12", default-features = false, features = [
   "cookies",
 ] }
 url = "2.5.4"
+futures = "0.3"
 actix-utils = "3.0.1"
 
 [lib]

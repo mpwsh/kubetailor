@@ -3,7 +3,6 @@ use crate::routes::prelude::*;
 #[derive(Deserialize)]
 pub struct BasicForm {
     pub name: String,
-    pub loading: Option<bool>,
 }
 
 pub async fn page(
@@ -20,18 +19,18 @@ pub async fn page(
     let data = json!({
         "initial": !req.is_htmx(),
         "title": "Destroying deployment",
-        "head": format!("Destroying deployment: {}", params.name),
-        "subtitle": "This action CANNOT be reverted. Proceed?",
+        "head": format!("Delete {}?", params.name),
+        "subtitle": "The deployment, its volumes and its network rules are removed. This cannot be undone.",
         "tapp_name": params.name,
-        "loading": params.loading.unwrap_or(false),
         "user": user,
     });
-    let body = hb.render("deployments/delete", &data).unwrap();
-
+    let body = hb.render("deployments/delete", &data).map_err(e500)?;
     Ok(HttpResponse::Ok().body(body))
 }
 
+/// Confirms the deletion and answers with the progress view, which then polls [`status`].
 pub async fn form(
+    hb: web::Data<Handlebars<'_>>,
     form: web::Form<BasicForm>,
     kubetailor: web::Data<Kubetailor>,
     req: HttpRequest,
@@ -42,32 +41,53 @@ pub async fn form(
         .expect("UserId should be present after middleware check")
         .to_string();
 
-    //Check if owner.
-    let items: Vec<String> = kubetailor
+    if !deployments::owns(&form.name, &user, &kubetailor).await? {
+        return Ok(HttpResponse::NotFound().body(format!("Deployment {} not found", form.name)));
+    }
+    kubetailor
         .client
-        .get(format!("{}/list?owner={user}&filter=name", kubetailor.url))
+        .delete(format!("{}/{}?owner={user}", kubetailor.url, form.name))
         .send()
         .await
-        .unwrap()
-        .json::<Vec<String>>()
-        .await
-        .unwrap();
+        .map_err(e500)?
+        .error_for_status()
+        .map_err(e500)?;
 
-    if items.into_iter().any(|name| name == form.name) {
-        kubetailor
-            .client
-            .delete(format!("{}/{}?owner={user}", kubetailor.url, form.name))
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
-        Ok(see_other(&format!(
-            "/deployments/delete?name={}&loading=true",
-            form.name
-        )))
-    } else {
-        Ok(HttpResponse::NotFound().body(format!("Deployment {} not found", form.name)))
+    if !req.is_htmx() {
+        return Ok(see_other("/deployments"));
     }
+    let data = json!({
+        "initial": false,
+        "title": "Destroying deployment",
+        "tapp_name": form.name,
+        "user": user,
+    });
+    let body = hb.render("deployments/destroying", &data).map_err(e500)?;
+    Ok(HttpResponse::Ok().body(body))
+}
+
+/// Polled by the progress view: the same fragment while the tapp still exists, a client-side
+/// redirect to the list once it is gone.
+pub async fn status(
+    hb: web::Data<Handlebars<'_>>,
+    params: web::Query<BasicForm>,
+    kubetailor: web::Data<Kubetailor>,
+    req: HttpRequest,
+) -> Result<HttpResponse, actix_web::Error> {
+    let user = req
+        .extensions()
+        .get::<UserId>()
+        .expect("UserId should be present after middleware check")
+        .to_string();
+
+    if !deployments::owns(&params.name, &user, &kubetailor).await? {
+        return Ok(redirect(&req, "/deployments"));
+    }
+    let body = hb
+        .render(
+            "deployments/destroying-status",
+            &json!({ "tapp_name": params.name }),
+        )
+        .map_err(e500)?;
+    Ok(HttpResponse::Ok().body(body))
 }

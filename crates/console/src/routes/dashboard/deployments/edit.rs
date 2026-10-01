@@ -3,7 +3,6 @@ use crate::routes::prelude::*;
 #[derive(Deserialize)]
 pub struct BasicForm {
     pub name: String,
-    pub loading: Option<bool>,
 }
 
 pub async fn page(
@@ -18,7 +17,7 @@ pub async fn page(
         .expect("UserId should be present after middleware check")
         .to_string();
 
-    let mut tapp = deployments::get(&params.name, &user, kubetailor.clone()).await;
+    let mut tapp = deployments::get(&params.name, &user, &kubetailor).await;
 
     let action = Action::new("Save").form().url("/deployments/edit");
 
@@ -37,18 +36,21 @@ pub async fn page(
         "title": "Editing deployment",
         "head": format!("Editing {}", tapp.name),
         "custom_enabled": tapp.domains.custom.is_some(),
+        "return_url": format!("/deployments/view?name={}", tapp.name),
         "action": action,
         "tapp": tapp,
         "files": print_files,
         "user": user,
     });
 
-    let body = hb.render("deployments/editor", &data).unwrap();
+    let body = hb.render("deployments/editor", &data).map_err(e500)?;
 
     Ok(HttpResponse::Ok().body(body))
 }
+/// Saves the wizard's edits. The name cannot change (it is the resource identity), so the
+/// existing one is kept regardless of what the form says.
 pub async fn form(
-    mut tapp: web::Json<TappConfig>,
+    form: web::Form<Vec<(String, String)>>,
     kubetailor: web::Data<Kubetailor>,
     req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
@@ -57,24 +59,32 @@ pub async fn form(
         .get::<UserId>()
         .expect("UserId should be present after middleware check")
         .to_string();
-    let old_tapp = deployments::get(&tapp.name, &user, kubetailor.clone()).await;
+
+    let mut tapp = match deployments::form::tapp_from_form(&form) {
+        Ok(tapp) => tapp,
+        Err(message) => return Ok(form_error(&message)),
+    };
+    let old_tapp = deployments::get(&tapp.name, &user, &kubetailor).await;
     if old_tapp.name.is_empty() {
-        return Ok(HttpResponse::NotFound().body(format!("Deployment: {} not found", tapp.name)));
+        return Ok(form_error(&format!("Deployment {} not found", tapp.name)));
     }
     tapp.name = old_tapp.name.clone();
     tapp.owner = user;
-    kubetailor
+
+    let response = kubetailor
         .client
         .put(&kubetailor.url)
         .json(&tapp)
         .send()
         .await
-        .unwrap()
-        .text()
-        .await
-        .unwrap();
-    Ok(see_other(&format!(
-        "/deployments/deploying?name={}",
-        tapp.name
-    )))
+        .map_err(e500)?;
+    if response.status().is_success() {
+        Ok(redirect(
+            &req,
+            &format!("/deployments/deploying?name={}", tapp.name),
+        ))
+    } else {
+        let message = response.text().await.unwrap_or_default();
+        Ok(form_error(&message))
+    }
 }

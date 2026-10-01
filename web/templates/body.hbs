@@ -43,6 +43,12 @@ x-data="{
   }}
 
 <main class="flex-1 overflow-hidden">
+  {{!-- Thin progress bar at the top of the content area while any navigation request is in flight. --}}
+  <div id="nav-indicator" class="htmx-indicator nav-indicator" aria-hidden="true"></div>
   <div class="h-full overflow-y-auto px-4 py-6">
-    <div id="content" hx-swap-oob="true">
+    {{!--
+      hx-history-elt: back/forward restore only this element from htmx's snapshot instead of the
+      whole <body>, so the sidebar and its Alpine state are left alone.
+    --}}
+    <div id="content" hx-history-elt>
 {{/if}}
