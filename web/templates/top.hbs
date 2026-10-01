@@ -16,19 +16,14 @@
             <h1 class="text-lg font-semibold text-neutral-900 dark:text-white">{{title}}</h1>
         </div>
         <div class="flex items-center">
+            {{!-- A form's action (Deploy, Save) lives on its review step, not up here. --}}
             {{#if action}}
-                {{#if action.is_form}}
-                    {{> cmp/button-primary
-                        title=action.name
-                        type="submit"
-                        form="editForm"
-                    }}
-                {{else}}
+                {{#unless action.is_form}}
                     {{> cmp/button-primary
                         title=action.name
                         url=action.url
                     }}
-                {{/if}}
+                {{/unless}}
             {{/if}}
         </div>
     </div>

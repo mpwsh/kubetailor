@@ -171,6 +171,11 @@ sidebar pages on hover. Rules the handlers follow:
   `#form-errors` (`hx-status:422="target:#form-errors"`), so the message lands above the form
   and the form keeps its state; success is a redirect. Other 4xx/5xx never swap (`noSwap` in the
   htmx config): their bodies are plain text.
+- The wizard ends in a review: its last step posts the form to `/deployments/review`, which folds
+  and validates it like a deploy, asks the API for the manifest it would create (`POST /preview`)
+  and answers the review fragment with `HX-Trigger: review-ready`; Alpine then shows the review
+  instead of the wizard. The form never leaves the DOM, so "Back to wizard" is a flag flip and
+  the review's Deploy button submits it with `form="editForm"`.
 - No `.unwrap()` on upstream calls: a backend hiccup is a warning in the row (`health: null`) or
   an inline error, not a 500 page.
 - Repeating inputs (environment, ports) post flat, repeated fields; `form::tapp_from_form` folds

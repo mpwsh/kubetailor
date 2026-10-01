@@ -4,6 +4,7 @@ pub mod form;
 pub mod health;
 pub mod new;
 pub mod restart;
+pub mod review;
 
 use futures::future::join_all;
 
