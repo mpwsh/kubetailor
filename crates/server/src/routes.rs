@@ -230,6 +230,27 @@ pub async fn config(kubetailor: Data<Kubetailor>) -> impl Responder {
     HttpResponse::Ok().json(PublicConfig::from(kubetailor.as_ref()))
 }
 
+/// The TailoredApp a request would become, as YAML, without applying it: the same validation
+/// and defaults as `POST /`, so a client can show the manifest before deploying or hand it to
+/// `kubectl apply` later.
+#[post("/preview")]
+pub async fn preview(
+    mut payload: Json<TappRequest>,
+    kubetailor: Data<Kubetailor>,
+) -> impl Responder {
+    payload.kubetailor = kubetailor.as_ref().clone();
+    let app: TailoredApp = match TailoredApp::try_from(payload.into_inner()) {
+        Ok(app) => app,
+        Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
+    };
+    match serde_yaml::to_string(&app) {
+        Ok(yaml) => HttpResponse::Ok()
+            .content_type("application/yaml")
+            .body(yaml),
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+    }
+}
+
 #[get("/list")]
 pub async fn list(
     client: Data<Client>,

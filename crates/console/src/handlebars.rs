@@ -314,6 +314,56 @@ mod tests {
     }
 
     #[test]
+    fn review_shows_summary_manifest_and_the_deploy_button() {
+        let hb = registry();
+        let data = json!({
+            "tapp": {
+                "name": "game", "region": "scl", "group": "games", "domains": {"shared": "game", "custom": null},
+                "container": {"image": "game:1", "port": 8080, "replicas": 1, "ports": []},
+                "env": null, "secrets": null, "git": null,
+            },
+            "base_domain": "apps.example.com",
+            "manifest": "apiVersion: kubetailor.io/v1\nkind: TailoredApp\n",
+            "action_label": "Deploy",
+            "user": "x@y",
+        });
+        let page = hb.render("deployments/review", &data).unwrap();
+        assert!(
+            page.contains("game.apps.example.com"),
+            "subdomain gets the suffix in review"
+        );
+        assert!(page.contains("kind: TailoredApp"));
+        assert!(page.contains(r#"<button type="submit" form="editForm""#));
+        assert!(page.contains("Deploy") && !page.contains("Review &amp; Deploy"));
+        // Without a manifest the review still renders, with a note.
+        let mut data = data;
+        data["manifest"] = json!(null);
+        let page = hb.render("deployments/review", &data).unwrap();
+        assert!(page.contains("did not answer the manifest preview"));
+    }
+
+    #[test]
+    fn editor_has_review_mode_and_no_top_bar_submit() {
+        let hb = registry();
+        let data = json!({
+            "initial": false, "title": "New Deployment", "user": "x@y", "return_url": "/deployments",
+            "action": {"name": "Deploy", "url": "/deployments/new", "is_form": true},
+            "config": {"baseDomain": "apps.example.com", "nodePortRange": [1024, 29999]},
+            "port_rows": [], "max_ports": 5,
+        });
+        let page = hb.render("deployments/editor", &data).unwrap();
+        assert!(page.contains(r#"hx-post="/deployments/review""#));
+        assert!(page.contains("Review &amp; Deploy"));
+        assert!(page.contains(r#"id="review" x-show="review""#));
+        assert!(page.contains("@review-ready.window"));
+        // The only submit button is the review step's, which is not in this render.
+        assert!(
+            !page.contains(r#"type="submit""#),
+            "top bar must not carry the submit"
+        );
+    }
+
+    #[test]
     fn view_renders_every_section() {
         let hb = registry();
         let data = json!({

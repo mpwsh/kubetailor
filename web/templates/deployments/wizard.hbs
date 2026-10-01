@@ -85,6 +85,23 @@
       @click="currentStep++"
       {{> cmp/button-primary title="Next"}}
     </a>
+    {{!--
+      Last step: post the whole form to the review endpoint. A validation problem is a 422 into
+      #form-errors and we stay here; otherwise the fragment lands in #review and its event
+      shows it instead of the wizard.
+    --}}
+    <button type="button"
+            x-show="currentStep === steps.length"
+            hx-post="/deployments/review"
+            hx-vals='{"intent": "{{action.name}}"}'
+            hx-target="#review"
+            hx-swap="innerHTML"
+            hx-status:422="target:#form-errors swap:innerHTML"
+            hx-indicator="#form-indicator"
+            hx-disable="this"
+            class="cursor-pointer whitespace-nowrap rounded-md bg-black px-4 py-2 text-sm font-medium tracking-wide text-neutral-100 transition hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:opacity-75 dark:bg-white dark:text-black dark:focus-visible:outline-white">
+      Review &amp; {{action.name}}
+    </button>
   </div>
 </div>
 </div>

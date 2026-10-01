@@ -135,6 +135,7 @@ pub async fn run(
                             .route("/deploying", web::get().to(deployments::deploying))
                             .route("/view", web::get().to(deployments::view))
                             .route("/delete/status", web::get().to(deployments::delete::status))
+                            .route("/review", web::post().to(deployments::review::form))
                             .service(
                                 resource("/new")
                                     .route(web::get().to(deployments::new::page))

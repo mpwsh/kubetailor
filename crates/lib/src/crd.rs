@@ -145,13 +145,23 @@ pub struct Ingress {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Deployment {
+    #[serde(default)]
     pub annotations: BTreeMap<String, String>,
+    // Unset settings are left out of the manifest rather than written as `null`: the CRD schema
+    // types them (`boolean`, `number`) without `nullable`, so the API server rejects a null.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enable_service_links: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub service_account: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allow_privilege_escalation: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allow_root: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub run_as_user: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub run_as_group: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deploy_network_policies: Option<bool>,
     /// Region the app must run in: a `topology.kubernetes.io/region` node selector. With
     /// one node per region this is "the node", and the app's DNS points at that node.
@@ -259,6 +269,11 @@ mod tests {
         assert!(spec.deployment.container.ports.is_empty());
         assert!(spec.ingress.is_some());
         assert!(!spec.is_node_bound());
+        // Unset settings must not come back as `null`: the CRD schema has no nullable fields.
+        let json = serde_json::to_value(&spec.deployment).unwrap();
+        for key in ["runAsUser", "runAsGroup", "allowRoot", "serviceAccount", "region"] {
+            assert!(json.get(key).is_none(), "{key} serialized as {:?}", json.get(key));
+        }
     }
 
     #[test]

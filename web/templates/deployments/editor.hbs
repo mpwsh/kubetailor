@@ -3,10 +3,13 @@
   Plain form post (htmx's default encoding); the server folds the flat fields into a request.
   Success answers with HX-Location (navigation to the progress view), so nothing is swapped here;
   a validation problem comes back as a 422 whose body goes into #form-errors (hx-status:422).
-  The submit button lives in the top bar, attached with form="editForm", which is why hx-disable
-  selects it globally rather than with `find`.
+
+  Two modes, one form: the wizard, and the review that replaces it once the last step posts the
+  form to /deployments/review (the fragment lands in #review and its `review-ready` event flips
+  the mode). The form stays in the DOM either way, so going back loses nothing, and the review's
+  Deploy button submits it from outside with form="editForm" — hence the global hx-disable.
 --}}
-<form id="editForm" hx-post="{{ action.url }}" hx-swap="none" hx-status:422="target:#form-errors swap:innerHTML" hx-indicator="#form-indicator" hx-disable="[form=editForm]">
+<form id="editForm" hx-post="{{ action.url }}" hx-swap="none" hx-status:422="target:#form-errors swap:innerHTML" hx-indicator="#form-indicator, #deploy-indicator" hx-disable="[form=editForm]">
   <div class="flex items-center gap-3 pb-4">
     <div id="form-errors" class="flex-1"></div>
     <svg id="form-indicator" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="htmx-indicator size-5 animate-spin motion-reduce:animate-none fill-neutral-500">
@@ -14,9 +17,10 @@
       <path d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z" />
     </svg>
   </div>
-  <div x-data="{ 
-    editor: 'Wizard', 
-    source: 'Docker', 
+  <div x-data="{
+    editor: 'Wizard',
+    source: 'Docker',
+    review: false,
     currentStep: 1,
     steps: [
       {title: 'Basic', section: 'basics'},
@@ -26,9 +30,13 @@
       {title: 'Data', section: 'data'},
       {title: 'Environment', section: 'env'}
     ]
-    }">
-    {{> deployments/wizard}}
-    <div x-show="editor === 'Manifest'">
+    }"
+    @review-ready.window="review = true; window.scrollTo({ top: 0 })">
+    <div x-show="!review">
+      {{> deployments/wizard}}
+    </div>
+    <div id="review" x-show="review" x-cloak></div>
+    <div x-show="editor === 'Manifest' && !review">
       {{> cmp/textarea-actions 
         actions = [ 
           {"title": "Paste", "description": "Image from docker hub", "icon": "fa-solid fa-clipboard", "checked": true}, 

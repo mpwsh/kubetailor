@@ -1,0 +1,61 @@
+{{!--
+  The review step, swapped into #review by POST /deployments/review. Two tabs: what was entered,
+  and the manifest the API would create (from its /preview, the same validation as a deploy) —
+  copyable, so the same deployment can be applied with kubectl later. The buttons act on the
+  wizard's form, which is still in the DOM, hidden: Deploy submits it, Back shows it again.
+--}}
+<div x-data="{ tab: 'summary', copied: false }" class="flex flex-col gap-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h2 class="text-lg font-semibold text-neutral-900 dark:text-white">Review</h2>
+            <p class="text-sm text-neutral-600 dark:text-neutral-300">Nothing is created until you deploy.</p>
+        </div>
+        <div role="tablist" aria-label="review view" class="inline-flex rounded-md border border-neutral-300 p-0.5 text-sm dark:border-neutral-700">
+            <button type="button" role="tab" @click="tab = 'summary'" :aria-selected="tab === 'summary'"
+                    :class="tab === 'summary' ? 'bg-black text-white dark:bg-white dark:text-black' : 'text-neutral-600 dark:text-neutral-300'"
+                    class="rounded px-3 py-1 transition">Summary</button>
+            <button type="button" role="tab" @click="tab = 'manifest'" :aria-selected="tab === 'manifest'"
+                    :class="tab === 'manifest' ? 'bg-black text-white dark:bg-white dark:text-black' : 'text-neutral-600 dark:text-neutral-300'"
+                    class="rounded px-3 py-1 transition">Manifest</button>
+        </div>
+    </div>
+
+    <div x-show="tab === 'summary'">
+        {{> deployments/summary}}
+    </div>
+
+    <div x-show="tab === 'manifest'" x-cloak class="flex flex-col gap-2">
+        {{#if manifest}}
+        <div class="flex items-center justify-between">
+            <p class="text-sm text-neutral-600 dark:text-neutral-300">
+                The <code>TailoredApp</code> the API creates from this form. Save it and
+                <code>kubectl apply -f</code> it to deploy the same thing again.
+            </p>
+            <button type="button"
+                    @click="navigator.clipboard.writeText($refs.manifest.textContent).then(() => { copied = true; setTimeout(() => copied = false, 1500) })"
+                    class="shrink-0 rounded-md border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-sm hover:opacity-75 dark:border-neutral-700 dark:bg-neutral-900"
+                    x-text="copied ? 'Copied' : 'Copy'"></button>
+        </div>
+        <pre x-ref="manifest" class="max-h-[60vh] overflow-auto rounded-md border border-neutral-300 bg-neutral-50 p-4 font-mono text-xs leading-5 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100">{{manifest}}</pre>
+        {{else}}
+        <p class="rounded-md border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+            The API did not answer the manifest preview (it may predate <code>POST /preview</code>). Deploying still works.
+        </p>
+        {{/if}}
+    </div>
+
+    <div class="flex items-center justify-between border-t border-neutral-300 pt-4 dark:border-neutral-700">
+        <button type="button" @click="review = false; tab = 'summary'"
+                class="cursor-pointer whitespace-nowrap rounded-md bg-neutral-800 px-4 py-2 text-sm font-medium tracking-wide text-white transition hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-800 dark:bg-neutral-300 dark:text-black dark:focus-visible:outline-neutral-300">
+            Back to wizard
+        </button>
+        <button type="submit" form="editForm"
+                class="inline-flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-md bg-black px-5 py-2.5 text-sm font-semibold tracking-wide text-neutral-100 transition hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:opacity-75 dark:bg-white dark:text-black dark:focus-visible:outline-white">
+            <svg id="deploy-indicator" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="htmx-indicator size-4 animate-spin motion-reduce:animate-none fill-current">
+                <path opacity="0.25" d="M12,1A11,11,0,1,0,23,12,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" />
+                <path d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z" />
+            </svg>
+            {{action_label}}
+        </button>
+    </div>
+</div>

@@ -47,6 +47,32 @@ impl Kubetailor {
             crate::models::ApiConfig::default()
         })
     }
+
+    /// The manifest the API would create for `tapp` (`POST /preview`), as YAML.
+    ///
+    /// `Ok(Err(message))` is the API refusing the request — the same validation as a deploy,
+    /// worth showing to the person. `Err` is the preview itself being unavailable (an older
+    /// server, a connection problem): the review can go on without the manifest.
+    pub async fn preview(
+        &self,
+        tapp: &crate::models::TappConfig,
+    ) -> Result<Result<String, String>, reqwest::Error> {
+        let response = self
+            .client
+            .post(format!("{}/preview", self.url))
+            .json(tapp)
+            .send()
+            .await?;
+        if response.status().is_success() {
+            return Ok(Ok(response.text().await?));
+        }
+        if response.status().is_client_error()
+            && response.status() != reqwest::StatusCode::NOT_FOUND
+        {
+            return Ok(Err(response.text().await?));
+        }
+        Err(response.error_for_status().unwrap_err())
+    }
 }
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let base_path = std::env::current_dir().expect("Failed to determine the current directory");
