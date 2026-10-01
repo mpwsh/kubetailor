@@ -52,13 +52,11 @@ pub fn redirect_full(req: &HttpRequest, location: &str) -> HttpResponse {
     }
 }
 
-/// Shows `message` inside `#form-errors` without touching the rest of the page: the response is
-/// retargeted and reswapped from the server (`HX-Retarget` / `HX-Reswap`), so the form keeps its
-/// `hx-target` for the success path. htmx only swaps 2xx by default, hence the 200.
+/// A validation problem: `422 Unprocessable Entity` carrying the message as a fragment. The
+/// editor form maps that status to `#form-errors` (`hx-status:422`), so the message lands above
+/// the form and the form keeps its state; the success path is a redirect.
 pub fn form_error(message: &str) -> HttpResponse {
-    HttpResponse::Ok()
-        .insert_header(("HX-Retarget", "#form-errors"))
-        .insert_header(("HX-Reswap", "innerHTML"))
+    HttpResponse::UnprocessableEntity()
         .content_type("text/html; charset=utf-8")
         .body(format!(
             r#"<div role="alert" class="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-950 dark:text-red-200">{}</div>"#,

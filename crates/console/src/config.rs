@@ -26,6 +26,28 @@ pub struct Kubetailor {
     pub client: reqwest::Client,
     pub url: String,
 }
+
+impl Kubetailor {
+    /// The API's public configuration (base domain, node-port range, image allow-list). A
+    /// server without the route, or one that is down, yields the defaults with a warning: the
+    /// wizard still renders, it just cannot show the domain suffix.
+    pub async fn config(&self) -> crate::models::ApiConfig {
+        let fetched = async {
+            self.client
+                .get(format!("{}/config", self.url))
+                .send()
+                .await?
+                .error_for_status()?
+                .json::<crate::models::ApiConfig>()
+                .await
+        }
+        .await;
+        fetched.unwrap_or_else(|e| {
+            log::warn!("kubetailor config unavailable, using defaults: {e}");
+            crate::models::ApiConfig::default()
+        })
+    }
+}
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let base_path = std::env::current_dir().expect("Failed to determine the current directory");
     let configuration_directory = base_path.join("config");

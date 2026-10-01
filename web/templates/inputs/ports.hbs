@@ -1,58 +1,65 @@
 {{!--
-  Ports other than the HTTP one, each with a protocol and an exposure. This is how an app
-  publishes UDP, or TCP that must not pass through the ingress. The rows live in Alpine state
-  seeded from the deployment (`json` helper); every row posts a port_number / port_protocol /
-  port_expose triple and the server folds them back in document order. A row left without a
-  number is ignored.
+  The Network step: every port the app listens on, and the group it belongs to.
+
+  Rows live in Alpine state seeded by the server (`port_rows`: the HTTP port first, then the
+  others; a new deployment starts with HTTP on 80). Each row posts a port_number /
+  port_protocol / port_expose triple; the server folds HTTP into `container.port` (the one the
+  domains route to) and the rest into `container.ports`. A row without a number is ignored.
 
   Exposure, as the API defines it:
     node      hostPort on the node's public IP, same port number (one instance per node)
     nodePort  NodePort service, port number assigned by Kubernetes
     cluster   reachable from other apps in the cluster only
+  HTTP has none of its own: it is reached through the domains, over HTTPS.
 --}}
-<div x-data="{ ports: {{{json tapp.container.ports}}} }" class="flex flex-col gap-2 text-neutral-600 dark:text-neutral-300">
-    <span class="pl-0.5 text-sm">Other ports</span>
+<div x-data="{ ports: {{{json port_rows}}}, max: {{max_ports}} }" class="flex flex-col gap-2 text-neutral-600 dark:text-neutral-300">
+    <div class="flex items-baseline justify-between">
+        <span class="pl-0.5 text-sm font-medium text-neutral-900 dark:text-white">Ports</span>
+        <span class="text-xs text-neutral-500 dark:text-neutral-400" x-text="`${ports.length} / ${max}`"></span>
+    </div>
     <p class="pl-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-      UDP, or TCP that bypasses HTTPS. Clients reach a <em>node</em>-exposed port at the node's
-      public IP on that same number; remember to open it on the cluster firewall.
+      HTTP is reached through your domains over HTTPS (one per deployment). TCP and UDP ports
+      exposed at the <em>node</em> answer on the node's public IP; open them on the cluster
+      firewall.
     </p>
 
     <template x-for="(p, i) in ports" :key="i">
         <div class="flex flex-wrap items-center gap-2">
             <input type="text" inputmode="numeric" pattern="[0-9]*"
-                   name="port_number" x-model="p.port" placeholder="7777" aria-label="port number"
+                   name="port_number" x-model="p.port" placeholder="port" aria-label="port number"
                    class="w-24 rounded-md border border-neutral-300 bg-neutral-50 px-2 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900/50 dark:focus-visible:outline-white"/>
             <select name="port_protocol" x-model="p.protocol" aria-label="protocol"
                     class="rounded-md border border-neutral-300 bg-neutral-50 px-2 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900/50 dark:focus-visible:outline-white">
+                <option value="HTTP">HTTP</option>
                 <option value="TCP">TCP</option>
                 <option value="UDP">UDP</option>
             </select>
-            <select name="port_expose" x-model="p.expose" aria-label="exposure"
+            {{!-- Hidden (not disabled) for HTTP so every row still posts its triple. --}}
+            <select name="port_expose" x-model="p.expose" aria-label="exposure" x-show="p.protocol !== 'HTTP'"
                     class="rounded-md border border-neutral-300 bg-neutral-50 px-2 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900/50 dark:focus-visible:outline-white">
                 <option value="node">Public, same port (node)</option>
                 <option value="nodePort">Public, assigned port (nodePort)</option>
                 <option value="cluster">Cluster only</option>
             </select>
+            <span x-show="p.protocol === 'HTTP'" class="px-1 text-sm text-neutral-500 dark:text-neutral-400">via your domains (HTTPS)</span>
             <button type="button" @click="ports.splice(i, 1)" aria-label="remove port"
-                    class="rounded-md border border-neutral-300 px-2 py-2 text-sm hover:opacity-75 dark:border-neutral-700">
+                    class="rounded-md border border-neutral-300 px-2.5 py-2 text-sm hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:focus-visible:outline-white">
                 <i class="fas fa-trash" aria-hidden="true"></i>
             </button>
         </div>
     </template>
 
-    <button type="button" @click="ports.push({port: '', protocol: 'UDP', expose: 'node'})"
-            class="w-fit rounded-md border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-sm hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900 dark:focus-visible:outline-white">
+    <button type="button" @click="ports.push({ port: '', protocol: 'TCP', expose: 'node' })"
+            :disabled="ports.length >= max"
+            class="w-fit rounded-md border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-sm hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:focus-visible:outline-white">
         + Add port
     </button>
 </div>
 
-<div class="flex w-full max-w-xs flex-col gap-1 text-neutral-600 dark:text-neutral-300">
-    <label for="regionInput" class="w-fit pl-0.5 text-sm">Region</label>
-    <input id="regionInput" name="region" type="text" placeholder="any" autocomplete="off"
-           value="{{tapp.region}}"
-           class="w-full rounded-md border border-neutral-300 bg-neutral-50 px-2 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900/50 dark:focus-visible:outline-white"/>
-    <p class="pl-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-      Pin the app to the nodes of one region (their <code>topology.kubernetes.io/region</code>
-      label, e.g. <code>scl</code>). Leave empty to let the scheduler choose.
-    </p>
-</div>
+{{> cmp/text-input
+  name = "group"
+  title = "Group"
+  placeholder = "optional"
+  value = tapp.group
+  help = "Your deployments in the same group can reach each other inside the cluster (by service name); across groups they cannot."
+}}

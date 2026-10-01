@@ -1,11 +1,6 @@
 {{!--
-  Image, HTTP port and instance count: shared by the Docker and Git sources, rendered once so
-  each form field exists once (two copies with the same name made the server read whichever
-  came first in the document, not the one the user edited).
-
-  The HTTP port is the one the ingress routes the app's domains to. It is optional — leave it
-  empty for an app without HTTP (a UDP game server, say) and give it ports in the Network step.
-  New deployments start at 80; existing ones show what they have.
+  Image and instance count: shared by the Docker and Git sources, rendered once so each form
+  field exists once. Ports are the Network step's business.
 --}}
 <div class="space-y-4">
 {{> cmp/text-input
@@ -17,22 +12,6 @@
 <p x-show="source === 'Git'" x-cloak class="-mt-2 pl-0.5 text-xs text-neutral-500 dark:text-neutral-400">
   Base image your source is built and run in (node, python, rust, …).
 </p>
-
-<div class="flex w-full max-w-xs flex-col gap-1 text-neutral-600 dark:text-neutral-300">
-    <label for="httpPortInput" class="w-fit pl-0.5 text-sm">HTTP port</label>
-    <input id="httpPortInput"
-           name="port"
-           type="text"
-           inputmode="numeric"
-           pattern="[0-9]*"
-           placeholder="none"
-           value="{{#if tapp.name}}{{tapp.container.port}}{{else}}80{{/if}}"
-           class="w-28 rounded-md border border-neutral-300 bg-neutral-50 px-2 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900/50 dark:focus-visible:outline-white"/>
-    <p class="pl-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-      Reached through your domains over HTTPS. Clear it if the app has no HTTP endpoint; other
-      protocols and ports go in the Network step.
-    </p>
-</div>
 
 {{> cmp/number-input
   name="replicas"

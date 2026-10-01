@@ -8,7 +8,9 @@ pub struct TappConfig {
     pub group: Option<String>,
     #[serde(skip_deserializing)]
     pub owner: String,
-    pub domains: Domains,
+    /// `None` for an app reached by IP only (no HTTP port, nothing for an ingress to route).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub domains: Option<Domains>,
     pub container: Container,
     /// Region the app must run in (a node label); unset lets the scheduler choose.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -72,6 +74,38 @@ impl Port {
 
     fn default_expose() -> String {
         "cluster".to_owned()
+    }
+}
+
+/// What the API answers on `GET /config`: the facts the wizard needs before building a request.
+/// Every field has a default so an older server (no such route) degrades to "unknown" rather
+/// than a 500.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiConfig {
+    /// Shared subdomains land under this (`<name>.<base_domain>`); empty when unknown.
+    #[serde(default)]
+    pub base_domain: String,
+    /// Inclusive range for ports exposed at the node.
+    #[serde(default = "ApiConfig::default_node_port_range")]
+    pub node_port_range: (u32, u32),
+    #[serde(default)]
+    pub allowed_images: Option<Vec<String>>,
+}
+
+impl ApiConfig {
+    fn default_node_port_range() -> (u32, u32) {
+        (1024, 29999)
+    }
+}
+
+impl Default for ApiConfig {
+    fn default() -> Self {
+        ApiConfig {
+            base_domain: String::new(),
+            node_port_range: Self::default_node_port_range(),
+            allowed_images: None,
+        }
     }
 }
 

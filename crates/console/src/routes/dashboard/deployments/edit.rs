@@ -18,16 +18,21 @@ pub async fn page(
         .to_string();
 
     let mut tapp = deployments::get(&params.name, &user, &kubetailor).await;
+    if tapp.name.is_empty() {
+        return Ok(HttpResponse::NotFound().body(""));
+    }
+    let config = kubetailor.config().await;
 
     let action = Action::new("Save").form().url("/deployments/edit");
 
-    //TODO: replace when merging server code here
-    tapp.domains.shared = tapp.domains.shared.replace(".kubetailor.io", "");
-
-    let mut print_files: Vec<(String, String, String)> = Vec::new();
-    if let Some(files) = tapp.container.files.clone() {
-        for (i, (key, value)) in files.into_iter().enumerate() {
-            print_files.push((key.clone(), value.clone(), i.to_string()));
+    // The API stores the full hostname; the wizard edits the subdomain in front of the suffix.
+    if let Some(domains) = &mut tapp.domains {
+        if let Some(subdomain) = domains
+            .shared
+            .strip_suffix(&format!(".{}", config.base_domain))
+            .filter(|_| !config.base_domain.is_empty())
+        {
+            domains.shared = subdomain.to_owned();
         }
     }
 
@@ -35,11 +40,12 @@ pub async fn page(
         "initial": !req.is_htmx(),
         "title": "Editing deployment",
         "head": format!("Editing {}", tapp.name),
-        "custom_enabled": tapp.domains.custom.is_some(),
         "return_url": format!("/deployments/view?name={}", tapp.name),
         "action": action,
+        "port_rows": deployments::form::port_rows(Some(&tapp.container)),
+        "max_ports": deployments::form::MAX_PORTS,
+        "config": config,
         "tapp": tapp,
-        "files": print_files,
         "user": user,
     });
 
@@ -60,7 +66,8 @@ pub async fn form(
         .expect("UserId should be present after middleware check")
         .to_string();
 
-    let mut tapp = match deployments::form::tapp_from_form(&form) {
+    let config = kubetailor.config().await;
+    let mut tapp = match deployments::form::tapp_from_form(&form, &config) {
         Ok(tapp) => tapp,
         Err(message) => return Ok(form_error(&message)),
     };

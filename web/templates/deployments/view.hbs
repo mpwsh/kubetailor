@@ -1,51 +1,73 @@
 {{> top }}
-<div class="form-group">
-  <span class="subtitle no-select">Name:</span>
-  <div class="subtitle-white">{{tapp.name}}</div>
-</div>
-<div class="form-group">
-  <span class="subtitle no-select">Image:</span>
-  <div class="subtitle-white">{{tapp.container.image}}</div>
-</div>
-<div class="form-group">
-  <span class="subtitle no-select">HTTP port:</span>
-  <div class="subtitle-white">{{#if tapp.container.port}}{{tapp.container.port}}{{else}}none{{/if}}</div>
-</div>
-{{#if tapp.container.ports}}
-<div class="form-group">
-  <span class="subtitle no-select">Other ports:</span>
-  {{#each tapp.container.ports}}
-    <div class="subtitle-white">{{port}}/{{protocol}} — {{expose}}</div>
-  {{/each}}
-</div>
-{{/if}}
-<div class="form-group">
-  <span class="subtitle no-select">Region:</span>
-  <div class="subtitle-white">{{#if tapp.region}}{{tapp.region}}{{else}}any{{/if}}</div>
-</div>
-<div class="form-group">
-  <span class="subtitle no-select">Shared Domain:</span>
-  <div class="subtitle-white">
-    {{tapp.domains.shared}} |  <a href="https://{{tapp.domains.shared}}" target="_blank">Visit site</a>
-  </div>
-</div>
-<div class="form-group">
-  <span class="subtitle no-select">Custom Domain:</span>
-  <div class="subtitle-white">
-    {{#if tapp.domains.custom}}
-      {{tapp.domains.custom}}
-    {{else}}
-      N/A
-    {{/if}}
-  </div>
-</div>
-<div class="form-group">
-  <span class="subtitle no-select">Environment Variables:</span>
-  <div id="key-value-pairs">
-    {{#each tapp.config}}
-      <div class="form-group-inline key-value-group">
-        <div class="subtitle-white">{{@key}}: {{this}}</div>
-      </div>
+{{!-- Read-only summary of a deployment, section per wizard step. --}}
+<dl class="grid max-w-3xl grid-cols-1 gap-x-8 gap-y-5 text-sm text-neutral-600 sm:grid-cols-[10rem_1fr] dark:text-neutral-300">
+
+  <dt class="font-medium text-neutral-900 dark:text-white">Name</dt>
+  <dd>{{tapp.name}}</dd>
+
+  <dt class="font-medium text-neutral-900 dark:text-white">Image</dt>
+  <dd class="font-mono">{{tapp.container.image}}</dd>
+
+  {{#if tapp.git.repository}}
+  <dt class="font-medium text-neutral-900 dark:text-white">Source</dt>
+  <dd class="font-mono">{{tapp.git.repository}} @ {{tapp.git.branch}}</dd>
+  {{/if}}
+
+  <dt class="font-medium text-neutral-900 dark:text-white">Instances</dt>
+  <dd>{{tapp.container.replicas}}</dd>
+
+  <dt class="font-medium text-neutral-900 dark:text-white">Region</dt>
+  <dd>{{#if tapp.region}}{{tapp.region}}{{else}}<span class="text-neutral-500">any</span>{{/if}}</dd>
+
+  <dt class="font-medium text-neutral-900 dark:text-white">Group</dt>
+  <dd>{{#if tapp.group}}{{tapp.group}}{{else}}<span class="text-neutral-500">none</span>{{/if}}</dd>
+
+  <dt class="font-medium text-neutral-900 dark:text-white">Ports</dt>
+  <dd class="space-y-1">
+    {{#if tapp.container.port}}<div><span class="font-mono">{{tapp.container.port}}</span> HTTP — via domains</div>{{/if}}
+    {{#each tapp.container.ports}}
+    <div><span class="font-mono">{{port}}</span> {{protocol}} — {{#if (eq expose "node")}}public, same port{{else}}{{#if (eq expose "nodePort")}}public, assigned port{{else}}cluster only{{/if}}{{/if}}</div>
     {{/each}}
-  </div>
-</div>
+  </dd>
+
+  <dt class="font-medium text-neutral-900 dark:text-white">Domains</dt>
+  <dd class="space-y-1">
+    {{#if tapp.domains}}
+      <div><a href="https://{{tapp.domains.shared}}" target="_blank" rel="noopener" class="underline underline-offset-2">{{tapp.domains.shared}}</a></div>
+      {{#if tapp.domains.custom}}
+      <div><a href="https://{{tapp.domains.custom}}" target="_blank" rel="noopener" class="underline underline-offset-2">{{tapp.domains.custom}}</a> <span class="text-neutral-500">(custom)</span></div>
+      {{/if}}
+    {{else}}
+      <span class="text-neutral-500">none — reached by IP</span>
+    {{/if}}
+  </dd>
+
+  {{#if tapp.container.volumes}}
+  <dt class="font-medium text-neutral-900 dark:text-white">Volumes</dt>
+  <dd class="space-y-1">
+    {{#each tapp.container.volumes}}<div><span class="font-mono">{{@key}}</span> — {{this}}</div>{{/each}}
+  </dd>
+  {{/if}}
+
+  {{#if tapp.container.files}}
+  <dt class="font-medium text-neutral-900 dark:text-white">Files</dt>
+  <dd class="space-y-1">
+    {{#each tapp.container.files}}<div class="font-mono">{{@key}}</div>{{/each}}
+  </dd>
+  {{/if}}
+
+  {{#if tapp.env}}
+  <dt class="font-medium text-neutral-900 dark:text-white">Variables</dt>
+  <dd class="space-y-1">
+    {{#each tapp.env}}<div><span class="font-mono">{{@key}}</span>={{this}}</div>{{/each}}
+  </dd>
+  {{/if}}
+
+  {{#if tapp.secrets}}
+  <dt class="font-medium text-neutral-900 dark:text-white">Secrets</dt>
+  <dd class="space-y-1">
+    {{#each tapp.secrets}}<div><span class="font-mono">{{@key}}</span> <span class="text-neutral-500">(hidden)</span></div>{{/each}}
+  </dd>
+  {{/if}}
+</dl>
+{{> footer}}

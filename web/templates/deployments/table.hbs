@@ -1,12 +1,14 @@
 {{!--
-  The deployments table, with each row's health rendered by the server. It replaces itself
-  (outerHTML) with a fresh copy every 5 seconds while the auto-refresh box is ticked; the
-  handler renders only this fragment when HX-Target names it.
+  The deployments table, with each row's health rendered by the server. Every 5 seconds while
+  the auto-refresh box is ticked it fetches a fresh copy and morphs it over itself
+  (outerMorph): only what changed is touched, so an open Actions menu, keyboard focus and the
+  scroll position survive a refresh. The handler renders only this fragment when HX-Target
+  names it.
 --}}
 <div id="deployments-table"
      hx-get="/deployments"
-     hx-trigger="every 5s [document.getElementById('autorefresh')?.checked]"
-     hx-swap="outerHTML"
+     hx-trigger="every[document.getElementById('autorefresh')?.checked] 5s"
+     hx-swap="outerMorph"
      hx-indicator="#table-refresh-indicator">
 {{#if deployments}}
     <table class="w-full text-left text-sm text-neutral-600 dark:text-neutral-300">

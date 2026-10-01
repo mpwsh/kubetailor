@@ -157,10 +157,11 @@ mod tests {
             .replace("&#x3D;", "=");
         assert!(table.contains(r#"id="deployments-table""#));
         assert!(
-            table.contains(r#"hx-swap="outerHTML""#),
-            "must replace itself, never nest"
+            table.contains(r#"hx-swap="outerMorph""#),
+            "must morph over itself, never nest"
         );
-        assert!(table.contains("every 5s [document.getElementById('autorefresh')"));
+        // htmx 4: the filter rides on the event name, the interval follows.
+        assert!(table.contains("every[document.getElementById('autorefresh')?.checked] 5s"));
         assert!(table.contains("status-dot-green") && table.contains("status-dot-neutral"));
         assert!(
             table.contains(r#"hx-get="/deployments/edit?name=hello""#),
@@ -209,7 +210,7 @@ mod tests {
         let del = hb.render("deployments/delete", &data).unwrap();
         assert!(del.contains(r#"hx-post="/deployments/delete""#));
         assert!(del.contains(r#"hx-vals='{"name": "hello"}'"#));
-        assert!(del.contains("hx-disabled-elt"));
+        assert!(del.contains(r#"hx-disable="this""#));
         assert!(!del.contains("hx-follow"));
         let restart = hb.render("deployments/restart", &data).unwrap();
         assert!(restart.contains(r#"hx-post="/deployments/restart""#));
@@ -234,7 +235,7 @@ mod tests {
             "built-in eq selects the deployment"
         );
         assert!(page.contains(r#"<option value="30" selected>"#));
-        assert!(page.contains("every 30s [document.getElementById('log-autorefresh')"));
+        assert!(page.contains("every[document.getElementById('log-autorefresh')?.checked] 30s"));
         assert!(page.contains("line &lt;two&gt;"), "log lines are escaped");
         let pane = hb
             .render("logs/pane", &json!({"name": null, "logs": []}))
@@ -251,46 +252,87 @@ mod tests {
         let data = json!({
             "initial": false, "title": "New Deployment", "user": "x@y", "return_url": "/deployments",
             "action": {"name": "Deploy", "url": "/deployments/new", "is_form": true},
-            "tapp": {"name": "", "domains": {"shared": "", "custom": null}, "container": {"image": "", "port": 80, "replicas": 1}, "git": null},
-            "files": [], "custom_enabled": false,
+            "config": {"baseDomain": "apps.example.com", "nodePortRange": [1024, 29999]},
+            "port_rows": [{"port": "80", "protocol": "HTTP", "expose": "cluster"}],
+            "max_ports": 5,
         });
         let page = hb.render("deployments/editor", &data).unwrap();
         assert!(page.contains(r#"hx-post="/deployments/new""#));
+        assert!(page.contains(r#"hx-status:422="target:#form-errors swap:innerHTML""#));
+        assert!(
+            page.contains(r#"hx-disable="[form=editForm]""#),
+            "the submit button is outside the form"
+        );
         assert!(page.contains(r#"id="form-errors""#));
-        assert!(!page.contains("post.js"));
+        assert!(!page.contains("post.js") && !page.contains("key_value.js"));
         assert!(page.contains(r#"name="repository""#) && page.contains(r#"name="branch""#));
-        // Shared fields exist once; a new deployment starts with HTTP on 80 and no other ports.
-        assert_eq!(page.matches(r#"name="port""#).count(), 1);
-        let flat = squeeze(&page);
-        assert!(flat.contains(r#"name="port" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="none" value="80""#));
-        assert!(page.contains(r#"x-data="{ ports: [] }""#));
+        // No HTTP port field in Source: ports are the Network step's, seeded with HTTP on 80.
+        assert!(!page.contains(r#"name="port""#));
+        assert!(page.contains(r#"x-data="{ ports: [{&quot;expose&quot;:&quot;cluster&quot;,&quot;port&quot;:&quot;80&quot;,&quot;protocol&quot;:&quot;HTTP&quot;}], max: 5 }""#));
         assert!(page.contains(r#"name="port_number""#) && page.contains(r#"name="port_expose""#));
-        assert!(page.contains(r#"name="region""#));
+        // Basic has the region; Network has the group; Domains shows the real suffix.
+        assert!(page.contains(r#"name="region""#) && page.contains(r#"name="group""#));
+        assert!(page.contains(".apps.example.com"));
+        assert!(!page.contains("kubetailor.io"));
+        // Repeaters seed from nothing as empty lists.
+        assert_eq!(
+            page.matches("Object.entries([])").count(),
+            4,
+            "volumes, files, env, secrets"
+        );
     }
 
     #[test]
-    fn editor_shows_an_existing_udp_app_without_inventing_http() {
+    fn editor_seeds_an_existing_app() {
         let hb = registry();
         let data = json!({
             "initial": false, "title": "Editing deployment", "user": "x@y", "return_url": "/deployments",
             "action": {"name": "Save", "url": "/deployments/edit", "is_form": true},
+            "config": {"baseDomain": "apps.example.com", "nodePortRange": [1024, 29999]},
+            "port_rows": [{"port": "7777", "protocol": "UDP", "expose": "node"}],
+            "max_ports": 5,
             "tapp": {
-                "name": "game", "region": "scl", "domains": {"shared": "game", "custom": null},
+                "name": "game", "region": "scl", "group": "games", "domains": null,
                 "container": {"image": "game:1", "port": null, "replicas": 1,
-                              "ports": [{"port": 7777, "protocol": "UDP", "expose": "node"}]},
-                "git": null,
+                              "ports": [{"port": 7777, "protocol": "UDP", "expose": "node"}],
+                              "volumes": {"/data": "1Gi"}, "files": {"/etc/game.toml": "x = 1\n"}},
+                "env": {"A": "1"}, "secrets": null, "git": null,
             },
-            "files": [], "custom_enabled": false,
         });
         let page = squeeze(&hb.render("deployments/editor", &data).unwrap());
+        assert!(page.contains(r#"name="region" placeholder="any" autocomplete="off" value="scl""#));
+        assert!(page
+            .contains(r#"name="group" placeholder="optional" autocomplete="off" value="games""#));
+        assert!(page.contains(r#"ports: [{&quot;expose&quot;:&quot;node&quot;,&quot;port&quot;:&quot;7777&quot;,&quot;protocol&quot;:&quot;UDP&quot;}]"#));
+        assert!(page.contains(r#"Object.entries({&quot;/data&quot;:&quot;1Gi&quot;})"#));
+        // handlebars escapes `=` as well; the browser decodes it before Alpine sees the JSON.
+        assert!(page
+            .contains(r#"Object.entries({&quot;/etc/game.toml&quot;:&quot;x &#x3D; 1\n&quot;})"#));
+        assert!(page.contains(r#"Object.entries({&quot;A&quot;:&quot;1&quot;})"#));
+        // No domains: the subdomain input is empty, not "null".
+        assert!(page.contains(r#"x-data="{ shared: '' }""#));
+    }
+
+    #[test]
+    fn view_renders_every_section() {
+        let hb = registry();
+        let data = json!({
+            "initial": false, "title": "game Details", "user": "x@y", "return_url": "/deployments",
+            "action": {"name": "Edit", "url": "/deployments/edit?name=game", "is_form": false},
+            "tapp": {
+                "name": "game", "region": "scl", "group": "", "domains": null,
+                "container": {"image": "game:1", "port": 8080, "replicas": 1,
+                              "ports": [{"port": 7777, "protocol": "UDP", "expose": "node"}]},
+                "env": null, "secrets": {"TOKEN": "s3cret"}, "git": null,
+            },
+        });
+        let page = hb.render("deployments/view", &data).unwrap();
+        assert!(page.contains("8080") && page.contains("public, same port"));
+        assert!(page.contains("reached by IP"));
         assert!(
-            page.contains(r#"placeholder="none" value="""#),
-            "HTTP port must stay empty"
+            page.contains("TOKEN") && !page.contains("s3cret"),
+            "secret values stay hidden"
         );
-        assert!(page.contains(r#"ports: [{&quot;expose&quot;:&quot;node&quot;,&quot;port&quot;:7777,&quot;protocol&quot;:&quot;UDP&quot;}]"#));
-        assert!(page.contains(
-            r#"name="region" type="text" placeholder="any" autocomplete="off" value="scl""#
-        ));
     }
 
     #[test]

@@ -1,3 +1,8 @@
+{{!--
+  Six steps; every step's inputs stay in the DOM (x-show), so the form always posts the whole
+  deployment. Nothing here needs JavaScript beyond Alpine: the repeaters are Alpine state, the
+  submit button is the top bar's (form="editForm"), htmx posts the form.
+--}}
 <div class="space-y-8">
 <div x-show="currentStep === 1" class="space-y-6">
   {{> cmp/custom-radio
@@ -11,24 +16,27 @@
 </div>
 
 <div x-show="editor === 'Wizard'" class="space-y-6">
-  {{> cmp/steps }} 
+  {{> cmp/steps }}
 
-  {{!-- Step Content --}}
+  {{!-- 1 Basic --}}
   <div x-show="currentStep === 1" class="space-y-4">
     {{> cmp/text-input
-      name = "name" 
-      title = "Name" 
-      placeholder = "Name of your deployment"
+      name = "name"
+      title = "Name"
+      placeholder = "my-app"
       value = tapp.name
+      help = "Lowercase letters, digits and dashes. It names everything the deployment creates."
     }}
     {{> cmp/text-input
-      name="group"
-      title="Group"
-      placeholder="Network group"
-      value = tapp.group
+      name = "region"
+      title = "Region"
+      placeholder = "any"
+      value = tapp.region
+      help = "Pin the app to the nodes of one region (e.g. scl). Leave empty to let the scheduler choose."
     }}
   </div>
 
+  {{!-- 2 Source --}}
   <div x-show="currentStep === 2" class="space-y-6">
     {{> cmp/custom-radio
       columns=2
@@ -42,17 +50,24 @@
     <div x-show="source === 'Git'" x-cloak class="mt-4 space-y-4">{{> inputs/git}}</div>
   </div>
 
-  <div x-show="currentStep === 3">
+  {{!-- 3 Network --}}
+  <div x-show="currentStep === 3" class="space-y-6">
+    {{> inputs/ports}}
+  </div>
+
+  {{!-- 4 Domains --}}
+  <div x-show="currentStep === 4" class="space-y-6">
+    {{> inputs/domain}}
+  </div>
+
+  {{!-- 5 Data --}}
+  <div x-show="currentStep === 5" class="space-y-6">
     {{> inputs/mounts}}
   </div>
 
-  <div x-show="currentStep === 4">
+  {{!-- 6 Environment --}}
+  <div x-show="currentStep === 6" class="space-y-6">
     {{> inputs/environment}}
-  </div>
-
-  <div x-show="currentStep === 5" class="space-y-6">
-    {{> inputs/domain}}
-    {{> inputs/ports}}
   </div>
 
   {{!-- Navigation --}}
@@ -64,14 +79,12 @@
       @click="currentStep--">
       {{> cmp/button-secondary title="Previous"}}
       </a>
-    
-    <a 
+
+    <a
       x-show="currentStep < steps.length"
       @click="currentStep++"
       {{> cmp/button-primary title="Next"}}
     </a>
   </div>
-</div> 
 </div>
-<script src="/static/js/key_value.js"></script>
-<script src="/static/js/file_content.js"></script>
+</div>
