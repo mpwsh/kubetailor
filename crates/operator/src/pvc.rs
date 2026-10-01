@@ -41,7 +41,7 @@ pub async fn deploy(
         Ok(pvc) => Ok(pvc),
         Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => {
             update(client, meta, &storage).await
-        },
+        }
         Err(e) => Err(Error::KubeError { source: e }),
     }
 }

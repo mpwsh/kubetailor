@@ -46,19 +46,19 @@ pub async fn claim(
                     ))
                     .send();
                     see_other("/login");
-                },
+                }
             };
             session.insert_user(&email).unwrap();
             session.renew();
             see_other("/")
-        },
+        }
         None => {
             FlashMessage::info(
                 "Internal server error. Unable to initialize session. Please try again",
             )
             .send();
             see_other("/login")
-        },
+        }
     }
 }
 
@@ -76,7 +76,7 @@ pub async fn authenticate(form: web::Form<AuthForm>, client: web::Data<Client>) 
             ))
             .send();
             see_other("/login")
-        },
+        }
     }
 }
 

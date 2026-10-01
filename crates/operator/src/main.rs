@@ -11,6 +11,7 @@ mod error;
 mod finalizer;
 mod ingress;
 mod netpol;
+mod placement;
 pub mod prelude;
 mod pvc;
 mod reconciler;
@@ -74,10 +75,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match reconciliation_result {
                 Ok(resource) => {
                     info!("Reconciliation successful. Resource: {resource:?}");
-                },
+                }
                 Err(reconciliation_err) => {
                     error!("Reconciliation error: {reconciliation_err:?}")
-                },
+                }
             }
         })
         .await;

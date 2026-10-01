@@ -13,18 +13,13 @@ garage:
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#block-size
   blockSize: "1048576"
 
-  # Tuning parameters for the sled DB engine
-  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#sled-cache-capacity
-  sledCacheCapacity: "134217728"
-  sledFlushEveryMs: "2000"
-
   # Default to 3 replicas, see the replication_mode section at
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#replication-mode
-  replicationMode: "1"
+  replicationMode: "3"
 
   # zstd compression level of stored blocks
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#compression-level
-  compressionLevel: "2"
+  compressionLevel: "1"
 
   rpcBindAddr: "[::]:3901"
   # If not given, a random secret will be generated and stored in a Secret object
@@ -35,9 +30,9 @@ garage:
   s3:
     api:
       region: "garage"
-      rootDomain: ".s3.kubetailor.io"
+      rootDomain: ".s3.mpw.sh"
     web:
-      rootDomain: ".grg.kubetailor.io"
+      rootDomain: ".web.mpw.sh"
       index: "index.html"
   # Template for the garage configuration
   # Values can be templated
@@ -47,13 +42,8 @@ garage:
     data_dir = "/mnt/data"
 
     db_engine = "{{ .Values.garage.dbEngine }}"
-
+    lmdb_map_size = "1Gi"
     block_size = {{ .Values.garage.blockSize }}
-
-    {{- if eq .Values.garage.dbEngine "sled"}}
-    sled_cache_capacity = {{ .Values.garage.sledCacheCapacity }}
-    sled_flush_every_ms = {{ .Values.garage.sledFlushEveryMs }}
-    {{- end }}
 
     replication_mode = "{{ .Values.garage.replicationMode }}"
 
@@ -91,12 +81,12 @@ garage:
 persistence:
   enabled: true
   meta:
-    storageClass: hcloud-volumes
-    size: 10Gi
+    storageClass: "local-path"
+    size: 1Gi
     # used only for daemon sets
     hostPath: /var/lib/garage/meta
   data:
-    storageClass: hcloud-volumes
+    storageClass: longhorn
     size: 20Gi
     # used only for daemon sets
     hostPath: /var/lib/garage/data
@@ -106,11 +96,14 @@ deployment:
   # Switchable to DaemonSet
   kind: StatefulSet
   # Number of StatefulSet replicas/garage nodes to start
-  replicaCount: 1
+  replicaCount: 3
+  # If using statefulset, allow Parallel or OrderedReady (default)
+  podManagementPolicy: OrderedReady
 
 image:
-  repository: docker.io/dxflrs/garage
-  tag: fa7c7780243e461d9b95eb18d8eff992dca8ae5b #v0.9.1
+  repository: dxflrs/arm64_garage
+  # please prefer using the chart version and not this tag
+  tag: ""
   pullPolicy: IfNotPresent
 
 initImage:
@@ -164,52 +157,56 @@ ingress:
   s3:
     api:
       enabled: false
+      # Rely either on the className or the annotation below but not both
+      # replace "nginx" by an Ingress controller
+      # you can find examples here https://kubernetes.io/docs/concepts/services-networking/ingress-controllers
       className: "nginx"
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
         external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
-        external-dns.alpha.kubernetes.io/hostname: s3.kubetailor.io
-        external-dns.alpha.kubernetes.io/target: lb.kubetailor.io
+        external-dns.alpha.kubernetes.io/hostname: s3.mpw.sh
+        external-dns.alpha.kubernetes.io/target: lb.mpw.sh
         external-dns.alpha.kubernetes.io/ttl: "60"
       labels: {}
       hosts:
-        - host: "s3.kubetailor.io" # garage S3 API endpoint
+        - host: "s3.mpw.sh" # garage S3 API endpoint
           paths:
             - path: /
               pathType: Prefix
-        - host: "*.s3.kubetailor.io" # garage S3 API endpoint, DNS style bucket access
+        - host: "*.s3.mpw.sh" # garage S3 API endpoint, DNS style bucket access
           paths:
             - path: /
               pathType: Prefix
-      tls:
-        - secretName: garage-api-tls
-          hosts:
-            - s3.kubetailor.io
-            - "*.s3.kubetailor.io"
+      tls: []
+      #  - secretName: my-garage-cluster-tls
+      #    hosts:
+      #      - kubernetes.docker.internal
     web:
       enabled: false
+      # Rely either on the className or the annotation below but not both
+      # replace "nginx" by an Ingress controller
+      # you can find examples here https://kubernetes.io/docs/concepts/services-networking/ingress-controllers
       className: "nginx"
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
         external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
-        external-dns.alpha.kubernetes.io/hostname: grg.kubetailor.io
-        external-dns.alpha.kubernetes.io/target: lb.kubetailor.io
+        external-dns.alpha.kubernetes.io/hostname: grg.mpw.sh
+        external-dns.alpha.kubernetes.io/target: lb.mpw.sh
         external-dns.alpha.kubernetes.io/ttl: "60"
       labels: {}
       hosts:
-        - host: "*.grg.kubetailor.io" # wildcard website access with bucket name prefix
+        - host: "*.web.mpw.sh" # wildcard website access with bucket name prefix
           paths:
             - path: /
               pathType: Prefix
-        - host: "grg.kubetailor.io" # specific bucket access with FQDN bucket
-          paths:
-            - path: /
-              pathType: Prefix
-      tls:
-        - secretName: garage-web-tls
-          hosts:
-            - grg.kubetailor.io
-            - "*.grg.kubetailor.io"
+        #- host: "mywebpage.example.com" # specific bucket access with FQDN bucket
+        #  paths:
+        #    - path: /
+        #      pathType: Prefix
+      tls: []
+      #  - secretName: my-garage-cluster-tls
+      #    hosts:
+      #      - kubernetes.docker.internal
 
 resources:
   {}
@@ -226,6 +223,8 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+environment: {}
 
 monitoring:
   metrics:

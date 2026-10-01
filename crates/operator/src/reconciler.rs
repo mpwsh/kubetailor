@@ -1,6 +1,6 @@
 use crate::{
     actions::{delete_all, deploy_all, TailoredAppAction},
-    finalizer,
+    finalizer, placement,
     prelude::*,
 };
 
@@ -21,7 +21,7 @@ pub async fn reconcile(app: Arc<TailoredApp>, ctx: Arc<ContextData>) -> Result<A
                 "Expected TailoredApp resource to be namespaced. Can't deploy to an unknown namespace."
                     .to_owned(),
             ));
-        },
+        }
         Some(namespace) => namespace,
     };
 
@@ -42,12 +42,17 @@ pub async fn reconcile(app: Arc<TailoredApp>, ctx: Arc<ContextData>) -> Result<A
 
             // Invoke creation of all the resources
             deploy_all(&client, &meta, &app).await?;
+            placement::publish(&client, &meta, &app).await?;
 
             Ok(Action::requeue(Duration::from_secs(10)))
-        },
+        }
         TailoredAppAction::Delete => delete_all(&client, &meta).await,
-        // The resource is already in desired state, do nothing and re-check after 10 seconds
-        TailoredAppAction::NoOp => Ok(Action::requeue(Duration::from_secs(10))),
+        // The resources exist; keep the placement (node IPs, DNS target) current, since pods get
+        // scheduled and rescheduled after the initial deploy. Re-check after 10 seconds.
+        TailoredAppAction::NoOp => {
+            placement::publish(&client, &meta, &app).await?;
+            Ok(Action::requeue(Duration::from_secs(10)))
+        }
     }
 }
 

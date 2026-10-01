@@ -70,6 +70,60 @@ APP_ENVIRONMENT=local cargo run --bin console
 
 Console Web UI should be available at [localhost:8080](http://localhost:8080)
 
+## Regions and ports exposed at the node
+
+A `TailoredApp` normally gets one HTTP port (`container.port`) published through the ingress
+controller. Two optional fields cover everything else:
+
+- `deployment.region` pins the app to a node labelled `topology.kubernetes.io/region=<region>`
+  (every node provisioned by [flint](https://github.com/mpwsh/flint) carries it). With one node
+  per region that *is* the node, and the operator points the app's DNS record at that node's
+  public IP rather than a shared load balancer, so traffic terminates in the region the user asked
+  for.
+- `container.ports` lists extra ports, each with a `protocol` (`TCP`/`UDP`) and an `expose` mode:
+
+  | `expose`   | What you get                                                                                   |
+  |------------|------------------------------------------------------------------------------------------------|
+  | `cluster`  | A port on the app's Service, reachable inside the cluster only (default).                      |
+  | `node`     | `hostPort`: the same port number on the node running the pod. `<node ip>:<port>`, nothing in between. |
+  | `nodePort` | A second Service of type `NodePort` with `externalTrafficPolicy: Local`; Kubernetes picks the port. |
+
+  For `node` and `nodePort` the NetworkPolicy admits the internet on exactly that port and
+  protocol; everything else stays closed. The cloud firewall is not Kubernetes' business — on
+  flint, `flint cluster firewall <cluster> --allow udp:7777`.
+
+`ingress` is optional. An app with only node-exposed ports needs none; one with `ingress.domains`
+but no `container.port` gets no Ingress object either, the domains then just name the app and the
+operator writes the external-dns `hostname`/`target` annotations on its Service.
+
+Once the pods are scheduled the operator fills `status`:
+
+```yaml
+status:
+  nodes:
+    - name: kt-scl-0001
+      ip: 45.77.0.10
+      region: scl
+  endpoints:
+    - ip: 45.77.0.10
+      port: 7777
+      protocol: UDP
+```
+
+`kubectl get tapp` shows the region and node IP as columns; `status.message` says why there is no
+placement yet (`no node in region scl`). The node's public IP is read from the
+`flint.mpw.sh/public-ip` label (override with `KUBETAILOR_PUBLIC_IP_LABEL`), falling back to the
+node's `ExternalIP`, then `InternalIP`.
+
+Examples: [udp-echo.yaml](./examples/udp-echo.yaml) (UDP only, no ingress),
+[game-server.yaml](./examples/game-server.yaml) (web page through the ingress, game port at the
+node), [udp-echo.json](./examples/udp-echo.json) (the same through the server API; the server's
+`nodePortRange` config bounds the ports users may expose, default `1024-29999`).
+
+Updating an existing `TailoredApp` with `kubectl apply` does not re-render its resources (the
+operator only acts when the finalizer is absent, which the server's `PUT` guarantees); delete and
+re-create, or use the API.
+
 ## Services
 
 - [Operator](./crates/operator) - Listens for new `TailoredApps` and constructs and deploys native Kubernetes resources from there.
@@ -78,7 +132,7 @@ Console Web UI should be available at [localhost:8080](http://localhost:8080)
 
 ## Kubernetes Dependencies
 
-- [NGINX Ingress](https://github.com/nginxinc/kubernetes-ingress)
+- An ingress controller: [Traefik](https://github.com/traefik/traefik) (what [flint](https://github.com/mpwsh/flint) installs) or [ingress-nginx](https://github.com/kubernetes/ingress-nginx)
 - [External DNS](https://github.com/external-secrets/external-secrets)
 - [Cert Manager](https://github.com/cert-manager/cert-manager)
 

@@ -16,26 +16,19 @@ pub struct Deployment {
     pub run_as_group: Option<i64>,
     pub annotations: BTreeMap<String, String>,
     pub container: Option<Container>,
+    /// Inclusive range users may expose at the node (`expose: node` / `nodePort`).
+    /// Defaults to 1024-29999: above the privileged ports, below the Kubernetes node-port range.
+    #[serde(default)]
+    pub node_port_range: Option<(i32, i32)>,
 }
 
 impl Deployment {
-    pub fn build(&self, container: &Container) -> crd::Deployment {
+    pub fn build(&self, container: &Container, region: Option<String>) -> crd::Deployment {
         //If theres a container spec in the server configuration, use that instead of the one provided by the user.
-        let container = if let Some(container) = self.container.clone() {
-            Container {
-                image: container.image,
-                port: container.port,
-                replicas: container.replicas,
-                build_command: container.build_command,
-                run_command: container.run_command,
-                volumes: container.volumes,
-                files: container.files,
-            }
-        } else {
-            container.clone()
-        };
+        let container = self.container.clone().unwrap_or_else(|| container.clone());
         crd::Deployment {
             annotations: self.annotations.clone(),
+            region,
             container,
             service_account: self.service_account.to_owned(),
             allow_privilege_escalation: self.allow_privilege_escalation,

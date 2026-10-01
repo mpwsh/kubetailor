@@ -48,13 +48,39 @@ spec:
                       type: boolean
                     allowPrivilegeEscalation:
                       type: boolean
+                    region:
+                      description: Region the app must run in (topology.kubernetes.io/region node label).
+                      type: string
                     container:
                       type: object
                       properties:
                         image:
                           type: string
                         port:
+                          description: HTTP port the ingress routes to. Optional when `ports` is set.
                           type: integer
+                        ports:
+                          description: Additional ports with their own protocol and exposure.
+                          type: array
+                          items:
+                            type: object
+                            required: ["port"]
+                            properties:
+                              port:
+                                type: integer
+                                minimum: 1
+                                maximum: 65535
+                              protocol:
+                                type: string
+                                enum: ["TCP", "UDP"]
+                                default: TCP
+                              expose:
+                                description: cluster (Service only), node (hostPort on the pod's node), nodePort (NodePort Service, externalTrafficPolicy Local).
+                                type: string
+                                enum: ["cluster", "node", "nodePort"]
+                                default: cluster
+                              name:
+                                type: string
                         replicas:
                           type: integer
                         buildCommand:
@@ -116,7 +142,38 @@ spec:
                   type: object
                   additionalProperties:
                     type: string
-              required: ["labels", "deployment", "ingress"]
+              required: ["labels", "deployment"]
+            status:
+              type: object
+              properties:
+                nodes:
+                  description: Nodes running the app, with their public IPs.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      ip:
+                        type: string
+                      region:
+                        type: string
+                endpoints:
+                  description: Addresses clients use for ports exposed at the node.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      ip:
+                        type: string
+                      port:
+                        type: integer
+                      protocol:
+                        type: string
+                message:
+                  type: string
+      subresources:
+        status: {}
       additionalPrinterColumns:
         - name: Owner
           type: string
@@ -134,6 +191,14 @@ spec:
           type: string
           description: Container Port
           jsonPath: .spec.deployment.container.port
+        - name: Region
+          type: string
+          description: Requested region
+          jsonPath: .spec.deployment.region
+        - name: Node IP
+          type: string
+          description: Public IP of the node running the app
+          jsonPath: .status.nodes[0].ip
         - name: Ingress Class
           type: string
           description: Ingress Class

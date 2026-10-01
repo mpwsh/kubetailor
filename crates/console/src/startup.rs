@@ -10,7 +10,6 @@ use actix_web::{
     App, HttpServer, Result,
 };
 use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
-
 use portier::Client;
 use secrecy::{ExposeSecret, Secret};
 use tracing_actix_web::TracingLogger;
@@ -115,11 +114,11 @@ pub async fn run(
                     .route(web::post().to(authenticate)),
             )
             .service(resource(claim_path).route(web::post().to(claim)))
-           // .service(
-           //     resource("/logout")
+            // .service(
+            //     resource("/logout")
             .route("/logout", web::get().to(logout))
-                    //.route(web::post().to(logout)),
-           // )
+            //.route(web::post().to(logout)),
+            // )
             .service(
                 web::scope("")
                     .wrap(from_fn(reject_anonymous_users))
@@ -129,7 +128,6 @@ pub async fn run(
                     .route("/error", web::get().to(error::page))
                     .service(
                         web::scope("/deployments")
-
                             .route("/", web::get().to(deployments::page))
                             .route("", web::get().to(deployments::page))
                             .route("/deploying", web::get().to(deployments::deploying))
@@ -155,8 +153,7 @@ pub async fn run(
                                 resource("/restart")
                                     .route(web::get().to(deployments::restart::page))
                                     .route(web::post().to(deployments::restart::form)),
-                            )
-                        ,
+                            ),
                     ),
             )
             .default_service(web::route().to(handle_not_found))

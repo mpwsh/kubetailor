@@ -58,7 +58,7 @@ pub async fn form(
                 FlashMessage::info(response.text().await.unwrap()).send();
                 Ok(see_other("/error"))
             }
-        },
+        }
         Err(e) => Ok(HttpResponse::BadRequest().body(e.to_string())),
     }
 }

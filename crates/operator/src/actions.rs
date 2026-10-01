@@ -54,7 +54,7 @@ pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> 
                     return Err(Error::UserInputError(
                         "Invalid path: no parent directory".into(),
                     ));
-                },
+                }
             };
             groups.entry(parent_dir).or_default().push((path, data));
         }
@@ -87,9 +87,13 @@ pub async fn deploy_all(client: &Client, meta: &TappMeta, app: &TailoredApp) -> 
     // Deploy Service
     service::deploy(client, meta, app).await?;
 
-    // Deploy Ingress
-    if app.spec.ingress.domains.is_some() {
+    // Deploy Ingress (needs domains and an HTTP port; domains alone only name the app for DNS)
+    if app.spec.wants_ingress() {
         ingress::deploy(client, meta, app).await?;
+    } else if !app.spec.hostnames().is_empty() {
+        info!(
+            "{name}: has domains but no `container.port`; no Ingress, DNS will point at the node"
+        );
     }
 
     // Deploy Network policies
@@ -141,7 +145,7 @@ where
         Err(kubetailor::kube::Error::Api(e)) if e.code == 404 => {
             warn!("Resource {meta:?} already deleted");
             Ok(())
-        },
+        }
         Err(e) => Err(Error::KubeError { source: e }),
     }
 }

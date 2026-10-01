@@ -13,13 +13,17 @@ use crate::prelude::*;
     kind = "TailoredApp",
     plural = "tailoredapps",
     derive = "PartialEq",
+    status = "TailoredAppStatus",
     namespaced
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TailoredAppSpec {
     pub labels: BTreeMap<String, String>,
     pub deployment: Deployment,
-    pub ingress: Ingress,
+    /// HTTP exposure through the cluster's ingress controller. Optional: an app that only
+    /// publishes ports directly on its node (see [`Port::expose`]) has no ingress at all.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ingress: Option<Ingress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub env: Option<BTreeMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -32,7 +36,14 @@ pub struct TailoredAppSpec {
 #[serde(rename_all = "camelCase")]
 pub struct Container {
     pub image: String,
-    pub port: i32,
+    /// The HTTP port the ingress routes to. Optional since an app may expose nothing but
+    /// [`Container::ports`]; required whenever the app has ingress domains.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port: Option<i32>,
+    /// Additional ports, each with its own protocol and exposure. This is how a TailoredApp
+    /// publishes UDP, or TCP that must not go through the ingress controller.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ports: Vec<Port>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub run_command: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -43,6 +54,69 @@ pub struct Container {
     pub files: Option<BTreeMap<String, String>>,
     pub replicas: i32,
 }
+
+/// One extra port of the app container.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Port {
+    /// Port the container listens on.
+    pub port: i32,
+    #[serde(default)]
+    pub protocol: Protocol,
+    #[serde(default)]
+    pub expose: Expose,
+    /// Optional name; defaults to `<protocol>-<port>`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+impl Port {
+    /// Name used for the container port and the service port.
+    pub fn name(&self) -> String {
+        self.name
+            .clone()
+            .unwrap_or_else(|| format!("{}-{}", self.protocol.as_str().to_lowercase(), self.port))
+    }
+
+    /// Whether traffic for this port enters from outside the cluster, straight at a node.
+    pub fn is_external(&self) -> bool {
+        matches!(self.expose, Expose::Node | Expose::NodePort)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy, JsonSchema, Default)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum Protocol {
+    #[default]
+    Tcp,
+    Udp,
+}
+
+impl Protocol {
+    /// The Kubernetes spelling (`TCP` / `UDP`).
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Protocol::Tcp => "TCP",
+            Protocol::Udp => "UDP",
+        }
+    }
+}
+
+/// How a [`Port`] is reachable.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy, JsonSchema, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum Expose {
+    /// Only inside the cluster, through the app's Service.
+    #[default]
+    Cluster,
+    /// Bound on the node that runs the pod (`hostPort`), on the very same port number. Clients
+    /// talk to `<node public ip>:<port>`; nothing sits in between. One pod per node per port.
+    Node,
+    /// A `NodePort` Service with `externalTrafficPolicy: Local`: Kubernetes picks a port in the
+    /// node-port range, answered only by nodes that run the pod, source IP preserved.
+    NodePort,
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Git {
@@ -79,6 +153,10 @@ pub struct Deployment {
     pub run_as_user: Option<i64>,
     pub run_as_group: Option<i64>,
     pub deploy_network_policies: Option<bool>,
+    /// Region the app must run in: a `topology.kubernetes.io/region` node selector. With
+    /// one node per region this is "the node", and the app's DNS points at that node.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
     pub container: Container,
 }
 
@@ -87,4 +165,133 @@ pub struct Domains {
     pub shared: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom: Option<String>,
+}
+
+/// Where the app ended up, written by the operator once its pods are scheduled.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, JsonSchema, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct TailoredAppStatus {
+    /// Nodes running at least one pod of the app.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub nodes: Vec<PlacementNode>,
+    /// Addresses clients can connect to for the externally exposed ports.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub endpoints: Vec<Endpoint>,
+    /// Why there is no placement yet, e.g. `no node in region scl`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PlacementNode {
+    pub name: String,
+    /// Public IPv4 of the node, from its `public-ip` label or its ExternalIP address.
+    pub ip: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Endpoint {
+    pub ip: String,
+    /// The port clients use: the container port for `node`, the allocated one for `nodePort`.
+    pub port: i32,
+    pub protocol: Protocol,
+}
+
+impl TailoredAppSpec {
+    /// Ports that enter straight at a node, i.e. need a firewall opening and a public-IP record.
+    pub fn external_ports(&self) -> impl Iterator<Item = &Port> {
+        self.deployment
+            .container
+            .ports
+            .iter()
+            .filter(|p| p.is_external())
+    }
+
+    /// Whether the operator must track which node(s) the app runs on.
+    pub fn is_node_bound(&self) -> bool {
+        self.deployment.region.is_some() || self.external_ports().next().is_some()
+    }
+
+    /// Whether an Ingress object is created: ingress domains plus an HTTP port to route to.
+    /// Domains without a port only name the app for DNS (see the operator's placement step).
+    pub fn wants_ingress(&self) -> bool {
+        self.deployment.container.port.is_some() && !self.hostnames().is_empty()
+    }
+
+    /// Host names the app answers on, if it has an ingress with domains.
+    pub fn hostnames(&self) -> Vec<String> {
+        let mut hosts = Vec::new();
+        if let Some(domains) = self.ingress.as_ref().and_then(|i| i.domains.as_ref()) {
+            hosts.push(domains.shared.clone());
+            if let Some(custom) = &domains.custom {
+                hosts.push(custom.clone());
+            }
+        }
+        hosts
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_manifest_still_parses() {
+        // The shape every existing TailoredApp has: a single HTTP port and a mandatory ingress.
+        let spec: TailoredAppSpec = serde_json::from_value(serde_json::json!({
+            "labels": {"owner": "x"},
+            "deployment": {
+                "annotations": {},
+                "container": {"image": "nginx", "port": 80, "replicas": 1}
+            },
+            "ingress": {"annotations": {}, "matchLabels": {}, "className": "traefik"}
+        }))
+        .unwrap();
+        assert_eq!(spec.deployment.container.port, Some(80));
+        assert!(spec.deployment.container.ports.is_empty());
+        assert!(spec.ingress.is_some());
+        assert!(!spec.is_node_bound());
+    }
+
+    #[test]
+    fn udp_port_defaults_and_names() {
+        let p: Port = serde_json::from_value(
+            serde_json::json!({"port": 19132, "protocol": "UDP", "expose": "node"}),
+        )
+        .unwrap();
+        assert_eq!(p.protocol, Protocol::Udp);
+        assert_eq!(p.expose, Expose::Node);
+        assert_eq!(p.name(), "udp-19132");
+        assert!(p.is_external());
+
+        let p: Port = serde_json::from_value(serde_json::json!({"port": 8080})).unwrap();
+        assert_eq!(p.protocol, Protocol::Tcp);
+        assert_eq!(p.expose, Expose::Cluster);
+        assert!(!p.is_external());
+    }
+
+    #[test]
+    fn ingress_is_optional_for_node_only_apps() {
+        let spec: TailoredAppSpec = serde_json::from_value(serde_json::json!({
+            "labels": {"owner": "x"},
+            "deployment": {
+                "annotations": {},
+                "region": "scl",
+                "container": {
+                    "image": "alpine/socat",
+                    "replicas": 1,
+                    "ports": [{"port": 7777, "protocol": "UDP", "expose": "node"}]
+                }
+            }
+        }))
+        .unwrap();
+        assert!(spec.ingress.is_none());
+        assert!(spec.is_node_bound());
+        assert_eq!(spec.external_ports().count(), 1);
+        assert!(spec.hostnames().is_empty());
+    }
 }

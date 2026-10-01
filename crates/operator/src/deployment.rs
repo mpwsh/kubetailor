@@ -1,16 +1,55 @@
-use kubetailor::k8s_openapi::api::{
-    apps::v1::DeploymentSpec,
-    core::v1::{
-        ConfigMapEnvSource, ConfigMapVolumeSource, Container, ContainerPort, EmptyDirVolumeSource,
-        EnvFromSource, EnvVar, PersistentVolumeClaimVolumeSource, PodSpec, PodTemplateSpec,
-        SecretEnvSource, SecurityContext, Volume, VolumeMount,
+use kubetailor::{
+    crd::{self, Expose},
+    k8s_openapi::api::{
+        apps::v1::DeploymentSpec,
+        core::v1::{
+            ConfigMapEnvSource, ConfigMapVolumeSource, Container, ContainerPort,
+            EmptyDirVolumeSource, EnvFromSource, EnvVar, PersistentVolumeClaimVolumeSource,
+            PodSpec, PodTemplateSpec, SecretEnvSource, SecurityContext, Volume, VolumeMount,
+        },
     },
 };
 
 use crate::prelude::*;
 
+/// Well-known topology label every flint node carries.
+pub const REGION_LABEL: &str = "topology.kubernetes.io/region";
+
 const GIT_SYNC_DEST: &str = "git-sync";
 const GIT_SYNC_ROOT: &str = "/tmp/git";
+
+/// Region pinning: with one node per region this selects "the" node; with several it lets the
+/// scheduler pick one whose host ports are free.
+pub fn node_selector(deployment: &crd::Deployment) -> Option<BTreeMap<String, String>> {
+    deployment
+        .region
+        .as_ref()
+        .map(|region| BTreeMap::from([(REGION_LABEL.to_owned(), region.to_owned())]))
+}
+
+/// The HTTP port (if any) followed by the extra ports. `expose: node` ports bind the same number
+/// on the node; everything else is a plain container port.
+pub fn container_ports(container: &crd::Container) -> Vec<ContainerPort> {
+    let mut ports = Vec::new();
+    if let Some(http) = container.port {
+        ports.push(ContainerPort {
+            name: Some("http".to_owned()),
+            container_port: http,
+            protocol: Some("TCP".to_owned()),
+            ..ContainerPort::default()
+        });
+    }
+    for p in &container.ports {
+        ports.push(ContainerPort {
+            name: Some(p.name()),
+            container_port: p.port,
+            protocol: Some(p.protocol.as_str().to_owned()),
+            host_port: (p.expose == Expose::Node).then_some(p.port),
+            ..ContainerPort::default()
+        });
+    }
+    ports
+}
 
 fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -> Deployment {
     let deployment = app.spec.deployment.clone();
@@ -93,10 +132,7 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
         image: Some(deployment.container.image.to_owned()),
         image_pull_policy: Some("IfNotPresent".to_owned()),
         command,
-        ports: Some(vec![ContainerPort {
-            container_port: deployment.container.port,
-            ..ContainerPort::default()
-        }]),
+        ports: Some(container_ports(&app.spec.deployment.container)),
         env_from: if !env_from.is_empty() {
             Some(env_from)
         } else {
@@ -222,6 +258,7 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
         volumes: Some(pod_volumes),
         enable_service_links: app.spec.deployment.enable_service_links,
         service_account: app.spec.deployment.service_account.clone(),
+        node_selector: node_selector(&app.spec.deployment),
         ..PodSpec::default()
     };
 
@@ -269,14 +306,14 @@ pub async fn deploy(
         Ok(d) => Ok(d),
         Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => {
             update(client, meta, app, &volumes).await
-        },
+        }
         Err(e) => {
             warn!(
                 "Error while trying to update deployment {name}",
                 name = meta.name
             );
             Err(Error::KubeError { source: e })
-        },
+        }
     }
 }
 

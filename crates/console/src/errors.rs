@@ -1,3 +1,5 @@
+use std::fmt::{self, Write};
+
 use actix_web::{
     body::BoxBody,
     dev::ServiceResponse,
@@ -10,7 +12,6 @@ use handlebars::Handlebars;
 use reqwest::Error as ReqwestError;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::fmt::{self, Write};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ApiError {

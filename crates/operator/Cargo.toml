@@ -27,4 +27,4 @@ tracing-subscriber = { version = "0.3.19", features = ["json", "env-filter"] }
 tracing-opentelemetry = "0.18.0"
 chrono = { version = "0.4.40", features = ["serde"] }
 opentelemetry = { version = "0.18.0", features = ["trace", "rt-tokio"] }
-kubetailor = { path = "../lib" }
+kubetailor = { version = "0.1", path = "../lib" }

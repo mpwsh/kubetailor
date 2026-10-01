@@ -15,8 +15,7 @@ use kubetailor::{
     prelude::*,
 };
 use log::info;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
 
 use crate::{config::Kubetailor, health::Health, quickwit, tapp::TappRequest};
@@ -76,7 +75,7 @@ pub async fn create(
         Ok(k) => k,
         Err(e) => {
             return HttpResponse::InternalServerError().body(e.to_string());
-        },
+        }
     };
     info!("Creating TailoredApp: {app:?}");
 
@@ -105,7 +104,7 @@ pub async fn update(
         Ok(k) => k,
         Err(e) => {
             return HttpResponse::InternalServerError().body(e.to_string());
-        },
+        }
     };
     let api: KubeApi<TailoredApp> = KubeApi::namespaced(
         client.get_ref().clone(),
@@ -117,7 +116,7 @@ pub async fn update(
         Ok(manifest) => manifest.resource_version(),
         Err(_) => {
             return HttpResponse::NotFound().body(format!("TailoredApp '{}' not found", name));
-        },
+        }
     };
     app.metadata.resource_version = resource_version;
     match api.replace(name, &PostParams::default(), &app).await {
@@ -181,10 +180,10 @@ pub async fn list(
             let results = match ListFilter::from_str(params.filter.as_deref().unwrap_or("spec")) {
                 Ok(ListFilter::Spec) => {
                     ListOutput::Spec(tapps.iter().map(|tapp| tapp.spec.clone()).collect())
-                },
+                }
                 Ok(ListFilter::Status) => {
                     ListOutput::Spec(tapps.iter().map(|tapp| tapp.spec.clone()).collect())
-                },
+                }
                 Ok(ListFilter::Name) => ListOutput::Name(
                     tapps
                         .iter()
@@ -195,7 +194,7 @@ pub async fn list(
             };
 
             HttpResponse::Ok().json(results)
-        },
+        }
         None => HttpResponse::NotFound().body("No TailoredApps found"),
     }
 }
@@ -229,7 +228,7 @@ pub async fn delete(
             } else {
                 HttpResponse::NotFound().body(format!("TailoredApp {name} not found"))
             }
-        },
+        }
         None => HttpResponse::NotFound().body("No TailoredApps found"),
     }
 }
@@ -255,7 +254,7 @@ pub async fn get(
             } else {
                 HttpResponse::NotFound().body("No TailoredApp found with the specified name")
             }
-        },
+        }
         None => HttpResponse::NotFound().body("No TailoredApps found"),
     }
 }
@@ -337,7 +336,7 @@ pub async fn logs(
             } else {
                 HttpResponse::NotFound().body("No TailoredApp found with the specified name")
             }
-        },
+        }
         None => HttpResponse::NotFound().body("No TailoredApps found"),
     }
 }
@@ -390,7 +389,7 @@ pub async fn restart(
                 HttpResponse::NotFound()
                     .body(format!("No deployment found for TailoredApp {}", name))
             }
-        },
+        }
         None => HttpResponse::NotFound().body("No deployments found"),
     }
 }
