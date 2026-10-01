@@ -1,0 +1,4 @@
+# The Dockerfiles COPY explicit paths, but the whole context is still uploaded to the builder;
+# keep local build output and git history out of it.
+target/
+.git/

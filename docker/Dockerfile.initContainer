@@ -1,12 +1,24 @@
+# syntax=docker/dockerfile:1
 FROM alpine:3.18.2
 
-ENV WATCHEXEC_URL="https://github.com/watchexec/watchexec/releases/download/v1.22.3/watchexec-1.22.3-aarch64-unknown-linux-musl.tar.xz"
+ARG WATCHEXEC_VERSION=1.22.3
+# Set automatically by buildx from --platform (amd64 | arm64).
+ARG TARGETARCH
 
 RUN apk add --no-cache wget tar xz jq skopeo bash file
 
-RUN wget -qO- ${WATCHEXEC_URL} | tar -xJ -C /bin --wildcards --strip-components=1 '*/watchexec'
+# Pick the watchexec build for the image's own architecture instead of hard-coding aarch64,
+# otherwise git-backed apps on x86_64 nodes fail with "exec format error".
+RUN case "${TARGETARCH}" in \
+      amd64) WX_ARCH=x86_64 ;; \
+      arm64) WX_ARCH=aarch64 ;; \
+      *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && wget -qO- "https://github.com/watchexec/watchexec/releases/download/v${WATCHEXEC_VERSION}/watchexec-${WATCHEXEC_VERSION}-${WX_ARCH}-unknown-linux-musl.tar.xz" \
+       | tar -xJ -C /bin --wildcards --strip-components=1 '*/watchexec' \
+    && /bin/watchexec --version
 
-COPY ../scripts/tapp-init.sh .
+COPY scripts/tapp-init.sh .
 RUN chmod +x tapp-init.sh && \
     mkdir -p /init
 
