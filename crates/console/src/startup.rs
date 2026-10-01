@@ -108,7 +108,8 @@ pub async fn run(
             .app_data(web::Data::new(client.clone()))
             .app_data(web::Data::new(kubetailor.clone()))
             .app_data(web::Data::new(handlebars.clone()))
-            .service(fs::Files::new("/web/static/", "./web/static/"))
+            // Templates reference assets as /static/...; the files live under ./web/static.
+            .service(fs::Files::new("/static", "./web/static"))
             .service(
                 resource("/login")
                     .route(web::get().to(login))

@@ -33,6 +33,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(quickwit))
             .app_data(Data::new(config.kubetailor.clone()))
             .service(routes::create)
+            .service(routes::config)
             .service(routes::list)
             .service(routes::health)
             .service(routes::get)

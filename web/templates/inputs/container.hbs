@@ -1,20 +1,19 @@
-<div class="image-port-group">
+{{!--
+  Image and instance count: shared by the Docker and Git sources, rendered once so each form
+  field exists once. Ports are the Network step's business.
+--}}
+<div class="space-y-4">
 {{> cmp/text-input
-  name = "image" 
-  title = "Image" 
+  name = "image"
+  title = "Image"
   placeholder = "repository/image:tag"
   value = tapp.container.image
 }}
-{{> cmp/number-input 
-  name="port"
-  title="Port"
-  value=tapp.container.port
-  init=80
-  min=1
-  max=65535
-}}
+<p x-show="source === 'Git'" x-cloak class="-mt-2 pl-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+  Base image your source is built and run in (node, python, rust, …).
+</p>
 
-{{> cmp/number-input 
+{{> cmp/number-input
   name="replicas"
   title="Instances"
   value=tapp.container.replicas

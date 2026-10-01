@@ -1,21 +1,24 @@
 {{!--
-  hx-target / hx-swap / hx-push-url / hx-indicator are inherited by every link below, so each
-  link only needs its hx-get.
+  hx-target / hx-swap / hx-push-url / hx-indicator / hx-preload are inherited (explicitly, htmx 4)
+  by every link below, so each link only needs its hx-get. hx-preload fetches a page on
+  mouseover so the click swaps instantly.
 --}}
 <nav 
     x-cloak 
-    hx-target="#content"
-    hx-swap="innerHTML show:window:top"
-    hx-push-url="true"
-    hx-indicator="#nav-indicator"
+    hx-target:inherited="#content"
+    hx-swap:inherited="innerHTML show:top"
+    hx-push-url:inherited="true"
+    hx-indicator:inherited="#nav-indicator"
+    hx-preload:inherited="mouseover"
     class="fixed left-0 z-20 flex h-svh w-60 shrink-0 flex-col border-r border-neutral-300 bg-neutral-50 p-4 transition-transform duration-300 md:w-64 md:translate-x-0 md:relative dark:border-neutral-700 dark:bg-neutral-900" 
     x-bind:class="showSidebar ? 'translate-x-0' : '-translate-x-60'" 
     aria-label="sidebar navigation"> 
     
     <!-- Logo -->
-    <a href="#" class="ml-2 w-fit text-2xl font-bold text-neutral-900 dark:text-white">
-        <span class="sr-only">homepage</span>
-        <img src="/api/placeholder/96/40" alt="Kubetailor" class="w-24" />
+    <a href="/deployments" hx-get="/deployments"
+       class="ml-2 flex w-fit items-center gap-2 text-xl font-bold text-neutral-900 dark:text-white">
+        <img src="/static/icons/android-chrome-192x192.png" alt="" class="size-7 rounded" />
+        <span>Kubetailor</span>
     </a>
 
     <!-- Search -->

@@ -52,6 +52,10 @@ impl TappRequest {
     }
 }
 
+/// Node-exposed ports default to this inclusive range: above the privileged ports (the ingress
+/// controller's host ports live there), below the Kubernetes node-port range.
+pub const DEFAULT_NODE_PORT_RANGE: (i32, i32) = (1024, 29999);
+
 pub struct TappBuilder;
 
 impl TappBuilder {
@@ -88,7 +92,9 @@ impl TappBuilder {
                 "set `port` (HTTP) or at least one entry in `ports`".to_owned(),
             ));
         }
-        let (min, max) = deployment_config.node_port_range.unwrap_or((1024, 29999));
+        let (min, max) = deployment_config
+            .node_port_range
+            .unwrap_or(DEFAULT_NODE_PORT_RANGE);
         for p in container.ports.iter().filter(|p| p.is_external()) {
             if p.port < min || p.port > max {
                 return Err(TappRequestError::Port(format!(

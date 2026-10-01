@@ -1,11 +1,18 @@
-<!-- Htmx -->
-<script src="https://unpkg.com/htmx.org@2.0.3/dist/htmx.js" integrity="sha384-BBDmZzVt6vjz5YbQqZPtFZW82o8QotoM7RUp5xOxV3nSJ8u2pSdtzFAbGKzTlKtg" crossorigin="anonymous"></script>
-<!-- Tailwinds -->
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- Alpine Plugins -->
-<script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/mask@3.x.x/dist/cdn.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/focus@3.x.x/dist/cdn.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+{{!--
+  Pinned versions with subresource integrity: a CDN file that does not match its hash is not
+  executed, and "@3.x.x"-style URLs could change under us. Bump deliberately.
 
-<!-- Alpine Core -->
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  htmx 4: fetch-based, explicit attribute inheritance (`:inherited`), morph swaps built in.
+  hx-alpine-compat: defers Alpine's mutation observer until htmx has settled and carries x-data
+  state through morph swaps; must come before Alpine, and Alpine must be `defer`.
+  hx-preload: sidebar links fetch their page on mouseover, so a click swaps instantly.
+--}}
+<!-- htmx -->
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0/dist/htmx.min.js" integrity="sha384-BvJpBiO8Kh31EqtJe5DRIeWrHWnCGkwytKs9NKFi86Hhw96dEqdEMzZDeK9iEGTc" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0/dist/ext/hx-alpine-compat.min.js" integrity="sha384-M3WRSUbYGta8wFWkcZcNj+n7cx90JkGDzvOn5M6FNsErfOjIn/9uQjzFxjFAOG5p" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0/dist/ext/hx-preload.min.js" integrity="sha384-LSxugL3er+b7Uzb5mUEXqf/04QBmk03jifaR6p8VcImZQw4rUNO+bNbMC5eYzK82" crossorigin="anonymous"></script>
+<!-- Tailwind (browser build; generates the utilities it sees in the DOM, including what Alpine renders) -->
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3/dist/index.global.js" integrity="sha384-2ql948lIdLcGEE0/qxNiudyTjgauA3RDJERu5xW75kFCvSl5a9odyQYCb6tEjnmB" crossorigin="anonymous"></script>
+<!-- Alpine: focus plugin (x-trap in modals and menus), then core; both deferred, after hx-alpine-compat -->
+<script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/focus@3.17.4/dist/cdn.min.js" integrity="sha384-ysJcnHb6oCzqAGKdoTm+IqKqmPKgxHT+ApZCawkyWOJfMq15WvzW3RRmHl7tWpEY" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.17.4/dist/cdn.min.js" integrity="sha384-5/joNqFnRyVWzXp99bHot6RHG+EksGp+USSgZwPar7T9SD9PKKER37n/8bXBAZGd" crossorigin="anonymous"></script>

@@ -2,9 +2,11 @@
 {{!--
   Plain form post (htmx's default encoding); the server folds the flat fields into a request.
   Success answers with HX-Location (navigation to the progress view), so nothing is swapped here;
-  a validation problem is retargeted by the server into #form-errors.
+  a validation problem comes back as a 422 whose body goes into #form-errors (hx-status:422).
+  The submit button lives in the top bar, attached with form="editForm", which is why hx-disable
+  selects it globally rather than with `find`.
 --}}
-<form id="editForm" hx-post="{{ action.url }}" hx-swap="none" hx-indicator="#form-indicator" hx-disabled-elt="find button[type=submit], [form=editForm]">
+<form id="editForm" hx-post="{{ action.url }}" hx-swap="none" hx-status:422="target:#form-errors swap:innerHTML" hx-indicator="#form-indicator" hx-disable="[form=editForm]">
   <div class="flex items-center gap-3 pb-4">
     <div id="form-errors" class="flex-1"></div>
     <svg id="form-indicator" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="htmx-indicator size-5 animate-spin motion-reduce:animate-none fill-neutral-500">
@@ -19,9 +21,10 @@
     steps: [
       {title: 'Basic', section: 'basics'},
       {title: 'Source', section: 'source'},
+      {title: 'Network', section: 'network'},
+      {title: 'Domains', section: 'domains'},
       {title: 'Data', section: 'data'},
-      {title: 'Environment', section: 'env'},
-      {title: 'Domain', section: 'domain'}
+      {title: 'Environment', section: 'env'}
     ]
     }">
     {{> deployments/wizard}}

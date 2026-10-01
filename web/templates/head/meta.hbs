@@ -1,5 +1,10 @@
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="msapplication-TileColor" content="#da532c" />
 <meta name="theme-color" content="#ffffff" />
-<meta name="htmx-config" content='{"defaultSwapStyle":"outerHTML"}' />
+{{!--
+  defaultSwap: innerHTML is htmx's own default; every element that needs something else says so.
+  noSwap: htmx 4 swaps error responses too; our 4xx/5xx bodies are plain text or empty (an auth
+  401 carries HX-Redirect, which is handled before this), except the 422 the editor form maps to
+  #form-errors with hx-status:422 — an exact status beats the wildcard.
+--}}
+<meta name="htmx-config" content='{"defaultSwap":"innerHTML","noSwap":[204,304,"4xx","5xx"]}' />

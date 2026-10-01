@@ -19,7 +19,12 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::{config::Kubetailor, health::Health, quickwit, tapp::TappRequest};
+use crate::{
+    config::Kubetailor,
+    health::Health,
+    quickwit,
+    tapp::{TappRequest, DEFAULT_NODE_PORT_RANGE},
+};
 
 #[derive(Deserialize)]
 pub struct BasicParams {
@@ -75,7 +80,7 @@ pub async fn create(
     let app: TailoredApp = match TailoredApp::try_from(payload.into_inner()) {
         Ok(k) => k,
         Err(e) => {
-            return HttpResponse::InternalServerError().body(e.to_string());
+            return HttpResponse::BadRequest().body(e.to_string());
         }
     };
     info!("Creating TailoredApp: {app:?}");
@@ -130,7 +135,7 @@ pub async fn update(
     let app: TailoredApp = match TailoredApp::try_from(payload.into_inner()) {
         Ok(k) => k,
         Err(e) => {
-            return HttpResponse::InternalServerError().body(e.to_string());
+            return HttpResponse::BadRequest().body(e.to_string());
         }
     };
     let api: KubeApi<TailoredApp> = KubeApi::namespaced(
@@ -193,6 +198,36 @@ where
         Ok(res) => Some(res.items),
         Err(_) => None,
     }
+}
+
+/// What a client needs to know before it builds a request: the base domain shared subdomains
+/// land under, the node-port range `expose: node`/`nodePort` must stay within, and the image
+/// allow-list if there is one. Nothing here is secret; the console renders it in the wizard.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PublicConfig {
+    pub base_domain: String,
+    pub node_port_range: (i32, i32),
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed_images: Option<Vec<String>>,
+}
+
+impl From<&Kubetailor> for PublicConfig {
+    fn from(k: &Kubetailor) -> Self {
+        PublicConfig {
+            base_domain: k.ingress.base_domain.clone(),
+            node_port_range: k
+                .deployment
+                .node_port_range
+                .unwrap_or(DEFAULT_NODE_PORT_RANGE),
+            allowed_images: k.deployment.allowed_images.clone(),
+        }
+    }
+}
+
+#[get("/config")]
+pub async fn config(kubetailor: Data<Kubetailor>) -> impl Responder {
+    HttpResponse::Ok().json(PublicConfig::from(kubetailor.as_ref()))
 }
 
 #[get("/list")]

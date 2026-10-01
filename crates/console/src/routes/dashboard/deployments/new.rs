@@ -2,6 +2,7 @@ use crate::routes::prelude::*;
 
 pub async fn page(
     hb: web::Data<Handlebars<'_>>,
+    kubetailor: web::Data<Kubetailor>,
     req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
     let user = req
@@ -18,6 +19,9 @@ pub async fn page(
         "return_url": "/deployments",
         "action": action,
         "user": user,
+        "config": kubetailor.config().await,
+        "port_rows": deployments::form::port_rows(None),
+        "max_ports": deployments::form::MAX_PORTS,
     });
 
     let body = hb.render("deployments/editor", &data).map_err(e500)?;
@@ -40,7 +44,8 @@ pub async fn form(
         .expect("UserId should be present after middleware check")
         .to_string();
 
-    let mut tapp = match deployments::form::tapp_from_form(&form) {
+    let config = kubetailor.config().await;
+    let mut tapp = match deployments::form::tapp_from_form(&form, &config) {
         Ok(tapp) => tapp,
         Err(message) => return Ok(form_error(&message)),
     };

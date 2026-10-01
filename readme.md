@@ -142,27 +142,43 @@ renames the others.
 it is now; `status.message` carries the reason when an apply fails (for example an ingress with
 domains but no `container.port`).
 
-## Console conventions (htmx)
+## Console conventions (htmx 4)
 
-The console is server-rendered HTML with [htmx](https://htmx.org) for navigation and partial
-updates, Alpine only for purely visual state (open menus, wizard steps). Rules the handlers follow:
+The console is server-rendered HTML with [htmx 4](https://four.htmx.org) for navigation and
+partial updates, Alpine only for purely visual state (open menus, wizard steps, repeater rows).
+Scripts are pinned with subresource integrity in `web/templates/head/scripts.hbs`; the
+`hx-alpine-compat` extension keeps Alpine state through morph swaps and `hx-preload` fetches
+sidebar pages on hover. Rules the handlers follow:
 
-- Every page renders inside `#content`. A handler checks `HX-Request` to render the full shell or
-  just the page (`initial`), and `HX-Target` to render only the part that asked
-  (`req.targets("deployments-table")`), so a poller never gets more HTML than it swaps.
-- Pollers replace themselves (`hx-swap="outerHTML"`) and the server decides when they stop: the
-  deploy progress view is rendered without `hx-trigger` once everything is ready, the delete
-  progress view answers with `HX-Location` once the deployment is gone.
+- Every page renders inside `#content`. A handler checks `req.is_htmx()` to render the full
+  shell or just the page (`initial`), and `req.targets("deployments-table")` to render only the
+  part that asked, so a poller never gets more HTML than it swaps. `is_htmx()` is false for a
+  back/forward restore (`HX-Request-Type: full`): htmx 4 re-fetches the URL and picks
+  `[hx-history-elt]` out of a whole page. `HX-Target` arrives as `tag#id`.
+- Attribute inheritance is explicit: the sidebar's `hx-target:inherited` etc. cover its links;
+  everything else carries its own attributes.
+- Pollers whose markup keeps the same attributes morph over themselves (`hx-swap="outerMorph"`:
+  the deployments table, the log pane), so open menus, focus and scroll survive a refresh.
+  Pollers the server stops by dropping `hx-trigger` (deploy and delete progress) must use
+  `outerHTML`: a morph keeps the element and its trigger alive.
 - Pausing a poller is a checkbox the trigger reads on every tick
-  (`hx-trigger="every 5s [document.getElementById('autorefresh')?.checked]"`), never an attribute
+  (`hx-trigger="every[document.getElementById('autorefresh')?.checked] 5s"`), never an attribute
   rewritten by JavaScript: htmx reads `hx-*` once, when it processes the element.
 - Redirects go through `utils::redirect` (`HX-Location` into `#content` for htmx callers, a 303
   otherwise) or `redirect_full` (`HX-Redirect`, for leaving the shell). A plain 303 is followed by
-  the browser's XHR and the caller receives the target's fragment instead of navigating.
-- Forms post as forms. Validation problems come back as a `200` with `HX-Retarget: #form-errors`
-  so the message lands above the form and the form keeps its state; success is a redirect.
+  the fetch and the caller receives the target's fragment instead of navigating.
+- Forms post as forms. Validation problems come back as a `422` whose body the form routes into
+  `#form-errors` (`hx-status:422="target:#form-errors"`), so the message lands above the form
+  and the form keeps its state; success is a redirect. Other 4xx/5xx never swap (`noSwap` in the
+  htmx config): their bodies are plain text.
 - No `.unwrap()` on upstream calls: a backend hiccup is a warning in the row (`health: null`) or
   an inline error, not a 500 page.
+- Repeating inputs (environment, ports) post flat, repeated fields; `form::tapp_from_form` folds
+  them back in document order. The ports repeater is Alpine state seeded from the deployment with
+  the `json` helper (`x-data="{ ports: {{{json tapp.container.ports}}} }"`): every row posts a
+  `port_number` / `port_protocol` / `port_expose` triple, and a row with no number is ignored.
+  The HTTP port is optional in the wizard; an app without one and without other ports is
+  rejected before it reaches the API.
 
 ## Services
 

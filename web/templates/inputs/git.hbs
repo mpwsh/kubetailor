@@ -1,3 +1,4 @@
+{{!-- Git-only fields; image, HTTP port and instances are in inputs/container, shared with Docker. --}}
 {{> cmp/custom-radio
       columns=2
       group="type"
@@ -6,31 +7,6 @@
         {"title": "Static site", "description": "Static files (served from nginx:latest)", "icon": "fa-solid fa-file"}
       ]
 }}
-<div class="image-port-group">
-{{> cmp/text-input
-  name = "image" 
-  title = "Base Image to build your source" 
-  placeholder = "repository/image:tag"
-  value = tapp.container.image
-}}
-{{> cmp/number-input 
-  name="port"
-  title="Port"
-  value=tapp.container.port
-  init=80
-  min=1
-  max=65535
-}}
-
-{{> cmp/number-input 
-  name="replicas"
-  title="Instances"
-  value=tapp.container.replicas
-  init=1
-  min=1
-  max=10
-}}
-</div>
 {{> cmp/text-input
   name = "repository"
   title = "Repository URL"
@@ -45,13 +21,13 @@
   default = "main"
 }}
 {{> cmp/text-input
-  title = "Build command" 
+  title = "Build command"
   name = "buildcmd"
   placeholder = "npm install"
   value = tapp.container.buildCommand
 }}
 {{> cmp/text-input
-  title = "Run Command" 
+  title = "Run Command"
   name = "runcmd"
   placeholder = "npm start"
   value = tapp.container.runCommand

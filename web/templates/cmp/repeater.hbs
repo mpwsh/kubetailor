@@ -1,0 +1,48 @@
+{{!--
+  A two-column list the user can grow: key / value rows kept in Alpine state, seeded from the
+  deployment (an object: its entries become rows; missing or null is an empty list). Every row
+  posts `<prefix>_key` and `<prefix>_value`; the server zips them in document order and skips
+  rows whose key is blank.
+
+  Params: prefix, title, help, key_placeholder, value_placeholder, add_label, seed,
+          kind — "text" (default), "secret" (masked, with a reveal toggle) or "textarea"
+          (multi-line, monospace: file contents).
+--}}
+<div x-data="{ rows: Object.entries({{{json seed}}}).map(([key, value]) => ({ key, value })), reveal: false }"
+     class="flex flex-col gap-2 text-neutral-600 dark:text-neutral-300">
+    <div class="flex items-baseline justify-between">
+        <span class="pl-0.5 text-sm font-medium text-neutral-900 dark:text-white">{{title}}</span>
+        {{#if (eq kind "secret")}}
+        <button type="button" @click="reveal = !reveal" class="text-xs underline-offset-2 hover:underline"
+                x-text="reveal ? 'Hide values' : 'Show values'"></button>
+        {{/if}}
+    </div>
+    {{#if help}}<p class="pl-0.5 text-xs text-neutral-500 dark:text-neutral-400">{{help}}</p>{{/if}}
+
+    <template x-for="(r, i) in rows" :key="i">
+        <div class="flex items-start gap-2">
+            <input type="text" name="{{prefix}}_key" x-model="r.key" placeholder="{{key_placeholder}}"
+                   aria-label="{{title}} key" autocomplete="off"
+                   class="w-2/5 rounded-md border border-neutral-300 bg-neutral-50 px-2 py-2 text-sm {{#if (eq kind "textarea")}}font-mono{{/if}} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900/50 dark:focus-visible:outline-white"/>
+            {{#if (eq kind "textarea")}}
+            <textarea name="{{prefix}}_value" x-model="r.value" placeholder="{{value_placeholder}}"
+                      aria-label="{{title}} content" rows="4" spellcheck="false"
+                      class="w-3/5 rounded-md border border-neutral-300 bg-neutral-50 px-2 py-2 font-mono text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900/50 dark:focus-visible:outline-white"></textarea>
+            {{else}}
+            <input {{#if (eq kind "secret")}}:type="reveal ? 'text' : 'password'"{{else}}type="text"{{/if}}
+                   name="{{prefix}}_value" x-model="r.value" placeholder="{{value_placeholder}}"
+                   aria-label="{{title}} value" autocomplete="off"
+                   class="w-3/5 rounded-md border border-neutral-300 bg-neutral-50 px-2 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900/50 dark:focus-visible:outline-white"/>
+            {{/if}}
+            <button type="button" @click="rows.splice(i, 1)" aria-label="remove"
+                    class="shrink-0 rounded-md border border-neutral-300 px-2.5 py-2 text-sm text-neutral-600 hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:text-neutral-300 dark:focus-visible:outline-white">
+                <i class="fas fa-trash" aria-hidden="true"></i>
+            </button>
+        </div>
+    </template>
+
+    <button type="button" @click="rows.push({ key: '', value: '' })"
+            class="w-fit rounded-md border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-sm hover:opacity-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900 dark:focus-visible:outline-white">
+        + {{add_label}}
+    </button>
+</div>
