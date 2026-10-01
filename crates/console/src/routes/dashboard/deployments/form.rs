@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use crate::models::{Container, Domains, Git, TappConfig};
+use crate::models::{Container, Domains, Git, Port, TappConfig};
 
 type Pairs = [(String, String)];
 
@@ -51,15 +51,77 @@ fn files_of(pairs: &Pairs) -> HashMap<String, String> {
     files
 }
 
-fn number(pairs: &Pairs, key: &str, min: u32, max: u32) -> Result<u32, String> {
-    let raw = first(pairs, key).ok_or_else(|| format!("{key} is required"))?;
+fn parse_number(raw: &str, what: &str, min: u32, max: u32) -> Result<u32, String> {
     let n: u32 = raw
+        .trim()
         .parse()
-        .map_err(|_| format!("{key} must be a whole number, got `{raw}`"))?;
+        .map_err(|_| format!("{what} must be a whole number, got `{raw}`"))?;
     if n < min || n > max {
-        return Err(format!("{key} must be between {min} and {max}"));
+        return Err(format!("{what} must be between {min} and {max}"));
     }
     Ok(n)
+}
+
+fn number(pairs: &Pairs, key: &str, min: u32, max: u32) -> Result<u32, String> {
+    let raw = first(pairs, key).ok_or_else(|| format!("{key} is required"))?;
+    parse_number(&raw, key, min, max)
+}
+
+/// Like [`number`], but an absent or empty input is `None` rather than an error.
+fn optional_number(pairs: &Pairs, key: &str, min: u32, max: u32) -> Result<Option<u32>, String> {
+    first(pairs, key)
+        .map(|raw| parse_number(&raw, key, min, max))
+        .transpose()
+}
+
+/// The ports repeater posts one `port_number` / `port_protocol` / `port_expose` triple per row,
+/// in document order. A row whose number is blank is an unfilled "Add port" and is skipped.
+fn ports_of(pairs: &Pairs) -> Result<Vec<Port>, String> {
+    let column = |name: &str| -> Vec<&str> {
+        pairs
+            .iter()
+            .filter(|(k, _)| k == name)
+            .map(|(_, v)| v.as_str())
+            .collect()
+    };
+    let numbers = column("port_number");
+    let protocols = column("port_protocol");
+    let exposures = column("port_expose");
+    if numbers.len() != protocols.len() || numbers.len() != exposures.len() {
+        return Err("the ports list is incomplete; reload the page and try again".to_owned());
+    }
+
+    let mut ports: Vec<Port> = Vec::new();
+    for ((number, protocol), expose) in numbers.into_iter().zip(protocols).zip(exposures) {
+        if number.trim().is_empty() {
+            continue;
+        }
+        let port = parse_number(number, "port", 1, 65535)?;
+        let protocol = protocol.trim().to_ascii_uppercase();
+        if !Port::PROTOCOLS.contains(&protocol.as_str()) {
+            return Err(format!(
+                "port {port}: protocol must be TCP or UDP, got `{protocol}`"
+            ));
+        }
+        let expose = expose.trim().to_owned();
+        if !Port::EXPOSURES.contains(&expose.as_str()) {
+            return Err(format!(
+                "port {port}: exposure must be one of cluster, node or nodePort, got `{expose}`"
+            ));
+        }
+        if ports
+            .iter()
+            .any(|p| p.port == port && p.protocol == protocol)
+        {
+            return Err(format!("port {port}/{protocol} is listed twice"));
+        }
+        ports.push(Port {
+            port,
+            protocol,
+            expose,
+        });
+    }
+    Ok(ports)
 }
 
 fn valid_name(name: &str) -> bool {
@@ -84,8 +146,15 @@ pub fn tapp_from_form(pairs: &Pairs) -> Result<TappConfig, String> {
         ));
     }
     let image = first(pairs, "image").ok_or("Image is required")?;
-    let port = number(pairs, "port", 1, 65535)?;
+    let port = optional_number(pairs, "port", 1, 65535)?;
+    let ports = ports_of(pairs)?;
+    if port.is_none() && ports.is_empty() {
+        return Err(
+            "The app must listen somewhere: set the HTTP port or add at least one port".to_owned(),
+        );
+    }
     let replicas = number(pairs, "replicas", 1, 10)?;
+    let region = first(pairs, "region").map(|r| r.to_lowercase());
 
     let shared = first(pairs, "shared").unwrap_or_else(|| name.clone());
     if !valid_name(&shared) {
@@ -109,18 +178,21 @@ pub fn tapp_from_form(pairs: &Pairs) -> Result<TappConfig, String> {
 
     Ok(TappConfig {
         name,
-        group: first(pairs, "group"),
+        // The API wants a string here; an empty group is what the wizard always sent.
+        group: Some(first(pairs, "group").unwrap_or_default()),
         owner: String::new(),
         domains: Domains { custom, shared },
         container: Container {
             image,
             replicas,
             port,
+            ports,
             volumes: (!volumes.is_empty()).then_some(volumes),
             files: (!files.is_empty()).then_some(files),
             build_command: first(pairs, "buildcmd"),
             run_command: first(pairs, "runcmd"),
         },
+        region,
         git,
         env: (!env.is_empty()).then_some(env),
         secrets: (!secrets.is_empty()).then_some(secrets),
@@ -160,7 +232,9 @@ mod tests {
         let t = tapp_from_form(&pairs).unwrap();
         assert_eq!(t.name, "hello");
         assert_eq!(t.container.image, "nginx");
-        assert_eq!(t.container.port, 80);
+        assert_eq!(t.container.port, Some(80));
+        assert!(t.container.ports.is_empty());
+        assert!(t.region.is_none());
         assert_eq!(t.env.unwrap()["A"], "1");
         assert_eq!(t.container.volumes.unwrap()["/data"], "1Gi");
         assert_eq!(t.container.files.unwrap()["/etc/app/conf.toml"], "x = 1");
@@ -176,6 +250,95 @@ mod tests {
         let err = tapp_from_form(&p(&[("name", "ok"), ("image", "nginx"), ("port", "99999")]))
             .unwrap_err();
         assert!(err.contains("port"), "{err}");
+    }
+
+    #[test]
+    fn folds_the_ports_repeater() {
+        let t = tapp_from_form(&p(&[
+            ("name", "game"),
+            ("image", "game:1"),
+            ("port", ""),
+            ("replicas", "1"),
+            ("region", "SCL"),
+            ("port_number", "7777"),
+            ("port_protocol", "UDP"),
+            ("port_expose", "node"),
+            ("port_number", ""), // an "Add port" row left blank
+            ("port_protocol", "TCP"),
+            ("port_expose", "cluster"),
+            ("port_number", "9000"),
+            ("port_protocol", "tcp"),
+            ("port_expose", "nodePort"),
+        ]))
+        .unwrap();
+        assert_eq!(t.container.port, None);
+        assert_eq!(t.region.as_deref(), Some("scl"));
+        assert_eq!(
+            t.container.ports,
+            vec![
+                Port {
+                    port: 7777,
+                    protocol: "UDP".into(),
+                    expose: "node".into()
+                },
+                Port {
+                    port: 9000,
+                    protocol: "TCP".into(),
+                    expose: "nodePort".into()
+                },
+            ]
+        );
+        // The API spelling survives the round trip.
+        let json = serde_json::to_value(&t).unwrap();
+        assert_eq!(json["container"]["ports"][0]["expose"], "node");
+        assert_eq!(json["container"]["ports"][1]["protocol"], "TCP");
+        assert!(json["container"].get("port").is_none());
+    }
+
+    #[test]
+    fn an_app_must_listen_somewhere() {
+        let err = tapp_from_form(&p(&[
+            ("name", "quiet"),
+            ("image", "x"),
+            ("port", ""),
+            ("replicas", "1"),
+        ]))
+        .unwrap_err();
+        assert!(err.contains("listen somewhere"), "{err}");
+
+        let t = tapp_from_form(&p(&[
+            ("name", "ok"),
+            ("image", "x"),
+            ("port", "80"),
+            ("replicas", "1"),
+        ]))
+        .unwrap();
+        assert_eq!(t.group.as_deref(), Some(""), "the API rejects a null group");
+
+        let err = tapp_from_form(&p(&[
+            ("name", "dup"),
+            ("image", "x"),
+            ("replicas", "1"),
+            ("port_number", "53"),
+            ("port_protocol", "UDP"),
+            ("port_expose", "node"),
+            ("port_number", "53"),
+            ("port_protocol", "UDP"),
+            ("port_expose", "cluster"),
+        ]))
+        .unwrap_err();
+        assert!(err.contains("twice"), "{err}");
+
+        let err = tapp_from_form(&p(&[
+            ("name", "bad"),
+            ("image", "x"),
+            ("replicas", "1"),
+            ("port_number", "53"),
+            ("port_protocol", "SCTP"),
+            ("port_expose", "node"),
+        ]))
+        .unwrap_err();
+        assert!(err.contains("TCP or UDP"), "{err}");
     }
 
     #[test]

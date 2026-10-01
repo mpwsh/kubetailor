@@ -10,6 +10,9 @@ pub struct TappConfig {
     pub owner: String,
     pub domains: Domains,
     pub container: Container,
+    /// Region the app must run in (a node label); unset lets the scheduler choose.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
     pub git: Option<Git>,
     pub env: Option<HashMap<String, String>>,
     pub secrets: Option<HashMap<String, String>>,
@@ -33,13 +36,43 @@ pub struct Git {
 pub struct Container {
     pub image: String,
     pub replicas: u32,
-    pub port: u32,
+    /// The HTTP port the ingress routes the app's domains to; `None` for apps without HTTP.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port: Option<u32>,
+    /// Other ports, each with its protocol and how it is exposed — the only way to publish UDP.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ports: Vec<Port>,
     pub volumes: Option<HashMap<String, String>>,
     pub files: Option<HashMap<String, String>>,
     #[serde(rename = "buildCommand", skip_serializing_if = "is_empty_string")]
     pub build_command: Option<String>,
     #[serde(rename = "runCommand", skip_serializing_if = "is_empty_string")]
     pub run_command: Option<String>,
+}
+
+/// One extra container port, spelled as the API spells it: `protocol` is `TCP` or `UDP`,
+/// `expose` is `cluster` (Service only), `node` (hostPort on the node's public IP, same port
+/// number) or `nodePort` (NodePort Service, number assigned by Kubernetes).
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+pub struct Port {
+    pub port: u32,
+    #[serde(default = "Port::default_protocol")]
+    pub protocol: String,
+    #[serde(default = "Port::default_expose")]
+    pub expose: String,
+}
+
+impl Port {
+    pub const PROTOCOLS: [&'static str; 2] = ["TCP", "UDP"];
+    pub const EXPOSURES: [&'static str; 3] = ["cluster", "node", "nodePort"];
+
+    fn default_protocol() -> String {
+        "TCP".to_owned()
+    }
+
+    fn default_expose() -> String {
+        "cluster".to_owned()
+    }
 }
 
 fn is_empty_string(opt: &Option<String>) -> bool {

@@ -64,6 +64,28 @@ fn register_helpers(handlebars: &mut Handlebars) {
     // is what `{{#if (eq a b)}}` needs. A helper that writes "true"/"false" as text is always
     // truthy inside `#if`/`#unless`.
 
+    // `json`: the value as JSON, HTML-escaped so it can seed an Alpine `x-data="..."` attribute
+    // with `{{{json value}}}` (the browser decodes the entities before Alpine evaluates it).
+    // Missing or null renders as `[]`, which is what a list-valued state wants.
+    handlebars.register_helper(
+        "json",
+        Box::new(
+            |h: &Helper,
+             _: &Handlebars,
+             _: &Context,
+             _: &mut RenderContext,
+             out: &mut dyn Output|
+             -> HelperResult {
+                let value = match h.param(0).map(|v| v.value()) {
+                    None | Some(serde_json::Value::Null) => "[]".to_owned(),
+                    Some(v) => v.to_string(),
+                };
+                out.write(&handlebars::html_escape(&value))?;
+                Ok(())
+            },
+        ),
+    );
+
     // Default helper
     handlebars.register_helper(
         "default",
@@ -88,6 +110,11 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    /// Attribute lists in the templates span lines; compare them with whitespace collapsed.
+    fn squeeze(page: &str) -> String {
+        page.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
 
     /// The templates live at the repository root; tests run with the crate as cwd.
     fn registry() -> Handlebars<'static> {
@@ -232,6 +259,57 @@ mod tests {
         assert!(page.contains(r#"id="form-errors""#));
         assert!(!page.contains("post.js"));
         assert!(page.contains(r#"name="repository""#) && page.contains(r#"name="branch""#));
+        // Shared fields exist once; a new deployment starts with HTTP on 80 and no other ports.
+        assert_eq!(page.matches(r#"name="port""#).count(), 1);
+        let flat = squeeze(&page);
+        assert!(flat.contains(r#"name="port" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="none" value="80""#));
+        assert!(page.contains(r#"x-data="{ ports: [] }""#));
+        assert!(page.contains(r#"name="port_number""#) && page.contains(r#"name="port_expose""#));
+        assert!(page.contains(r#"name="region""#));
+    }
+
+    #[test]
+    fn editor_shows_an_existing_udp_app_without_inventing_http() {
+        let hb = registry();
+        let data = json!({
+            "initial": false, "title": "Editing deployment", "user": "x@y", "return_url": "/deployments",
+            "action": {"name": "Save", "url": "/deployments/edit", "is_form": true},
+            "tapp": {
+                "name": "game", "region": "scl", "domains": {"shared": "game", "custom": null},
+                "container": {"image": "game:1", "port": null, "replicas": 1,
+                              "ports": [{"port": 7777, "protocol": "UDP", "expose": "node"}]},
+                "git": null,
+            },
+            "files": [], "custom_enabled": false,
+        });
+        let page = squeeze(&hb.render("deployments/editor", &data).unwrap());
+        assert!(
+            page.contains(r#"placeholder="none" value="""#),
+            "HTTP port must stay empty"
+        );
+        assert!(page.contains(r#"ports: [{&quot;expose&quot;:&quot;node&quot;,&quot;port&quot;:7777,&quot;protocol&quot;:&quot;UDP&quot;}]"#));
+        assert!(page.contains(
+            r#"name="region" type="text" placeholder="any" autocomplete="off" value="scl""#
+        ));
+    }
+
+    #[test]
+    fn json_helper_escapes_for_attributes() {
+        let hb = registry();
+        let out = hb
+            .render_template(
+                r#"<div x-data="{ ports: {{{json tapp.container.ports}}} }">"#,
+                &json!({"tapp": {"container": {"ports": [{"port": 7777, "protocol": "UDP", "expose": "node"}]}}}),
+            )
+            .unwrap();
+        assert_eq!(
+            out,
+            r#"<div x-data="{ ports: [{&quot;expose&quot;:&quot;node&quot;,&quot;port&quot;:7777,&quot;protocol&quot;:&quot;UDP&quot;}] }">"#
+        );
+        let out = hb
+            .render_template("{{{json missing}}}", &json!({}))
+            .unwrap();
+        assert_eq!(out, "[]");
     }
 
     #[test]

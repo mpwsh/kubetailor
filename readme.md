@@ -163,6 +163,12 @@ updates, Alpine only for purely visual state (open menus, wizard steps). Rules t
   so the message lands above the form and the form keeps its state; success is a redirect.
 - No `.unwrap()` on upstream calls: a backend hiccup is a warning in the row (`health: null`) or
   an inline error, not a 500 page.
+- Repeating inputs (environment, ports) post flat, repeated fields; `form::tapp_from_form` folds
+  them back in document order. The ports repeater is Alpine state seeded from the deployment with
+  the `json` helper (`x-data="{ ports: {{{json tapp.container.ports}}} }"`): every row posts a
+  `port_number` / `port_protocol` / `port_expose` triple, and a row with no number is ignored.
+  The HTTP port is optional in the wizard; an app without one and without other ports is
+  rejected before it reaches the API.
 
 ## Services
 

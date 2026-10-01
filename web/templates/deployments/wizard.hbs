@@ -38,8 +38,8 @@
         {"title": "Git", "description": "Any Git repository", "icon": "fa-solid fa-code-branch"}
       ]
     }}
-    <div x-show="source === 'Docker'" class="mt-4">{{> inputs/container}}</div>
-    <div x-show="source === 'Git'" class="mt-4">{{> inputs/git}}</div>
+    <div class="mt-4">{{> inputs/container}}</div>
+    <div x-show="source === 'Git'" x-cloak class="mt-4 space-y-4">{{> inputs/git}}</div>
   </div>
 
   <div x-show="currentStep === 3">
@@ -50,8 +50,9 @@
     {{> inputs/environment}}
   </div>
 
-  <div x-show="currentStep === 5">
+  <div x-show="currentStep === 5" class="space-y-6">
     {{> inputs/domain}}
+    {{> inputs/ports}}
   </div>
 
   {{!-- Navigation --}}

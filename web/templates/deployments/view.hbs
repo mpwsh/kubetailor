@@ -8,8 +8,20 @@
   <div class="subtitle-white">{{tapp.container.image}}</div>
 </div>
 <div class="form-group">
-  <span class="subtitle no-select">Port:</span>
-  <div class="subtitle-white">{{tapp.container.port}}</div>
+  <span class="subtitle no-select">HTTP port:</span>
+  <div class="subtitle-white">{{#if tapp.container.port}}{{tapp.container.port}}{{else}}none{{/if}}</div>
+</div>
+{{#if tapp.container.ports}}
+<div class="form-group">
+  <span class="subtitle no-select">Other ports:</span>
+  {{#each tapp.container.ports}}
+    <div class="subtitle-white">{{port}}/{{protocol}} — {{expose}}</div>
+  {{/each}}
+</div>
+{{/if}}
+<div class="form-group">
+  <span class="subtitle no-select">Region:</span>
+  <div class="subtitle-white">{{#if tapp.region}}{{tapp.region}}{{else}}any{{/if}}</div>
 </div>
 <div class="form-group">
   <span class="subtitle no-select">Shared Domain:</span>

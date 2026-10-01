@@ -668,3 +668,8 @@ textarea {
 .status-dot-green   { background-color: #22c55e; }
 .status-dot-red     { background-color: #ef4444; }
 .status-dot-neutral { background-color: #a3a3a3; }
+
+/* ── Alpine ───────────────────────────────────────────────────────────────── */
+/* Elements marked x-cloak stay hidden until Alpine has evaluated their x-show, so a Git-only
+   pane or a dropdown does not flash on first paint. Alpine removes the attribute itself. */
+[x-cloak] { display: none !important; }
