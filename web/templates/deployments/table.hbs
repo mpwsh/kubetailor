@@ -1,0 +1,87 @@
+{{!--
+  The deployments table, with each row's health rendered by the server. It replaces itself
+  (outerHTML) with a fresh copy every 5 seconds while the auto-refresh box is ticked; the
+  handler renders only this fragment when HX-Target names it.
+--}}
+<div id="deployments-table"
+     hx-get="/deployments"
+     hx-trigger="every 5s [document.getElementById('autorefresh')?.checked]"
+     hx-swap="outerHTML"
+     hx-indicator="#table-refresh-indicator">
+{{#if deployments}}
+    <table class="w-full text-left text-sm text-neutral-600 dark:text-neutral-300">
+        <thead class="border-b border-neutral-300 bg-neutral-50 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">
+            <tr>
+                <th scope="col" class="p-4">Name</th>
+                <th scope="col" class="hidden sm:table-cell p-4">Started At</th>
+                <th scope="col" class="hidden sm:table-cell p-4">Endpoint</th>
+                <th scope="col" class="hidden sm:table-cell p-4">SSL Cert</th>
+                <th scope="col" class="p-4 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-300 dark:divide-neutral-700">
+            {{#each deployments}}
+            <tr>
+                <td class="p-4">
+                    <div class="flex w-max items-center gap-2">
+                        {{#if health}}
+                            {{#if health.deployment.ready}}
+                                {{> cmp/status-dot color="green" label="Deployment healthy"}}
+                            {{else}}
+                                {{> cmp/status-dot color="red" label="Deployment unhealthy"}}
+                            {{/if}}
+                        {{else}}
+                            {{> cmp/status-dot color="neutral" label="Status unknown"}}
+                        {{/if}}
+                        <div class="flex flex-col">
+                            <p class="text-neutral-600 dark:text-neutral-300">
+                                <a href="/deployments/view?name={{name}}"
+                                   hx-get="/deployments/view?name={{name}}" hx-target="#content" hx-push-url="true"
+                                   class="font-medium text-black underline-offset-2 hover:underline focus:underline focus:outline-none dark:text-white">
+                                    {{name}}
+                                </a>
+                            </p>
+                            {{#if health}}
+                            <span class="text-xs text-neutral-600 opacity-85 dark:text-neutral-300">
+                                {{health.deployment.replicas.ready}}/{{health.deployment.replicas.desired}} ready{{#if health.deployment.restarts}}, {{health.deployment.restarts}} restarts{{/if}}
+                            </span>
+                            {{/if}}
+                        </div>
+                    </div>
+                </td>
+                <td class="hidden sm:table-cell p-4">{{#if started}}{{started}}{{else}}N/A{{/if}}</td>
+                <td class="hidden sm:table-cell p-4">
+                    {{#if domain}}
+                    <a href="https://{{domain}}" target="_blank" rel="noopener" class="text-blue-600 hover:underline dark:text-blue-400">{{domain}}</a>
+                    {{else}}
+                    N/A
+                    {{/if}}
+                </td>
+                <td class="hidden sm:table-cell p-4">
+                    <div class="flex justify-center">
+                        {{#if health}}
+                            {{#if health.domains.ssl}}
+                                {{> cmp/status-dot color="green" label="SSL active"}}
+                            {{else}}
+                                {{> cmp/status-dot color="red" label="SSL inactive"}}
+                            {{/if}}
+                        {{else}}
+                            {{> cmp/status-dot color="neutral" label="Status unknown"}}
+                        {{/if}}
+                    </div>
+                </td>
+                <td class="p-4">
+                    <div class="flex justify-end">
+                        {{> cmp/dropdown title="Actions" items=actions}}
+                    </div>
+                </td>
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+{{else}}
+    <div class="px-4 py-8 text-center text-sm text-neutral-600 dark:text-neutral-300">
+        <p>No deployments yet.</p>
+    </div>
+{{/if}}
+</div>

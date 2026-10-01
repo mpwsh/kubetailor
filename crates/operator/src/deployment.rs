@@ -1,18 +1,76 @@
-use kubetailor::k8s_openapi::api::{
-    apps::v1::DeploymentSpec,
-    core::v1::{
-        ConfigMapEnvSource, ConfigMapVolumeSource, Container, ContainerPort, EmptyDirVolumeSource,
-        EnvFromSource, EnvVar, PersistentVolumeClaimVolumeSource, PodSpec, PodTemplateSpec,
-        SecretEnvSource, SecurityContext, Volume, VolumeMount,
+use kubetailor::{
+    crd::{self, Expose},
+    k8s_openapi::api::{
+        apps::v1::DeploymentSpec,
+        core::v1::{
+            ConfigMapEnvSource, ConfigMapVolumeSource, Container, ContainerPort,
+            EmptyDirVolumeSource, EnvFromSource, EnvVar, PersistentVolumeClaimVolumeSource,
+            PodSpec, PodTemplateSpec, SecretEnvSource, SecurityContext, Volume, VolumeMount,
+        },
     },
 };
 
 use crate::prelude::*;
 
+/// Well-known topology label every flint node carries.
+pub const REGION_LABEL: &str = "topology.kubernetes.io/region";
+
 const GIT_SYNC_DEST: &str = "git-sync";
 const GIT_SYNC_ROOT: &str = "/tmp/git";
 
-fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -> Deployment {
+/// Region pinning: with one node per region this selects "the" node; with several it lets the
+/// scheduler pick one whose host ports are free.
+pub fn node_selector(deployment: &crd::Deployment) -> Option<BTreeMap<String, String>> {
+    deployment
+        .region
+        .as_ref()
+        .map(|region| BTreeMap::from([(REGION_LABEL.to_owned(), region.to_owned())]))
+}
+
+/// The HTTP port (if any) followed by the extra ports. `expose: node` ports bind the same number
+/// on the node; everything else is a plain container port.
+pub fn container_ports(container: &crd::Container) -> Vec<ContainerPort> {
+    let mut ports = Vec::new();
+    if let Some(http) = container.port {
+        ports.push(ContainerPort {
+            name: Some("http".to_owned()),
+            container_port: http,
+            protocol: Some("TCP".to_owned()),
+            ..ContainerPort::default()
+        });
+    }
+    for p in &container.ports {
+        ports.push(ContainerPort {
+            name: Some(p.name()),
+            container_port: p.port,
+            protocol: Some(p.protocol.as_str().to_owned()),
+            host_port: (p.expose == Expose::Node).then_some(p.port),
+            ..ContainerPort::default()
+        });
+    }
+    ports
+}
+
+/// What backs a mount in the app container.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MountSource {
+    /// A ConfigMap holding the files of one directory.
+    ConfigMap(String),
+    /// A PersistentVolumeClaim.
+    Pvc(String),
+}
+
+/// One directory mounted into the app container.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Mount {
+    /// Pod volume name (a DNS label, 63 chars max, so not the resource name itself).
+    pub volume: String,
+    /// Mount path inside the container.
+    pub path: String,
+    pub source: MountSource,
+}
+
+pub fn new(meta: &TappMeta, app: &TailoredApp, mounts: &[Mount]) -> Deployment {
     let deployment = app.spec.deployment.clone();
     let mut containers = Vec::new();
     let mut volume_mounts = Vec::new();
@@ -93,10 +151,7 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
         image: Some(deployment.container.image.to_owned()),
         image_pull_policy: Some("IfNotPresent".to_owned()),
         command,
-        ports: Some(vec![ContainerPort {
-            container_port: deployment.container.port,
-            ..ContainerPort::default()
-        }]),
+        ports: Some(container_ports(&app.spec.deployment.container)),
         env_from: if !env_from.is_empty() {
             Some(env_from)
         } else {
@@ -113,36 +168,30 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
         ..Container::default()
     };
 
-    for (name, mount_path) in volumes.iter() {
-        // Create a volume mount for each volume
-        let vol_mount = VolumeMount {
-            name: name.clone(),
-            mount_path: mount_path.clone(),
+    for m in mounts {
+        volume_mounts.push(VolumeMount {
+            name: m.volume.clone(),
+            mount_path: m.path.clone(),
             ..VolumeMount::default()
-        };
-        volume_mounts.push(vol_mount);
-
-        if name.starts_with("files") {
-            let volume = Volume {
-                name: name.clone(),
+        });
+        pod_volumes.push(match &m.source {
+            MountSource::ConfigMap(name) => Volume {
+                name: m.volume.clone(),
                 config_map: Some(ConfigMapVolumeSource {
                     name: Some(name.clone()),
                     ..ConfigMapVolumeSource::default()
                 }),
                 ..Volume::default()
-            };
-            pod_volumes.push(volume);
-        } else if name.starts_with("pvc") {
-            let volume = Volume {
-                name: name.clone(),
+            },
+            MountSource::Pvc(name) => Volume {
+                name: m.volume.clone(),
                 persistent_volume_claim: Some(PersistentVolumeClaimVolumeSource {
                     claim_name: name.clone(),
                     ..PersistentVolumeClaimVolumeSource::default()
                 }),
                 ..Volume::default()
-            };
-            pod_volumes.push(volume);
-        }
+            },
+        });
     }
 
     if let Some(git_config) = app.spec.git.clone() {
@@ -222,6 +271,7 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
         volumes: Some(pod_volumes),
         enable_service_links: app.spec.deployment.enable_service_links,
         service_account: app.spec.deployment.service_account.clone(),
+        node_selector: node_selector(&app.spec.deployment),
         ..PodSpec::default()
     };
 
@@ -255,44 +305,4 @@ fn new(meta: &TappMeta, app: &TailoredApp, volumes: &BTreeMap<String, String>) -
         spec: Some(deployment_spec),
         ..Deployment::default()
     }
-}
-
-pub async fn deploy(
-    client: &Client,
-    meta: &TappMeta,
-    app: &TailoredApp,
-    volumes: BTreeMap<String, String>,
-) -> Result<Deployment, Error> {
-    let deployment = new(meta, app, &volumes);
-    let api: Api<Deployment> = Api::namespaced(client.clone(), &meta.namespace);
-    match api.create(&PostParams::default(), &deployment).await {
-        Ok(d) => Ok(d),
-        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => {
-            update(client, meta, app, &volumes).await
-        },
-        Err(e) => {
-            warn!(
-                "Error while trying to update deployment {name}",
-                name = meta.name
-            );
-            Err(Error::KubeError { source: e })
-        },
-    }
-}
-
-pub async fn update(
-    client: &Client,
-    meta: &TappMeta,
-    app: &TailoredApp,
-    volumes: &BTreeMap<String, String>,
-) -> Result<Deployment, Error> {
-    let mut deployment = new(meta, app, volumes);
-    let api: Api<Deployment> = Api::namespaced(client.to_owned(), &meta.namespace);
-    let resource_version = api.get(&meta.name).await?.metadata.resource_version;
-
-    deployment.metadata.resource_version = resource_version;
-
-    Ok(api
-        .replace(&meta.name, &PostParams::default(), &deployment)
-        .await?)
 }

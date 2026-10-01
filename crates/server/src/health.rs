@@ -60,12 +60,17 @@ impl TryFrom<Resources> for Health {
             .map(|c| c.status == "True" && c.reason == "Ready")
             .unwrap_or(false);
 
-        // Domain status
-        let domains_in_use = ingresses
+        // Domain status: every TLS host of the first ingress; empty for apps without an ingress
+        // (node-exposed ports only), which is a valid state, not an error.
+        let domains_in_use: Vec<String> = ingresses
             .first()
             .and_then(|ing| ing.spec.as_ref())
             .and_then(|spec| spec.tls.as_ref())
-            .map(|tls| tls.iter().flat_map(|t| t.hosts.clone()).collect::<Vec<_>>())
+            .map(|tls| {
+                tls.iter()
+                    .flat_map(|t| t.hosts.clone().unwrap_or_default())
+                    .collect()
+            })
             .unwrap_or_default();
 
         let lb_status = ingresses
@@ -98,7 +103,7 @@ impl TryFrom<Resources> for Health {
                 state: status.state.clone(),
             },
             domains: Domains {
-                domains: domains_in_use.first().unwrap().clone(),
+                domains: domains_in_use,
                 dns: lb_status,
                 ssl: cert_status,
             },

@@ -35,7 +35,6 @@ pub use serde::{Deserialize, Serialize};
 pub use tokio::time::Duration;
 
 pub use crate::{
-    actions::TailoredAppAction,
     context::ContextData,
     error::{on_error, Error},
     reconciler::{reconcile, TappMeta},

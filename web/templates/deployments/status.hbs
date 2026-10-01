@@ -1,52 +1,35 @@
-<div id="content" class="content">
-  <center>
-    <div class="deploy-group">
-    <span id="subtitle" class="subtitle-status-modal">Containers ready: {{status.tapp.replicas.ready}}/{{status.tapp.replicas.desired}}</span> 
-    {{#if status.tapp.ready}} 
-      <div class="status-container">
-        <object  type="image/svg+xml" data="/static/svg/success.svg"></object>
-      </div>
-    {{else}}
-      <div class="status-container">
-        <object type="image/svg+xml" data="/static/svg/loading.svg"></object>
-      </div>
+{{!--
+  Deploy progress. The fragment polls its own URL and swaps itself (outerHTML); the handler
+  renders the same template for the poll with HX-Target set to this id. When everything is ready
+  the server renders it without hx-trigger, so the polling simply stops, and offers the way out.
+--}}
+<div id="deploy-status"
+     {{#unless done}}
+     hx-get="/deployments/deploying?name={{tapp_name}}"
+     hx-trigger="every 2s"
+     hx-swap="outerHTML"
+     {{/unless}}
+     class="mx-auto flex max-w-md flex-col gap-4 py-8">
+
+    {{#if status}}
+    {{> cmp/progress-step
+        done=status.deployment.ready
+        label=(concat "Containers ready: " status.deployment.replicas.ready "/" status.deployment.replicas.desired)
+        pending="Starting containers…"
+    }}
+    {{#if has_domains}}
+    {{> cmp/progress-step done=status.domains.dns label="Domain ready" pending="Configuring domain…"}}
+    {{> cmp/progress-step done=status.domains.ssl label="Certificate ready" pending="Issuing certificate…"}}
     {{/if}}
-    </div>
-    <br>
-    <div class="deploy-group">
-    {{#if status.domains.dns}}
-      <span id="subtitle" class="subtitle-status-modal">Domain ready</span>
-      <div class="status-container">
-        <object  type="image/svg+xml" data="/static/svg/success.svg"></object>
-      </div>
     {{else}}
-      <span id="subtitle" class="subtitle-status-modal">Configuring domain...</span>
-      <div class="status-container">
-        <object type="image/svg+xml" data="/static/svg/loading.svg"></object>
-      </div>
+    {{> cmp/progress-step done=false label="" pending="Waiting for the deployment to appear…"}}
     {{/if}}
+
+    {{#if done}}
+    <div class="flex justify-center pt-4">
+        {{> cmp/button-primary title="Go to deployments" url="/deployments"}}
     </div>
-    <br>
-    <div class="deploy-group">
-    {{#if status.domains.ssl}}
-      <span id="subtitle" class="subtitle-status-modal">Certificate ready</span>
-      <div class="status-container">
-        <object  type="image/svg+xml" data="/static/svg/success.svg"></object>
-      </div>
     {{else}}
-      <span id="subtitle" class="subtitle-status-modal">Configuring SSL Cert...</span>
-      <div class="status-container">
-        <object type="image/svg+xml" data="/static/svg/loading.svg"></object>
-      </div>
+    <p class="text-center text-xs text-neutral-500">Updates every 2 seconds.</p>
     {{/if}}
-    </div>
-  </center>
 </div>
-<script>
-  if ({{status.tapp.ready}} && {{status.domains.dns}} && {{status.domains.ssl}}) {
-          //window.location.href = "/dashboard";
-      } else {
-        window.location.href = "/deployments?name={{tapp_name}}";
-        setTimeout(function() {window.location.reload();}, 3000);
-      }
-</script>

@@ -42,20 +42,6 @@ pub struct Container {
     pub run_command: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-struct Metadata {
-    name: String,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-struct Tapp {
-    metadata: Metadata,
-}
-#[derive(Deserialize, Serialize, Debug)]
-struct TappListResponse {
-    metadata: Metadata,
-}
-
 fn is_empty_string(opt: &Option<String>) -> bool {
     matches!(opt, Some(s) if s.trim().is_empty())
 }

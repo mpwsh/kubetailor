@@ -70,6 +70,100 @@ APP_ENVIRONMENT=local cargo run --bin console
 
 Console Web UI should be available at [localhost:8080](http://localhost:8080)
 
+## Regions and ports exposed at the node
+
+A `TailoredApp` normally gets one HTTP port (`container.port`) published through the ingress
+controller. Two optional fields cover everything else:
+
+- `deployment.region` pins the app to a node labelled `topology.kubernetes.io/region=<region>`
+  (every node provisioned by [flint](https://github.com/mpwsh/flint) carries it). With one node
+  per region that *is* the node, and the operator points the app's DNS record at that node's
+  public IP rather than a shared load balancer, so traffic terminates in the region the user asked
+  for.
+- `container.ports` lists extra ports, each with a `protocol` (`TCP`/`UDP`) and an `expose` mode:
+
+  | `expose`   | What you get                                                                                   |
+  |------------|------------------------------------------------------------------------------------------------|
+  | `cluster`  | A port on the app's Service, reachable inside the cluster only (default).                      |
+  | `node`     | `hostPort`: the same port number on the node running the pod. `<node ip>:<port>`, nothing in between. |
+  | `nodePort` | A second Service of type `NodePort` with `externalTrafficPolicy: Local`; Kubernetes picks the port. |
+
+  For `node` and `nodePort` the NetworkPolicy admits the internet on exactly that port and
+  protocol; everything else stays closed. The cloud firewall is not Kubernetes' business — on
+  flint, `flint cluster firewall <cluster> --allow udp:7777`.
+
+`ingress` is optional. An app with only node-exposed ports needs none; one with `ingress.domains`
+but no `container.port` gets no Ingress object either, the domains then just name the app and the
+operator writes the external-dns `hostname`/`target` annotations on its Service.
+
+Once the pods are scheduled the operator fills `status`:
+
+```yaml
+status:
+  nodes:
+    - name: kt-scl-0001
+      ip: 45.77.0.10
+      region: scl
+  endpoints:
+    - ip: 45.77.0.10
+      port: 7777
+      protocol: UDP
+```
+
+`kubectl get tapp` shows the region and node IP as columns; `status.message` says why there is no
+placement yet (`no node in region scl`). The node's public IP is read from the
+`flint.mpw.sh/public-ip` label (override with `KUBETAILOR_PUBLIC_IP_LABEL`), falling back to the
+node's `ExternalIP`, then `InternalIP`.
+
+Examples: [udp-echo.yaml](./examples/udp-echo.yaml) (UDP only, no ingress),
+[game-server.yaml](./examples/game-server.yaml) (web page through the ingress, game port at the
+node), [udp-echo.json](./examples/udp-echo.json) (the same through the server API; the server's
+`nodePortRange` config bounds the ports users may expose, default `1024-29999`).
+
+### Live updates
+
+Editing a `TailoredApp` (`kubectl apply`/`edit`, or the server's `PUT`) re-renders its resources
+at once. The operator is level-triggered: on every reconcile it server-side applies each child
+resource under the `kubetailor` field manager, so
+
+- fields the spec stopped setting are removed, resources the spec stopped asking for are pruned
+  (the env ConfigMap, the Ingress, the `nodePort` Service, ...);
+- what other controllers own is left alone: the Deployment controller's revision annotation, a
+  `kubectl rollout restart` stamp, allocated `clusterIP`s and node ports;
+- an unchanged spec is a no-op on the API server, so the periodic resync (every 60s) is cheap and
+  cannot feed back into itself.
+
+PersistentVolumeClaims are the exception: a volume removed from the spec keeps its PVC and data
+until the app is deleted. PVCs and file ConfigMaps are named after a hash of their mount path
+(`pvc-<app>-<id>`, `files-<app>-<id>`) rather than their position in the list, so adding one never
+renames the others.
+
+`status.observedGeneration` equal to `metadata.generation` means the resources reflect the spec as
+it is now; `status.message` carries the reason when an apply fails (for example an ingress with
+domains but no `container.port`).
+
+## Console conventions (htmx)
+
+The console is server-rendered HTML with [htmx](https://htmx.org) for navigation and partial
+updates, Alpine only for purely visual state (open menus, wizard steps). Rules the handlers follow:
+
+- Every page renders inside `#content`. A handler checks `HX-Request` to render the full shell or
+  just the page (`initial`), and `HX-Target` to render only the part that asked
+  (`req.targets("deployments-table")`), so a poller never gets more HTML than it swaps.
+- Pollers replace themselves (`hx-swap="outerHTML"`) and the server decides when they stop: the
+  deploy progress view is rendered without `hx-trigger` once everything is ready, the delete
+  progress view answers with `HX-Location` once the deployment is gone.
+- Pausing a poller is a checkbox the trigger reads on every tick
+  (`hx-trigger="every 5s [document.getElementById('autorefresh')?.checked]"`), never an attribute
+  rewritten by JavaScript: htmx reads `hx-*` once, when it processes the element.
+- Redirects go through `utils::redirect` (`HX-Location` into `#content` for htmx callers, a 303
+  otherwise) or `redirect_full` (`HX-Redirect`, for leaving the shell). A plain 303 is followed by
+  the browser's XHR and the caller receives the target's fragment instead of navigating.
+- Forms post as forms. Validation problems come back as a `200` with `HX-Retarget: #form-errors`
+  so the message lands above the form and the form keeps its state; success is a redirect.
+- No `.unwrap()` on upstream calls: a backend hiccup is a warning in the row (`health: null`) or
+  an inline error, not a 500 page.
+
 ## Services
 
 - [Operator](./crates/operator) - Listens for new `TailoredApps` and constructs and deploys native Kubernetes resources from there.
@@ -78,7 +172,7 @@ Console Web UI should be available at [localhost:8080](http://localhost:8080)
 
 ## Kubernetes Dependencies
 
-- [NGINX Ingress](https://github.com/nginxinc/kubernetes-ingress)
+- An ingress controller: [Traefik](https://github.com/traefik/traefik) (what [flint](https://github.com/mpwsh/flint) installs) or [ingress-nginx](https://github.com/kubernetes/ingress-nginx)
 - [External DNS](https://github.com/external-secrets/external-secrets)
 - [Cert Manager](https://github.com/cert-manager/cert-manager)
 

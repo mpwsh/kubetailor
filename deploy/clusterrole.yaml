@@ -7,6 +7,7 @@ rules:
   - kubetailor.io
   resources:
   - tailoredapps
+  - tailoredapps/status
   verbs:
   - create
   - get
@@ -16,6 +17,16 @@ rules:
   - delete
   - update
   - deletecollection
+# Placement: which node runs an app's pods and what that node's public IP is.
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - networking.k8s.io
   resources:

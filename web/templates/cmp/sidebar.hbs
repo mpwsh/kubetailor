@@ -1,5 +1,13 @@
+{{!--
+  hx-target / hx-swap / hx-push-url / hx-indicator are inherited by every link below, so each
+  link only needs its hx-get.
+--}}
 <nav 
     x-cloak 
+    hx-target="#content"
+    hx-swap="innerHTML show:window:top"
+    hx-push-url="true"
+    hx-indicator="#nav-indicator"
     class="fixed left-0 z-20 flex h-svh w-60 shrink-0 flex-col border-r border-neutral-300 bg-neutral-50 p-4 transition-transform duration-300 md:w-64 md:translate-x-0 md:relative dark:border-neutral-700 dark:bg-neutral-900" 
     x-bind:class="showSidebar ? 'translate-x-0' : '-translate-x-60'" 
     aria-label="sidebar navigation"> 
@@ -30,9 +38,6 @@
                 <a href="{{link}}" 
                    @click="currentPath = '{{link}}'; showSidebar = false"
                    hx-get="{{link}}"
-                   hx-target="#content"
-                   hx-swap="innerHTML"
-                   hx-push-url="true"
                    :class="isActive('{{link}}') ? 'bg-black/10 text-neutral-900 dark:bg-white/10 dark:text-white' : ''"
                    class="flex items-center rounded-md gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white">
                     <i class="{{icon}} size-5 shrink-0"></i>
@@ -49,9 +54,6 @@
                 <a href="{{link}}"
                    @click="currentPath = '{{link}}'; showSidebar = false"
                    hx-get="{{link}}"
-                   hx-target="#content"
-                   hx-swap="innerHTML"
-                   hx-push-url="true"
                    :class="isActive('{{link}}') ? 'bg-black/10 text-neutral-900 dark:bg-white/10 dark:text-white' : ''"
                    class="flex items-center rounded-md gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white">
                     <i class="{{icon}} size-5 shrink-0"></i>
@@ -71,9 +73,6 @@
                    {{#unless (eq link "https://github.com/mpwsh/kubetailor")}}
                    @click="currentPath = '{{link}}'; showSidebar = false"
                    hx-get="{{link}}"
-                   hx-target="#content"
-                   hx-swap="innerHTML"
-                   hx-push-url="true"
                    :class="isActive('{{link}}') ? 'bg-black/10 text-neutral-900 dark:bg-white/10 dark:text-white' : ''"
                    {{/unless}}
                    class="flex items-center rounded-md gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white">
@@ -122,10 +121,7 @@
                    @click="currentPath = '/profile'"
                    class="flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white" 
                    role="menuitem"
-                   hx-get="/profile"
-                   hx-target="#content"
-                   hx-swap="innerHTML"
-                   hx-push-url="true">
+                   hx-get="/profile">
                     <i class="fa-solid fa-user size-5 shrink-0"></i>
                     <span>Profile</span>
                 </a>
@@ -137,10 +133,7 @@
                    @click="currentPath = '/settings'"
                    class="flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white" 
                    role="menuitem"
-                   hx-get="/settings"
-                   hx-target="#content"
-                   hx-swap="innerHTML"
-                   hx-push-url="true">
+                   hx-get="/settings">
                     <i class="fa-solid fa-gear size-5 shrink-0"></i>
                     <span>Settings</span>
                 </a>
@@ -148,10 +141,7 @@
                    @click="currentPath = '/payments'" 
                    class="flex items-center gap-2 px-2 py-1.5 text-sm font-medium text-neutral-600 underline-offset-2 hover:bg-black/5 hover:text-neutral-900 focus-visible:underline focus:outline-none dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white" 
                    role="menuitem"
-                   hx-get="/payments"
-                   hx-target="#content"
-                   hx-swap="innerHTML"
-                   hx-push-url="true">
+                   hx-get="/payments">
                     <i class="fa-solid fa-credit-card size-5 shrink-0"></i>
                     <span>Payments</span>
                 </a>

@@ -639,3 +639,32 @@ textarea {
   border: 1px solid #888;
   width: 80%; /* Could be more or less, depending on screen size */
 }
+
+
+/* ── htmx ─────────────────────────────────────────────────────────────────── */
+/* htmx toggles .htmx-request on the element named by hx-indicator (or on the requesting
+   element itself when hx-indicator="this") for the duration of a request. */
+.nav-indicator {
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, #2563eb, transparent);
+  background-size: 200% 100%;
+  animation: nav-indicator-slide 1s linear infinite;
+}
+@keyframes nav-indicator-slide {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+/* Buttons that carry their own spinner: swap the label while the request runs. */
+.when-busy { display: none; }
+.htmx-request .when-idle, .htmx-request.when-idle { display: none; }
+.htmx-request .when-busy { display: inline; }
+/* Content being swapped out fades briefly (hx-swap="... swap:100ms" not needed; settle only). */
+.htmx-added { opacity: 0; }
+#content > * { transition: opacity 120ms ease-in; }
+
+/* Status dots (deployments table). Plain CSS on purpose: these classes are produced by the
+   server per row, which the Tailwind Play CDN cannot see ahead of time. */
+.status-dot-green   { background-color: #22c55e; }
+.status-dot-red     { background-color: #ef4444; }
+.status-dot-neutral { background-color: #a3a3a3; }

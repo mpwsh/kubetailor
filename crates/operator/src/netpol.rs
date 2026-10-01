@@ -5,7 +5,58 @@ use kubetailor::k8s_openapi::api::networking::v1::{
 
 use crate::prelude::*;
 
-fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
+/// Who may talk to the pods:
+/// - the ingress controller (pods matching `ingress.matchLabels`, any namespace), when the app
+///   has an ingress section;
+/// - pods of the same owner/group (same labels minus `tapp`);
+/// - the internet, but only on ports exposed at the node (`expose: node` / `nodePort`), each on
+///   its own protocol and port. Everything else stays closed.
+fn ingress_rules(
+    app: &TailoredApp,
+    peer_labels: &BTreeMap<String, String>,
+) -> Vec<NetworkPolicyIngressRule> {
+    let mut from = Vec::new();
+    if let Some(ingress) = &app.spec.ingress {
+        from.push(NetworkPolicyPeer {
+            namespace_selector: Some(LabelSelector::default()),
+            pod_selector: Some(LabelSelector {
+                match_labels: Some(ingress.match_labels.to_owned()),
+                ..LabelSelector::default()
+            }),
+            ..NetworkPolicyPeer::default()
+        });
+    }
+    from.push(NetworkPolicyPeer {
+        pod_selector: Some(LabelSelector {
+            match_labels: Some(peer_labels.to_owned()),
+            ..LabelSelector::default()
+        }),
+        ..NetworkPolicyPeer::default()
+    });
+    let mut rules = vec![NetworkPolicyIngressRule {
+        from: Some(from),
+        ..NetworkPolicyIngressRule::default()
+    }];
+    for p in app.spec.external_ports() {
+        rules.push(NetworkPolicyIngressRule {
+            from: Some(vec![NetworkPolicyPeer {
+                ip_block: Some(IPBlock {
+                    cidr: "0.0.0.0/0".to_string(),
+                    except: None,
+                }),
+                ..NetworkPolicyPeer::default()
+            }]),
+            ports: Some(vec![NetworkPolicyPort {
+                protocol: Some(p.protocol.as_str().to_string()),
+                port: Some(IntOrString::Int(p.port)),
+                end_port: None,
+            }]),
+        });
+    }
+    rules
+}
+
+pub fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
     let mut labels = meta.labels.clone();
     labels.remove("tapp");
     NetworkPolicy {
@@ -21,26 +72,7 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
                 match_labels: Some(meta.labels.to_owned()),
                 ..LabelSelector::default()
             },
-            ingress: Some(vec![NetworkPolicyIngressRule {
-                from: Some(vec![
-                    NetworkPolicyPeer {
-                        namespace_selector: Some(LabelSelector::default()),
-                        pod_selector: Some(LabelSelector {
-                            match_labels: Some(app.spec.ingress.match_labels.to_owned()),
-                            ..LabelSelector::default()
-                        }),
-                        ..NetworkPolicyPeer::default()
-                    },
-                    NetworkPolicyPeer {
-                        pod_selector: Some(LabelSelector {
-                            match_labels: Some(labels.to_owned()),
-                            ..LabelSelector::default()
-                        }),
-                        ..NetworkPolicyPeer::default()
-                    },
-                ]),
-                ..NetworkPolicyIngressRule::default()
-            }]),
+            ingress: Some(ingress_rules(app, &labels)),
             egress: Some(vec![
                 //Allow egress to the internet, block internal networks
                 NetworkPolicyEgressRule {
@@ -99,34 +131,4 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> NetworkPolicy {
         }),
         ..NetworkPolicy::default()
     }
-}
-
-pub async fn deploy(
-    client: &Client,
-    meta: &TappMeta,
-    app: &TailoredApp,
-) -> Result<NetworkPolicy, Error> {
-    let netpol = new(meta, app);
-    let api: Api<NetworkPolicy> = Api::namespaced(client.clone(), &meta.namespace);
-    match api.create(&PostParams::default(), &netpol).await {
-        Ok(cm) => Ok(cm),
-        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => update(client, meta, app).await,
-        Err(e) => Err(Error::KubeError { source: e }),
-    }
-}
-
-pub async fn update(
-    client: &Client,
-    meta: &TappMeta,
-    app: &TailoredApp,
-) -> Result<NetworkPolicy, Error> {
-    let mut netpol = new(meta, app);
-    let api: Api<NetworkPolicy> = Api::namespaced(client.to_owned(), &meta.namespace);
-
-    let resource_version = api.get(&meta.name).await?.metadata.resource_version;
-    netpol.metadata.resource_version = resource_version;
-
-    Ok(api
-        .replace(&meta.name, &PostParams::default(), &netpol)
-        .await?)
 }

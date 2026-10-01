@@ -5,10 +5,11 @@ use actix_web::{
     dev::{ServiceRequest, ServiceResponse},
     error::InternalError,
     middleware::Next,
-    FromRequest, HttpMessage,
+    FromRequest, HttpMessage, HttpResponse,
 };
 
 use crate::{
+    htmx::HtmxRequest,
     session_state::TypedSession,
     utils::{e500, see_other},
 };
@@ -43,11 +44,20 @@ pub async fn reject_anonymous_users(
         Some(user_id) => {
             req.extensions_mut().insert(UserId(user_id));
             next.call(req).await
-        },
+        }
         None => {
-            let response = see_other("/login");
+            // An htmx request must not have the login page swapped into `#content`: send it
+            // through a full redirect instead. 401 is the honest status; htmx processes
+            // HX-Redirect regardless of status code.
+            let response = if req.request().is_htmx() {
+                HttpResponse::Unauthorized()
+                    .insert_header(("HX-Redirect", "/login"))
+                    .finish()
+            } else {
+                see_other("/login")
+            };
             let e = anyhow::anyhow!("The user has not logged in");
             Err(InternalError::from_response(e, response).into())
-        },
+        }
     }
 }

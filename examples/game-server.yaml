@@ -1,0 +1,53 @@
+# A game server with a web page: HTTP through the ingress (TLS, hostname), the game protocol
+# straight at the node. Both end up on the same node because of `region`, and the operator
+# points the DNS record (external-dns `target` annotation) at that node's public IP instead of
+# a shared load balancer, so players and the web page hit the region they asked for.
+#
+# Replace NODE_IP/REGION, then:
+#   flint cluster firewall <cluster> --allow udp:19132
+#   kubectl apply -f examples/game-server.yaml
+#   kubectl -n kubetailor get tapp bedrock          # Region and Node IP columns
+apiVersion: kubetailor.io/v1
+kind: TailoredApp
+metadata:
+  name: bedrock
+  namespace: kubetailor
+  labels:
+    owner: flint
+    group: default
+    fingerprint: bedrock
+spec:
+  labels:
+    owner: flint
+    group: default
+    fingerprint: bedrock
+  deployment:
+    annotations: {}
+    region: REGION
+    allowPrivilegeEscalation: false
+    allowRoot: true
+    deployNetworkPolicies: true
+    enableServiceLinks: false
+    serviceAccount: limited
+    container:
+      image: itzg/minecraft-bedrock-server
+      replicas: 1
+      ports:
+        - port: 19132
+          protocol: UDP
+          expose: node
+      volumes:
+        /data: 2Gi
+  env:
+    EULA: "TRUE"
+    SERVER_NAME: flint
+  ingress:
+    className: traefik
+    matchLabels:
+      app.kubernetes.io/name: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    domains:
+      # Domains without `container.port` create no Ingress: they only name the app, and the
+      # operator writes the external-dns hostname/target annotations on the app's Service.
+      shared: bedrock.NODE_IP.sslip.io

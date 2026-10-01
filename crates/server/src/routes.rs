@@ -6,9 +6,9 @@ use actix_web::{
     HttpResponse, Responder,
 };
 use kubetailor::{
-    k8s_openapi::api::{apps::v1::Deployment, core::v1::Pod, networking::v1::Ingress},
+    k8s_openapi::api::apps::v1::Deployment,
     kube::{
-        api::{Api as KubeApi, DeleteParams, ListParams, Patch, PatchParams, PostParams},
+        api::{Api as KubeApi, DeleteParams, ListParams, Patch, PatchParams},
         core::NamespaceResourceScope,
         Client, ResourceExt,
     },
@@ -76,7 +76,7 @@ pub async fn create(
         Ok(k) => k,
         Err(e) => {
             return HttpResponse::InternalServerError().body(e.to_string());
-        },
+        }
     };
     info!("Creating TailoredApp: {app:?}");
 
@@ -85,10 +85,36 @@ pub async fn create(
         &app.namespace().unwrap_or(namespace),
     );
 
-    match api.create(&PostParams::default(), &app).await {
+    match api.get_opt(&app.name_any()).await {
+        Ok(Some(_)) => {
+            return HttpResponse::Conflict()
+                .body(format!("TailoredApp '{}' already exists", app.name_any()));
+        }
+        Ok(None) => {}
+        Err(e) => return HttpResponse::InternalServerError().body(e.to_string()),
+    }
+    match apply_tapp(&api, &app).await {
         Ok(_) => HttpResponse::Created().body(format!("Created TailoredApp: {}", app.name_any())),
         Err(e) => HttpResponse::BadRequest().body(e.to_string()),
     }
+}
+
+/// Field manager the server writes TailoredApp specs under.
+const FIELD_MANAGER: &str = "kubetailor-server";
+
+/// Server-side apply of the whole object: creates it or brings its spec and labels to what the
+/// request says, removing what the request no longer has, while leaving alone what others own
+/// (the operator's finalizer and status, a label someone added by hand).
+async fn apply_tapp(
+    api: &KubeApi<TailoredApp>,
+    app: &TailoredApp,
+) -> Result<TailoredApp, kubetailor::kube::Error> {
+    api.patch(
+        &app.name_any(),
+        &PatchParams::apply(FIELD_MANAGER).force(),
+        &Patch::Apply(app),
+    )
+    .await
 }
 
 #[put("/")]
@@ -101,26 +127,28 @@ pub async fn update(
 
     //Add config to payload
     payload.kubetailor = kubetailor.as_ref().clone();
-    let mut app: TailoredApp = match TailoredApp::try_from(payload.into_inner()) {
+    let app: TailoredApp = match TailoredApp::try_from(payload.into_inner()) {
         Ok(k) => k,
         Err(e) => {
             return HttpResponse::InternalServerError().body(e.to_string());
-        },
+        }
     };
     let api: KubeApi<TailoredApp> = KubeApi::namespaced(
         client.get_ref().clone(),
         &app.namespace().unwrap_or(namespace),
     );
 
-    let name = &app.metadata.name.as_ref().unwrap();
-    let resource_version = match api.get(name).await {
-        Ok(manifest) => manifest.resource_version(),
-        Err(_) => {
+    let name = app.name_any();
+    match api.get_opt(&name).await {
+        Ok(Some(_)) => {}
+        Ok(None) => {
             return HttpResponse::NotFound().body(format!("TailoredApp '{}' not found", name));
-        },
-    };
-    app.metadata.resource_version = resource_version;
-    match api.replace(name, &PostParams::default(), &app).await {
+        }
+        Err(e) => return HttpResponse::InternalServerError().body(e.to_string()),
+    }
+    // Apply, not replace: a replace would strip the operator's finalizer and race its deletion
+    // handling. The operator picks the spec change up from its watch.
+    match apply_tapp(&api, &app).await {
         Ok(_) => HttpResponse::Ok().body(format!("Updated TailoredApp: {}", name)),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
@@ -181,10 +209,10 @@ pub async fn list(
             let results = match ListFilter::from_str(params.filter.as_deref().unwrap_or("spec")) {
                 Ok(ListFilter::Spec) => {
                     ListOutput::Spec(tapps.iter().map(|tapp| tapp.spec.clone()).collect())
-                },
+                }
                 Ok(ListFilter::Status) => {
                     ListOutput::Spec(tapps.iter().map(|tapp| tapp.spec.clone()).collect())
-                },
+                }
                 Ok(ListFilter::Name) => ListOutput::Name(
                     tapps
                         .iter()
@@ -195,7 +223,7 @@ pub async fn list(
             };
 
             HttpResponse::Ok().json(results)
-        },
+        }
         None => HttpResponse::NotFound().body("No TailoredApps found"),
     }
 }
@@ -229,7 +257,7 @@ pub async fn delete(
             } else {
                 HttpResponse::NotFound().body(format!("TailoredApp {name} not found"))
             }
-        },
+        }
         None => HttpResponse::NotFound().body("No TailoredApps found"),
     }
 }
@@ -255,7 +283,7 @@ pub async fn get(
             } else {
                 HttpResponse::NotFound().body("No TailoredApp found with the specified name")
             }
-        },
+        }
         None => HttpResponse::NotFound().body("No TailoredApps found"),
     }
 }
@@ -337,7 +365,7 @@ pub async fn logs(
             } else {
                 HttpResponse::NotFound().body("No TailoredApp found with the specified name")
             }
-        },
+        }
         None => HttpResponse::NotFound().body("No TailoredApps found"),
     }
 }
@@ -390,7 +418,7 @@ pub async fn restart(
                 HttpResponse::NotFound()
                     .body(format!("No deployment found for TailoredApp {}", name))
             }
-        },
+        }
         None => HttpResponse::NotFound().body("No deployments found"),
     }
 }

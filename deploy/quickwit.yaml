@@ -36,7 +36,7 @@ environment:
   # KEY: VALUE
 
 searcher:
-  replicaCount: 1
+  replicaCount: 3
 
   # Extra env for searcher
   extraEnv:
@@ -59,9 +59,9 @@ searcher:
     # minAvailable: 2
 
   persistentVolume:
-    enabled: false
-    # storage: "1Gi"
-    # storageClass: ""
+    enabled: true
+    storage: "1Gi"
+    storageClass: "local-path"
 
   updateStrategy:
     {}
@@ -141,9 +141,9 @@ indexer:
   affinity: {}
 
   persistentVolume:
-    enabled: false
+    enabled: true
     storage: "10Gi"
-    storageClass: "longhorn"
+    storageClass: "local-path"
 
 metastore:
   replicaCount: 1
@@ -285,8 +285,8 @@ config:
       endpoint: "http://garage.garage.svc.cluster.local:3900"
       flavor: garage
       region: garage
-      access_key_id: "GK4cc5e3d78eb2a8a804e02429"
-      secret_access_key: "your-admin-key"
+      access_key_id: "GK2c4da049cbab5b4ce88cc01c"
+      secret_access_key: "b0619d18be7e123646a897a27c3c5a7b621d4d2900804b5e869e54e2dac4ce02"
 
   default_index_root_uri: s3://quickwit/indexes
   # Indexer settings

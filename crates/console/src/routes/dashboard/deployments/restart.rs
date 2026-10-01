@@ -3,7 +3,6 @@ use crate::routes::prelude::*;
 #[derive(Deserialize)]
 pub struct BasicForm {
     pub name: String,
-    pub loading: Option<bool>,
 }
 
 pub async fn page(
@@ -20,10 +19,9 @@ pub async fn page(
     let data = json!({
         "initial": !req.is_htmx(),
         "title": "Restarting deployment",
-        "head": format!("Restarting deployment: {}", params.name),
-        "subtitle": "This might cause downtime to your application . Proceed?",
+        "head": format!("Restart {}?", params.name),
+        "subtitle": "Pods are recreated one by one. Your application may be unavailable for a moment.",
         "tapp_name": params.name,
-        "loading": params.loading.unwrap_or(false),
         "user": user,
     });
     let body = hb.render("deployments/restart", &data).unwrap();
@@ -41,33 +39,19 @@ pub async fn form(
         .get::<UserId>()
         .expect("UserId should be present after middleware check")
         .to_string();
-
-    //Check if owner.
-    let items: Vec<String> = kubetailor
+    if !deployments::owns(&form.name, &user, &kubetailor).await? {
+        return Ok(HttpResponse::NotFound().body(format!("Deployment {} not found", form.name)));
+    }
+    kubetailor
         .client
-        .get(format!("{}/list?owner={user}&filter=name", kubetailor.url))
+        .post(format!(
+            "{}/{}/restart?owner={user}",
+            kubetailor.url, form.name
+        ))
         .send()
         .await
-        .unwrap()
-        .json::<Vec<String>>()
-        .await
-        .unwrap();
-
-    if items.into_iter().any(|name| name == form.name) {
-        kubetailor
-            .client
-            .post(format!(
-                "{}/{}/restart?owner={user}",
-                kubetailor.url, form.name
-            ))
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
-        Ok(see_other("/deployments"))
-    } else {
-        Ok(HttpResponse::NotFound().body(format!("Deployment {} not found", form.name)))
-    }
+        .map_err(e500)?
+        .error_for_status()
+        .map_err(e500)?;
+    Ok(redirect(&req, "/deployments"))
 }

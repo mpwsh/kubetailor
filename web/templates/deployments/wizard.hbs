@@ -56,7 +56,7 @@
 
   {{!-- Navigation --}}
   <div class="flex justify-between mt-4">
-    <a href="{{return_url}}" hx-get="{{return_url}}" hx-target="#content" hx-push-url="{{return_url}}" x-show="currentStep <= 1">
+    <a href="{{return_url}}" hx-get="{{return_url}}" hx-target="#content" hx-push-url="true" hx-indicator="#nav-indicator" x-show="currentStep <= 1">
       {{> cmp/button-secondary title="Cancel"}}
     </a>
     <a x-show="currentStep > 1"
@@ -74,4 +74,3 @@
 </div>
 <script src="/static/js/key_value.js"></script>
 <script src="/static/js/file_content.js"></script>
-<script src="/static/js/post.js"></script>

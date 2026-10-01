@@ -5,6 +5,9 @@ pub use serde::{Deserialize, Serialize, Serializer};
 
 pub use crate::{
     cert_crd::{Certificate, CertificateSpec, Status as CertificateStatus},
-    crd::{Container, Deployment, Domains, Ingress, TailoredApp, TailoredAppSpec},
+    crd::{
+        Container, Deployment, Domains, Endpoint, Expose, Ingress, PlacementNode, Port, Protocol,
+        TailoredApp, TailoredAppSpec, TailoredAppStatus,
+    },
     resources::Resources,
 };

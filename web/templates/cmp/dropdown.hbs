@@ -29,16 +29,20 @@
         class="fixed right-0 z-[100] mt-1 flex w-48 flex-col overflow-hidden rounded-md border border-neutral-300 bg-neutral-50 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
         role="menu">
         
-        <template x-for="item in items" :key="item.title">
-            <a :href="item.link"
-                :hx-get="item.htmx ? item.link : null"
-                :hx-target="#content"
-                :hx-push-url="item.htmx ? item.link : null"
-                class="flex items-center gap-2 bg-neutral-50 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-900/5 hover:text-neutral-900 focus-visible:bg-neutral-900/10 focus-visible:text-neutral-900 focus-visible:outline-none dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-50/5 dark:hover:text-white dark:focus-visible:bg-neutral-50/10 dark:focus-visible:text-white"
-                role="menuitem">
-                <i :class="item.icon"></i>
-                <span x-text="item.title"></span>
+        {{!--
+          Static links: htmx reads hx-* attributes when it processes the element, so they must be
+          in the markup, not bound later by Alpine. Each item navigates inside #content.
+        --}}
+        {{#each items}}
+            <a href="{{link}}"
+               hx-get="{{link}}"
+               hx-target="#content"
+               hx-push-url="true"
+               class="flex items-center gap-2 bg-neutral-50 px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-900/5 hover:text-neutral-900 focus-visible:bg-neutral-900/10 focus-visible:text-neutral-900 focus-visible:outline-none dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-50/5 dark:hover:text-white dark:focus-visible:bg-neutral-50/10 dark:focus-visible:text-white"
+               role="menuitem">
+                <i class="{{icon}}"></i>
+                <span>{{title}}</span>
             </a>
-        </template>
+        {{/each}}
     </div>
 </div>

@@ -1,0 +1,46 @@
+# A TailoredApp that publishes UDP straight at its node: no ingress, no proxy.
+#
+# `region` pins the pod to a node labelled topology.kubernetes.io/region=scl (flint labels
+# every node it creates). `expose: node` binds 7777/udp on that node, and the operator opens
+# the NetworkPolicy for that port only. Once the pod is scheduled, `status.nodes` carries the
+# node's public IP and `status.endpoints` the address to connect to:
+#
+#   kubectl apply -f examples/udp-echo.yaml
+#   kubectl -n kubetailor get tapp udp-echo -o jsonpath='{.status.endpoints}'
+#   echo hello | nc -u -w1 <ip> 7777
+#
+# The provider firewall is outside Kubernetes: on a flint cluster,
+#   flint cluster firewall <cluster> --allow udp:7777
+#
+# The `owner` label is required (the operator derives the TLS secret name from it when there
+# is an ingress; it also scopes the NetworkPolicy peers).
+apiVersion: kubetailor.io/v1
+kind: TailoredApp
+metadata:
+  name: udp-echo
+  namespace: kubetailor
+  labels:
+    owner: flint
+    group: default
+    fingerprint: udp-echo
+spec:
+  labels:
+    owner: flint
+    group: default
+    fingerprint: udp-echo
+  deployment:
+    annotations: {}
+    region: scl
+    allowPrivilegeEscalation: false
+    allowRoot: true
+    deployNetworkPolicies: true
+    enableServiceLinks: false
+    serviceAccount: limited
+    container:
+      image: alpine/socat
+      runCommand: "socat -v UDP-RECVFROM:7777,fork EXEC:cat"
+      replicas: 1
+      ports:
+        - port: 7777
+          protocol: UDP
+          expose: node

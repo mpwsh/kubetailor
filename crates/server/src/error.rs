@@ -4,6 +4,7 @@ pub enum TappRequestError {
     Domain(String),
     Image(String),
     Name(String),
+    Port(String),
 }
 
 impl fmt::Display for TappRequestError {
@@ -12,6 +13,7 @@ impl fmt::Display for TappRequestError {
             TappRequestError::Domain(msg) => write!(f, "Invalid domain: {}", msg),
             TappRequestError::Name(msg) => write!(f, "Invalid tapp name: {}", msg),
             TappRequestError::Image(msg) => write!(f, "Invalid image: {}", msg),
+            TappRequestError::Port(msg) => write!(f, "Invalid ports: {}", msg),
         }
     }
 }

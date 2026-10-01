@@ -32,14 +32,17 @@
 }}
 </div>
 {{> cmp/text-input
-      title = "Repository URL" 
-      placeholder = "Name of your deployment"
-      value = tapp.git.repository
+  name = "repository"
+  title = "Repository URL"
+  placeholder = "https://github.com/you/your-app"
+  value = tapp.git.repository
 }}
 {{> cmp/text-input
-  title = "Branch" 
+  name = "branch"
+  title = "Branch"
   placeholder = "Git branch name"
-  default = main
+  value = tapp.git.branch
+  default = "main"
 }}
 {{> cmp/text-input
   title = "Build command" 

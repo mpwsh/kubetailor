@@ -4,6 +4,7 @@ use log::LevelFilter;
 use prelude::*;
 
 mod actions;
+mod apply;
 mod configmap;
 mod context;
 mod deployment;
@@ -11,6 +12,7 @@ mod error;
 mod finalizer;
 mod ingress;
 mod netpol;
+mod placement;
 pub mod prelude;
 mod pvc;
 mod reconciler;
@@ -39,7 +41,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         error!("CRD is not queryable; {e:?}. Is the CRD installed?");
         std::process::exit(1);
     }
+    // Children emit bursts of events (a rollout is a dozen Deployment status updates); coalesce
+    // them so one reconcile handles each burst.
     Controller::new(tapp, Config::default().any_semantic())
+        .with_config(
+            kubetailor::kube::runtime::controller::Config::default()
+                .debounce(Duration::from_secs(2)),
+        )
         .shutdown_on_signal()
         .owns(
             Api::<ConfigMap>::all(client.clone()),
@@ -74,10 +82,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match reconciliation_result {
                 Ok(resource) => {
                     info!("Reconciliation successful. Resource: {resource:?}");
-                },
+                }
                 Err(reconciliation_err) => {
                     error!("Reconciliation error: {reconciliation_err:?}")
-                },
+                }
             }
         })
         .await;

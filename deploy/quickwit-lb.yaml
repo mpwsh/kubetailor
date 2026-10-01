@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: quickwit-lb
+  namespace: quickwit
+  labels:
+    app.kubernetes.io/instance: quickwit
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: quickwit
+    app.kubernetes.io/version: v0.8.2
+    helm.sh/chart: quickwit-0.7.7
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/instance: quickwit
+    app.kubernetes.io/name: quickwit
+  ports:
+  - name: tcp-http
+    port: 7280
+    protocol: TCP
+    targetPort: 7280
+  ipFamilyPolicy: SingleStack
+  ipFamilies:
+    - IPv4

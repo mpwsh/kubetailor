@@ -47,7 +47,7 @@ impl Ingress {
                         custom,
                     }),
                 }
-            },
+            }
             None => crd::Ingress {
                 annotations: BTreeMap::new(),
                 class_name: self.class_name.clone(),

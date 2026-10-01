@@ -115,11 +115,11 @@ pub async fn run(
                     .route(web::post().to(authenticate)),
             )
             .service(resource(claim_path).route(web::post().to(claim)))
-           // .service(
-           //     resource("/logout")
+            // .service(
+            //     resource("/logout")
             .route("/logout", web::get().to(logout))
-                    //.route(web::post().to(logout)),
-           // )
+            //.route(web::post().to(logout)),
+            // )
             .service(
                 web::scope("")
                     .wrap(from_fn(reject_anonymous_users))
@@ -129,13 +129,11 @@ pub async fn run(
                     .route("/error", web::get().to(error::page))
                     .service(
                         web::scope("/deployments")
-
                             .route("/", web::get().to(deployments::page))
                             .route("", web::get().to(deployments::page))
                             .route("/deploying", web::get().to(deployments::deploying))
                             .route("/view", web::get().to(deployments::view))
-                            .route("/list", web::get().to(deployments::list))
-                            .route("/health", web::get().to(deployments::health::handler))
+                            .route("/delete/status", web::get().to(deployments::delete::status))
                             .service(
                                 resource("/new")
                                     .route(web::get().to(deployments::new::page))
@@ -155,8 +153,7 @@ pub async fn run(
                                 resource("/restart")
                                     .route(web::get().to(deployments::restart::page))
                                     .route(web::post().to(deployments::restart::form)),
-                            )
-                        ,
+                            ),
                     ),
             )
             .default_service(web::route().to(handle_not_found))

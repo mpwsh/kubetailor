@@ -1,0 +1,23 @@
+<div id="log-pane"
+     {{#if name}}
+     hx-get="/logs"
+     hx-trigger="every {{interval}}s [document.getElementById('log-autorefresh')?.checked]"
+     hx-include="#log-controls"
+     hx-swap="outerHTML"
+     hx-indicator="#log-indicator"
+     {{/if}}
+     class="rounded-lg border border-neutral-300 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900">
+    {{#if name}}
+        {{#if logs}}
+        <div class="flex flex-col">
+            {{#each logs}}
+            <div class="border-b border-neutral-300 last:border-b-0 p-2 font-mono text-sm text-neutral-600 dark:border-neutral-700 dark:text-neutral-300 whitespace-pre-wrap break-all">{{this}}</div>
+            {{/each}}
+        </div>
+        {{else}}
+        <p class="px-4 py-8 text-center text-sm text-neutral-600 dark:text-neutral-300">No log lines for {{name}}{{#if query}} matching “{{query}}”{{/if}}.</p>
+        {{/if}}
+    {{else}}
+        <p class="px-4 py-8 text-center text-sm text-neutral-600 dark:text-neutral-300">Select a deployment to view its logs.</p>
+    {{/if}}
+</div>

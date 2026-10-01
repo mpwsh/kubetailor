@@ -5,7 +5,22 @@ use kubetailor::k8s_openapi::api::networking::v1::{
 
 use crate::prelude::*;
 
-fn new(meta: &TappMeta, app: &TailoredApp) -> Ingress {
+/// The ingress config and HTTP port an app needs before an Ingress can be built; a user error
+/// otherwise, so the reconciler reports it instead of producing a broken object.
+fn requirements(app: &TailoredApp) -> Result<(&kubetailor::crd::Ingress, i32), Error> {
+    let ingress = app.spec.ingress.as_ref().ok_or_else(|| {
+        Error::UserInputError("ingress domains given without an ingress section".to_owned())
+    })?;
+    let port = app.spec.deployment.container.port.ok_or_else(|| {
+        Error::UserInputError(
+            "ingress domains need `container.port` (the HTTP port) to route to".to_owned(),
+        )
+    })?;
+    Ok((ingress, port))
+}
+
+pub fn new(meta: &TappMeta, app: &TailoredApp) -> Result<Ingress, Error> {
+    let (ingress, port) = requirements(app)?;
     let app = app.spec.clone();
     let paths = vec![HTTPIngressPath {
         path: Some(String::from("/")),
@@ -16,20 +31,12 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> Ingress {
                 name: meta.name.to_owned(),
                 port: Some(ServiceBackendPort {
                     name: None,
-                    number: Some(app.deployment.container.port),
+                    number: Some(port),
                 }),
             }),
         },
     }];
-    let mut add_domains = Vec::new();
-
-    if let Some(domains) = app.ingress.domains {
-        add_domains.push(domains.shared.clone());
-        // If there is a custom domain, add it to the hosts vector
-        if let Some(custom_domain) = &domains.custom {
-            add_domains.push(custom_domain.clone());
-        }
-    }
+    let add_domains = app.hostnames();
 
     //create ingress rules
     let rules: Vec<IngressRule> = add_domains
@@ -42,48 +49,36 @@ fn new(meta: &TappMeta, app: &TailoredApp) -> Ingress {
         })
         .collect();
 
-    Ingress {
+    let owner = app.labels.get("owner").ok_or_else(|| {
+        Error::UserInputError("the `owner` label is required (it names the TLS secret)".to_owned())
+    })?;
+
+    // For node-bound apps the external-dns target is owned by the placement step (it is the
+    // node's IP, known only once the pod is scheduled), so the spec's value is not applied:
+    // under server-side apply, a key we never send is a key we never fight over.
+    let mut annotations = ingress.annotations.clone();
+    if app.is_node_bound() {
+        annotations.remove(crate::placement::DNS_TARGET_ANNOTATION);
+    }
+
+    Ok(Ingress {
         metadata: ObjectMeta {
             name: Some(meta.name.to_owned()),
             namespace: Some(meta.namespace.to_owned()),
             labels: Some(meta.labels.to_owned()),
-            annotations: Some(app.ingress.annotations.clone()),
+            annotations: Some(annotations),
+            owner_references: Some(vec![meta.oref.to_owned()]),
             ..ObjectMeta::default()
         },
         status: None,
         spec: Some(IngressSpec {
             default_backend: None,
-            ingress_class_name: Some(app.ingress.class_name.clone()),
+            ingress_class_name: Some(ingress.class_name.clone()),
             rules: { Some(rules) },
             tls: Some(vec![IngressTLS {
                 hosts: Some(add_domains),
-                secret_name: Some(format!(
-                    "{}-{}-kubetailor-tls",
-                    meta.name,
-                    app.labels.get("owner").unwrap()
-                )),
+                secret_name: Some(format!("{}-{owner}-kubetailor-tls", meta.name)),
             }]),
         }),
-    }
-}
-
-pub async fn deploy(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Result<Ingress, Error> {
-    let ingress = new(meta, app);
-    let api: Api<Ingress> = Api::namespaced(client.to_owned(), &meta.namespace);
-    match api.create(&PostParams::default(), &ingress).await {
-        Ok(s) => Ok(s),
-        Err(kubetailor::kube::Error::Api(e)) if e.code == 409 => update(client, meta, app).await,
-        Err(e) => Err(Error::KubeError { source: e }),
-    }
-}
-
-pub async fn update(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Result<Ingress, Error> {
-    let mut ingress = new(meta, &app.clone());
-    let api: Api<Ingress> = Api::namespaced(client.to_owned(), &meta.namespace);
-    let resource_version = api.get(&meta.name).await?.metadata.resource_version;
-    ingress.metadata.resource_version = resource_version;
-
-    Ok(api
-        .replace(&meta.name, &PostParams::default(), &ingress)
-        .await?)
+    })
 }

@@ -1,0 +1,57 @@
+{{!--
+  Log viewer. State (deployment, query, interval) lives in the URL and in the server-rendered
+  markup, not in client-side JS:
+  - changing a select re-renders this whole view (new interval = new hx-trigger);
+  - typing in the search box re-renders only the pane, debounced;
+  - the pane polls itself on the chosen interval while auto-refresh is ticked, including the
+    current control values so a half-typed query is applied on the next tick.
+--}}
+<div id="logs-view" class="flex flex-col gap-4">
+    <form id="log-controls"
+          hx-get="/logs"
+          hx-trigger="change target:select, submit"
+          hx-target="#logs-view"
+          hx-swap="outerHTML"
+          hx-push-url="true"
+          hx-indicator="#log-indicator"
+          class="flex flex-wrap items-end gap-4">
+        <div class="flex flex-col gap-1 w-64">
+            <label for="log-name" class="text-sm text-neutral-600 dark:text-neutral-300">Deployment</label>
+            <select id="log-name" name="name" class="rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100">
+                <option value="" {{#unless name}}selected{{/unless}}>Select a deployment</option>
+                {{#each deployments}}
+                <option value="{{this}}" {{#if (eq this ../name)}}selected{{/if}}>{{this}}</option>
+                {{/each}}
+            </select>
+        </div>
+        <div class="flex flex-col gap-1 w-32">
+            <label for="log-interval" class="text-sm text-neutral-600 dark:text-neutral-300">Interval</label>
+            <select id="log-interval" name="interval" class="rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100">
+                {{#each intervals}}
+                <option value="{{seconds}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                {{/each}}
+            </select>
+        </div>
+        <label for="log-autorefresh" class="inline-flex items-center gap-2 pb-2 text-sm text-neutral-600 dark:text-neutral-300 cursor-pointer select-none">
+            <input type="checkbox" id="log-autorefresh" name="autorefresh" value="1" checked class="size-4 rounded border-neutral-300 dark:border-neutral-700">
+            Auto-refresh
+        </label>
+        <svg id="log-indicator" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="htmx-indicator mb-2 size-5 animate-spin motion-reduce:animate-none fill-neutral-500">
+            <path opacity="0.25" d="M12,1A11,11,0,1,0,23,12,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" />
+            <path d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z" />
+        </svg>
+        <div class="flex flex-col gap-1 w-full">
+            <label for="log-search" class="text-sm text-neutral-600 dark:text-neutral-300">Search</label>
+            <input type="search" id="log-search" name="query" value="{{query}}" placeholder="Filter log lines…"
+                   hx-get="/logs"
+                   hx-trigger="input changed delay:500ms"
+                   hx-target="#log-pane"
+                   hx-swap="outerHTML"
+                   hx-include="#log-controls"
+                   hx-push-url="true"
+                   hx-indicator="#log-indicator"
+                   class="w-full rounded-md border border-neutral-300 bg-neutral-50 px-4 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100">
+        </div>
+    </form>
+    {{> logs/pane}}
+</div>

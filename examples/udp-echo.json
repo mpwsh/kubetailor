@@ -1,0 +1,14 @@
+{
+  "name": "udp-echo",
+  "group": "Default",
+  "owner": "testuser@email.com",
+  "region": "scl",
+  "container": {
+    "image": "alpine/socat",
+    "runCommand": "socat -v UDP-RECVFROM:7777,fork EXEC:cat",
+    "replicas": 1,
+    "ports": [
+      { "port": 7777, "protocol": "UDP", "expose": "node" }
+    ]
+  }
+}

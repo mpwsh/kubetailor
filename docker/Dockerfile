@@ -3,7 +3,7 @@
 # Keep this in step with rust-toolchain.toml. The builder and the runtime MUST be the same
 # Debian release: the binaries link against the builder's libssl (openssl-tls in kube,
 # native-tls in redis/portier), and bullseye ships OpenSSL 1.1 while bookworm ships OpenSSL 3.
-ARG RUST_VERSION=1.82.0
+ARG RUST_VERSION=1.95.0
 ARG DEBIAN_RELEASE=bookworm
 
 # rust:<version>-<release> with cargo-chef preinstalled, so it is not compiled on every cold build.

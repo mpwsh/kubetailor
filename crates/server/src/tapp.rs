@@ -15,6 +15,9 @@ pub struct TappRequest {
     pub group: String,
     pub container: Container,
     pub domains: Option<Domains>,
+    /// Region the app must run in (a node label); unset lets the scheduler choose.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub git: Option<Git>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -71,6 +74,31 @@ impl TappBuilder {
         } else {
             Ok(container.image.clone())
         }
+    }
+
+    /// An app must listen somewhere, and node-exposed ports must stay out of the privileged and
+    /// node-port ranges (the former clash with the ingress controller's host ports, the latter
+    /// with what Kubernetes allocates).
+    fn validate_ports(
+        deployment_config: &Deployment,
+        container: &Container,
+    ) -> Result<(), TappRequestError> {
+        if container.port.is_none() && container.ports.is_empty() {
+            return Err(TappRequestError::Port(
+                "set `port` (HTTP) or at least one entry in `ports`".to_owned(),
+            ));
+        }
+        let (min, max) = deployment_config.node_port_range.unwrap_or((1024, 29999));
+        for p in container.ports.iter().filter(|p| p.is_external()) {
+            if p.port < min || p.port > max {
+                return Err(TappRequestError::Port(format!(
+                    "port {}/{} exposed at the node must be within {min}-{max}",
+                    p.port,
+                    p.protocol.as_str()
+                )));
+            }
+        }
+        Ok(())
     }
 
     fn validate_name(subdomain: &str, re: &Regex) -> Result<(), TappRequestError> {
@@ -131,18 +159,22 @@ impl TryFrom<TappRequest> for TailoredApp {
                     req.kubetailor
                         .git_sync
                         .build(Some(repo), Some(branch), username, token)
-                },
+                }
                 _ => None,
             }
         });
 
         TappBuilder::validate_name(&req.name, &name_regex)?;
+        TappBuilder::validate_ports(&req.kubetailor.deployment, &req.container)?;
         let labels = TappBuilder::create_labels(&req);
         let tapp_spec = TailoredAppSpec {
             labels: labels.clone(),
-            deployment: req.kubetailor.deployment.build(&req.container),
+            deployment: req
+                .kubetailor
+                .deployment
+                .build(&req.container, req.region.clone()),
             git,
-            ingress: req.kubetailor.ingress.build(req.domains),
+            ingress: Some(req.kubetailor.ingress.build(req.domains)),
             env: req.env.clone(),
             secrets: req.secrets,
         };
@@ -170,7 +202,8 @@ impl TryFrom<TailoredApp> for TappRequest {
                 image: git.image.clone(),
             }),
             container: tapp.spec.deployment.container,
-            domains: tapp.spec.ingress.domains,
+            domains: tapp.spec.ingress.and_then(|i| i.domains),
+            region: tapp.spec.deployment.region,
             env: tapp.spec.env,
             secrets: tapp.spec.secrets,
             kubetailor: Kubetailor::default(),
