@@ -53,6 +53,19 @@ pub struct Container {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub files: Option<BTreeMap<String, String>>,
     pub replicas: i32,
+    /// CPU and memory the app needs. These become the pod's requests (and the memory limit),
+    /// which is what lets the scheduler say a node is full: an app without them packs onto any
+    /// node forever, and nothing can tell that a region needs another node.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resources: Option<Resources>,
+}
+
+/// What one replica needs, in Kubernetes quantities (`250m` or `0.25` CPU, `256Mi` memory).
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Resources {
+    pub cpu: String,
+    pub memory: String,
 }
 
 /// One extra port of the app container.
@@ -322,5 +335,23 @@ mod tests {
         assert!(spec.is_node_bound());
         assert_eq!(spec.external_ports().count(), 1);
         assert!(spec.hostnames().is_empty());
+    }
+
+    #[test]
+    fn resources_are_plain_quantities_and_optional() {
+        let c: Container = serde_json::from_value(serde_json::json!({
+            "image": "baucord", "replicas": 1,
+            "resources": {"cpu": "250m", "memory": "256Mi"}
+        }))
+        .unwrap();
+        let r = c.resources.as_ref().unwrap();
+        assert_eq!((r.cpu.as_str(), r.memory.as_str()), ("250m", "256Mi"));
+        // Unset: left out of the manifest, like the other optional settings.
+        let bare: Container =
+            serde_json::from_value(serde_json::json!({"image": "x", "replicas": 1})).unwrap();
+        assert!(serde_json::to_value(&bare)
+            .unwrap()
+            .get("resources")
+            .is_none());
     }
 }

@@ -76,7 +76,7 @@ async fn placed_nodes(client: &Client, meta: &TappMeta) -> Result<Vec<PlacementN
 }
 
 /// Node ports Kubernetes allocated for the `expose: nodePort` ports, keyed by (port, protocol).
-async fn allocated_node_ports(
+pub async fn allocated_node_ports(
     client: &Client,
     meta: &TappMeta,
 ) -> Result<BTreeMap<(i32, String), i32>, Error> {
@@ -105,24 +105,32 @@ async fn desired_status(
     client: &Client,
     meta: &TappMeta,
     app: &TailoredApp,
+    note: Option<String>,
 ) -> Result<TailoredAppStatus, Error> {
     let nodes = placed_nodes(client, meta).await?;
-    let mut status = TailoredAppStatus::default();
+    // What the node step found out (a node is being added, the region is refused, …) is the
+    // most useful thing to say, placed or not: a second replica may be the one waiting.
+    let mut status = TailoredAppStatus {
+        message: note,
+        ..TailoredAppStatus::default()
+    };
 
     if nodes.is_empty() {
-        status.message = Some(match &app.spec.deployment.region {
-            Some(region) => {
-                let in_region = Api::<Node>::all(client.clone())
-                    .list(&ListParams::default().labels(&format!("{REGION_LABEL}={region}")))
-                    .await?;
-                if in_region.items.is_empty() {
-                    format!("no node in region {region}")
-                } else {
-                    format!("waiting for a pod to be scheduled in region {region}")
+        if status.message.is_none() {
+            status.message = Some(match &app.spec.deployment.region {
+                Some(region) => {
+                    let in_region = Api::<Node>::all(client.clone())
+                        .list(&ListParams::default().labels(&format!("{REGION_LABEL}={region}")))
+                        .await?;
+                    if in_region.items.is_empty() {
+                        format!("no node in region {region}")
+                    } else {
+                        format!("waiting for a pod to be scheduled in region {region}")
+                    }
                 }
-            }
-            None => "waiting for a pod to be scheduled".to_owned(),
-        });
+                None => "waiting for a pod to be scheduled".to_owned(),
+            });
+        }
         return Ok(status);
     }
 
@@ -227,12 +235,21 @@ fn annotation<'a>(meta: &'a ObjectMeta, key: &str) -> Option<&'a str> {
 }
 
 /// Publishes the app's status: the generation just applied and, for node-bound apps, where the
-/// pods run plus the DNS target. One status patch per change, none when nothing moved.
-pub async fn publish(client: &Client, meta: &TappMeta, app: &TailoredApp) -> Result<(), Error> {
+/// pods run plus the DNS target. `note` is what the node step has to say (see `nodes`), shown
+/// for any app. One status patch per change, none when nothing moved.
+pub async fn publish(
+    client: &Client,
+    meta: &TappMeta,
+    app: &TailoredApp,
+    note: Option<String>,
+) -> Result<(), Error> {
     let mut status = if app.spec.is_node_bound() {
-        desired_status(client, meta, app).await?
+        desired_status(client, meta, app, note).await?
     } else {
-        TailoredAppStatus::default()
+        TailoredAppStatus {
+            message: note,
+            ..TailoredAppStatus::default()
+        }
     };
     status.observed_generation = app.metadata.generation;
 

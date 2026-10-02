@@ -231,7 +231,12 @@ where
     )))
 }
 
-pub async fn delete_all(client: &Client, meta: &TappMeta) -> Result<Action, Error> {
+pub async fn delete_all(client: &Client, meta: &TappMeta, flint: bool) -> Result<Action, Error> {
+    if flint {
+        // Owned by the app, so garbage collection would get them; explicit so the ports close
+        // before the app is gone rather than some time after.
+        delete::<FirewallRule>(client, meta).await?;
+    }
     delete::<ConfigMap>(client, meta).await?;
     delete::<Deployment>(client, meta).await?;
     delete::<Secret>(client, meta).await?;

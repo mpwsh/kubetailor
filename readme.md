@@ -89,8 +89,11 @@ controller. Two optional fields cover everything else:
   | `nodePort` | A second Service of type `NodePort` with `externalTrafficPolicy: Local`; Kubernetes picks the port. |
 
   For `node` and `nodePort` the NetworkPolicy admits the internet on exactly that port and
-  protocol; everything else stays closed. The cloud firewall is not Kubernetes' business — on
-  flint, `flint cluster firewall <cluster> --allow udp:7777`.
+  protocol; everything else stays closed. The cloud firewall is opened through the flint
+  controller (below); without it, `flint cluster firewall <cluster> --allow udp:7777` by hand.
+- `container.resources` (`cpu`, `memory`, Kubernetes quantities) is what one replica needs. It
+  becomes the pod's requests and memory limit — and it is what lets the scheduler say a node is
+  full, which is how the cluster knows to grow (below). Apps without it pack onto any node.
 
 `ingress` is optional. An app with only node-exposed ports needs none; one with `ingress.domains`
 but no `container.port` gets no Ingress object either, the domains then just name the app and the
@@ -119,6 +122,35 @@ Examples: [udp-echo.yaml](./examples/udp-echo.yaml) (UDP only, no ingress),
 [game-server.yaml](./examples/game-server.yaml) (web page through the ingress, game port at the
 node), [udp-echo.json](./examples/udp-echo.json) (the same through the server API; the server's
 `nodePortRange` config bounds the ports users may expose, default `1024-29999`).
+
+### Nodes on demand (flint controller)
+
+With the [flint controller](https://github.com/mpwsh/flint#controller-mode) in the cluster, the
+operator asks for infrastructure with its objects instead of expecting an admin to run `flint`:
+
+- **A region without a node.** An app pinned to `waw` when no node carries that label gets a
+  `NodeClaim` named `region-waw`; flint adds the node, the scheduler places the pod. Meanwhile
+  `status.message` reports the claim's progress (`node kt-waw-a1b2 is Provisioning: …`) or its
+  refusal (`claim region-waw is Failed: denied: region waw is not allowed`).
+- **A region that is full.** A pod the scheduler has refused for more than 30 s because of
+  `Insufficient cpu`/`memory` or `didn't have free ports` (two copies of a `node`-exposed port
+  cannot share a node) gets one more claim for its region, `region-waw-2`, and so on. Never
+  more than one claim at a time per region: while one is Pending or Provisioning, the app waits
+  on it. Apps that name no region are grown in `KUBETAILOR_DEFAULT_REGION`, else the control
+  plane's region. The flint controller's policy (`maxNodesPerRegion`, `allowedRegions`, …) is
+  the budget; a refusal shows up in the app's status rather than as a silent Pending pod.
+- **Ports.** Every `node`/`nodePort` port becomes a `FirewallRule` (`<app>-udp-27015`) owned by
+  the app, so the cloud firewall opens and closes with it. `nodePort` rules carry the port
+  Kubernetes allocated.
+- **Giving nodes back.** Every 5 minutes the operator looks at the claims it made. A node that
+  has run no app pods for `KUBETAILOR_NODE_IDLE_MINUTES` (default 60, counted from when it was
+  first seen empty, so from Ready for a node nothing ever landed on) has its claim deleted and
+  flint drains and destroys it. A claim that never got a node is deleted once no app asks for
+  its region any more. Claims made by hand (no `kubetailor.io/managed` label) are never touched.
+
+The ClusterRole in [deploy/clusterrole.yaml](./deploy/clusterrole.yaml) covers the two kinds. On
+a cluster without the flint CRDs the operator says so once at start-up and does none of this;
+apps still deploy onto the nodes there are.
 
 ### Live updates
 

@@ -262,6 +262,7 @@ mod tests {
                         volumes: None,
                         files: None,
                         replicas: 1,
+                        resources: None,
                     },
                 },
                 ingress: None,

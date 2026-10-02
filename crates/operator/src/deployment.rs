@@ -1,12 +1,16 @@
 use kubetailor::{
     crd::{self, Expose},
-    k8s_openapi::api::{
-        apps::v1::DeploymentSpec,
-        core::v1::{
-            ConfigMapEnvSource, ConfigMapVolumeSource, Container, ContainerPort,
-            EmptyDirVolumeSource, EnvFromSource, EnvVar, PersistentVolumeClaimVolumeSource,
-            PodSpec, PodTemplateSpec, SecretEnvSource, SecurityContext, Volume, VolumeMount,
+    k8s_openapi::{
+        api::{
+            apps::v1::DeploymentSpec,
+            core::v1::{
+                ConfigMapEnvSource, ConfigMapVolumeSource, Container, ContainerPort,
+                EmptyDirVolumeSource, EnvFromSource, EnvVar, PersistentVolumeClaimVolumeSource,
+                PodSpec, PodTemplateSpec, ResourceRequirements, SecretEnvSource, SecurityContext,
+                Volume, VolumeMount,
+            },
         },
+        apimachinery::pkg::api::resource::Quantity,
     },
 };
 
@@ -25,6 +29,23 @@ pub fn node_selector(deployment: &crd::Deployment) -> Option<BTreeMap<String, St
         .region
         .as_ref()
         .map(|region| BTreeMap::from([(REGION_LABEL.to_owned(), region.to_owned())]))
+}
+
+/// Requests equal to what the app declared, and a memory limit at the same value: the scheduler
+/// counts requests when deciding a node is full, and a memory limit keeps one app from taking
+/// the node down with it. CPU is left unlimited so an idle neighbour's share is usable.
+pub fn resource_requirements(container: &crd::Container) -> Option<ResourceRequirements> {
+    let r = container.resources.as_ref()?;
+    let requests = BTreeMap::from([
+        ("cpu".to_owned(), Quantity(r.cpu.clone())),
+        ("memory".to_owned(), Quantity(r.memory.clone())),
+    ]);
+    let limits = BTreeMap::from([("memory".to_owned(), Quantity(r.memory.clone()))]);
+    Some(ResourceRequirements {
+        requests: Some(requests),
+        limits: Some(limits),
+        ..ResourceRequirements::default()
+    })
 }
 
 /// The HTTP port (if any) followed by the extra ports. `expose: node` ports bind the same number
@@ -181,6 +202,7 @@ pub fn new(meta: &TappMeta, app: &TailoredApp, mounts: &[Mount]) -> Deployment {
         image_pull_policy: Some("IfNotPresent".to_owned()),
         command,
         ports: Some(container_ports(&app.spec.deployment.container)),
+        resources: resource_requirements(&app.spec.deployment.container),
         env_from: if !env_from.is_empty() {
             Some(env_from)
         } else {

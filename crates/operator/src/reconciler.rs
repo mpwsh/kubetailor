@@ -1,6 +1,6 @@
 use crate::{
     actions::{apply_all, delete_all},
-    finalizer, placement,
+    finalizer, nodes, placement,
     prelude::*,
 };
 
@@ -75,7 +75,7 @@ pub async fn reconcile(app: Arc<TailoredApp>, ctx: Arc<ContextData>) -> Result<A
     };
 
     if app.meta().deletion_timestamp.is_some() {
-        return delete_all(&client, &meta).await;
+        return delete_all(&client, &meta, ctx.flint).await;
     }
 
     if !finalizer::present(&app) {
@@ -87,13 +87,17 @@ pub async fn reconcile(app: Arc<TailoredApp>, ctx: Arc<ContextData>) -> Result<A
         placement::report_error(&client, &meta, &e).await;
         return Err(e);
     }
-    placement::publish(&client, &meta, &app).await?;
+    // Nodes and ports through flint, when there is a flint controller to ask.
+    let note = if ctx.flint {
+        nodes::ensure_firewall_rules(&client, &meta, &app).await?;
+        nodes::ensure_capacity(&client, &meta, &app).await?
+    } else {
+        None
+    };
+    placement::publish(&client, &meta, &app, note.clone()).await?;
 
     let placed = app.status.as_ref().is_some_and(|s| !s.nodes.is_empty());
-    let delay = if app.spec.is_node_bound() && !placed {
-        PLACEMENT_POLL
-    } else {
-        RESYNC
-    };
+    let unsettled = (app.spec.is_node_bound() && !placed) || note.is_some();
+    let delay = if unsettled { PLACEMENT_POLL } else { RESYNC };
     Ok(Action::requeue(delay))
 }
