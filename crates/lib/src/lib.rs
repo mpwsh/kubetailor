@@ -1,5 +1,6 @@
 pub mod cert_crd;
 pub mod crd;
+pub mod flint_crd;
 pub mod prelude;
 pub mod resources;
 

@@ -12,6 +12,7 @@ mod error;
 mod finalizer;
 mod ingress;
 mod netpol;
+mod nodes;
 mod placement;
 pub mod prelude;
 mod pvc;
@@ -27,7 +28,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Builder::new().filter(None, LevelFilter::Info).init();
 
-    let context: Arc<ContextData> = Arc::new(ContextData::new(client.clone()));
+    // With the flint controller installed, apps can ask for nodes and open ports; without it
+    // they still deploy, onto the nodes there are.
+    let flint = nodes::available(&client).await;
+    if flint {
+        info!(
+            "flint.mpw.sh found: nodes are requested through NodeClaims, idle ones released \
+             after {} min",
+            nodes::idle_window().as_secs() / 60
+        );
+    } else {
+        warn!("flint.mpw.sh not found: apps cannot add nodes or open firewall ports");
+    }
+    let context: Arc<ContextData> = Arc::new(ContextData::new(client.clone(), flint));
 
     let (mut reload_tx, _reload_rx) = futures::channel::mpsc::channel(0);
 
@@ -43,12 +56,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     // Children emit bursts of events (a rollout is a dozen Deployment status updates); coalesce
     // them so one reconcile handles each burst.
-    Controller::new(tapp, Config::default().any_semantic())
+    let controller = Controller::new(tapp, Config::default().any_semantic())
         .with_config(
             kubetailor::kube::runtime::controller::Config::default()
                 .debounce(Duration::from_secs(2)),
         )
-        .shutdown_on_signal()
+        .shutdown_on_signal();
+    let controller = if flint {
+        // A claim changing (node ready, refused) concerns the apps pinned to its region and any
+        // app still waiting for something.
+        let store = controller.store();
+        let reaper_client = client.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(nodes::reap_interval()).await;
+                if let Err(e) = nodes::reap_idle(&reaper_client, nodes::idle_window()).await {
+                    error!("idle node check failed: {e}");
+                }
+            }
+        });
+        controller
+            .owns(
+                Api::<FirewallRule>::all(client.clone()),
+                watcher::Config::default(),
+            )
+            .watches(
+                Api::<NodeClaim>::all(client.clone()),
+                watcher::Config::default(),
+                move |claim| {
+                    let region = claim.spec.region.clone();
+                    store
+                        .state()
+                        .into_iter()
+                        .filter(|app| {
+                            app.spec.deployment.region.as_deref() == Some(region.as_str())
+                                || app.status.as_ref().is_some_and(|s| s.message.is_some())
+                        })
+                        .map(|app| ObjectRef::from_obj(app.as_ref()))
+                        .collect::<Vec<_>>()
+                },
+            )
+    } else {
+        controller
+    };
+    controller
         .owns(
             Api::<ConfigMap>::all(client.clone()),
             watcher::Config::default(),

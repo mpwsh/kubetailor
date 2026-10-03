@@ -27,6 +27,33 @@ rules:
   - get
   - list
   - watch
+# Nodes and ports through the flint controller: a NodeClaim per region (or per node the
+# scheduler says is missing), a FirewallRule per port exposed at the node. Not needed on a
+# cluster without flint; the operator notices and skips both.
+- apiGroups:
+  - flint.mpw.sh
+  resources:
+  - nodeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - patch
+  - delete
+- apiGroups:
+  - flint.mpw.sh
+  resources:
+  - firewallrules
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+  - deletecollection
 - apiGroups:
   - networking.k8s.io
   resources:

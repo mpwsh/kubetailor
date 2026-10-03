@@ -6,7 +6,8 @@ pub use std::{
 };
 
 pub use kubetailor::{
-    crd::TailoredApp,
+    crd::{Expose, TailoredApp},
+    flint_crd::{FirewallRule, NodeClaim},
     k8s_openapi::{
         api::{
             apps::v1::Deployment,
@@ -24,6 +25,7 @@ pub use kubetailor::{
         core::object::HasSpec,
         runtime::{
             controller::Action,
+            reflector::ObjectRef,
             watcher::{self, Config},
             Controller, WatchStreamExt,
         },

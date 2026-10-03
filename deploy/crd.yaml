@@ -83,6 +83,17 @@ spec:
                                 type: string
                         replicas:
                           type: integer
+                        resources:
+                          description: What one replica needs; becomes the pod's requests (and memory limit), which is how a region is known to be full.
+                          type: object
+                          required: ["cpu", "memory"]
+                          properties:
+                            cpu:
+                              description: Kubernetes quantity, e.g. 250m or 0.5.
+                              type: string
+                            memory:
+                              description: Kubernetes quantity, e.g. 256Mi.
+                              type: string
                         buildCommand:
                           type: string
                         runCommand:

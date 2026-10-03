@@ -4,9 +4,13 @@
 # a shared load balancer, so players and the web page hit the region they asked for.
 #
 # Replace NODE_IP/REGION, then:
-#   flint cluster firewall <cluster> --allow udp:19132
 #   kubectl apply -f examples/game-server.yaml
 #   kubectl -n kubetailor get tapp bedrock          # Region and Node IP columns
+#
+# With the flint controller in the cluster the operator opens udp/19132 itself (a FirewallRule
+# owned by the app) and, if REGION has no node or no room for `resources`, asks for one; the
+# status says what it is waiting on. Without it: `flint cluster firewall <cluster> --allow
+# udp:19132` and a node in REGION beforehand.
 apiVersion: kubetailor.io/v1
 kind: TailoredApp
 metadata:
@@ -32,6 +36,10 @@ spec:
     container:
       image: itzg/minecraft-bedrock-server
       replicas: 1
+      # What one copy needs: the scheduler counts these, so a full node is a known thing.
+      resources:
+        cpu: "1"
+        memory: 2Gi
       ports:
         - port: 19132
           protocol: UDP
