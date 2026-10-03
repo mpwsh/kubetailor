@@ -7,6 +7,7 @@ mod error;
 mod git;
 mod health;
 mod ingress;
+mod quantity;
 mod quickwit;
 mod routes;
 mod tapp;
@@ -15,6 +16,10 @@ mod tapp;
 async fn main() -> std::io::Result<()> {
     env_logger::init();
     let config: config::Config = config::Config::load().expect("unable to read config file");
+    if let Err(e) = config.kubetailor.deployment.resources.validate() {
+        eprintln!("invalid config: kubetailor.{e}");
+        std::process::exit(1);
+    }
     let server_addr = format!("{}:{}", config.server.addr, config.server.port);
     std::env::set_var("RUST_LOG", config.server.log_level);
     let kube_config = KubeConfig::infer()

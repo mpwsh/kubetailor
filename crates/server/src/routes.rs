@@ -6,7 +6,7 @@ use actix_web::{
     HttpResponse, Responder,
 };
 use kubetailor::{
-    k8s_openapi::api::apps::v1::Deployment,
+    k8s_openapi::api::{apps::v1::Deployment, core::v1::Node},
     kube::{
         api::{Api as KubeApi, DeleteParams, ListParams, Patch, PatchParams},
         core::NamespaceResourceScope,
@@ -20,10 +20,14 @@ use serde_json::json;
 
 use crate::{
     config::Kubetailor,
+    deployment::Limits,
     health::Health,
     quickwit,
     tapp::{TappRequest, DEFAULT_NODE_PORT_RANGE},
 };
+
+/// Node label every region-aware node carries (flint sets it on the nodes it creates).
+const REGION_LABEL: &str = "topology.kubernetes.io/region";
 
 #[derive(Deserialize)]
 pub struct BasicParams {
@@ -200,8 +204,10 @@ where
 }
 
 /// What a client needs to know before it builds a request: the base domain shared subdomains
-/// land under, the node-port range `expose: node`/`nodePort` must stay within, and the image
-/// allow-list if there is one. Nothing here is secret; the console renders it in the wizard.
+/// land under, the node-port range `expose: node`/`nodePort` must stay within, the image
+/// allow-list if there is one, the regions on offer (with how many nodes each has right now,
+/// so a wizard can say "deploying here adds a node") and the resource bounds. Nothing here is
+/// secret; the console renders it in the wizard.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PublicConfig {
@@ -209,10 +215,45 @@ pub struct PublicConfig {
     pub node_port_range: (i32, i32),
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allowed_images: Option<Vec<String>>,
+    #[serde(default)]
+    pub regions: Vec<RegionInfo>,
+    #[serde(default)]
+    pub limits: Limits,
 }
 
-impl From<&Kubetailor> for PublicConfig {
-    fn from(k: &Kubetailor) -> Self {
+/// A region the console offers.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct RegionInfo {
+    pub id: String,
+    pub name: String,
+    /// Nodes currently carrying the region label. Zero means the first deployment there waits
+    /// for a node to be added (with the flint controller) or never schedules (without).
+    pub nodes: usize,
+}
+
+impl PublicConfig {
+    /// The configured regions with live node counts; without a configured list, the regions
+    /// the nodes carry, named by their id.
+    fn new(k: &Kubetailor, nodes_by_region: &std::collections::BTreeMap<String, usize>) -> Self {
+        let regions = if k.regions.is_empty() {
+            nodes_by_region
+                .iter()
+                .map(|(id, nodes)| RegionInfo {
+                    id: id.clone(),
+                    name: id.clone(),
+                    nodes: *nodes,
+                })
+                .collect()
+        } else {
+            k.regions
+                .iter()
+                .map(|r| RegionInfo {
+                    id: r.id.clone(),
+                    name: r.name.clone(),
+                    nodes: nodes_by_region.get(&r.id).copied().unwrap_or(0),
+                })
+                .collect()
+        };
         PublicConfig {
             base_domain: k.ingress.base_domain.clone(),
             node_port_range: k
@@ -220,13 +261,42 @@ impl From<&Kubetailor> for PublicConfig {
                 .node_port_range
                 .unwrap_or(DEFAULT_NODE_PORT_RANGE),
             allowed_images: k.deployment.allowed_images.clone(),
+            regions,
+            limits: k.deployment.resources.clone(),
         }
     }
 }
 
+/// How many nodes carry each region label. A cluster that cannot be asked (no permission, no
+/// connection) counts as having none: the wizard still renders, every region just shows as
+/// "adds a node".
+async fn nodes_by_region(client: &Client) -> std::collections::BTreeMap<String, usize> {
+    let mut counts = std::collections::BTreeMap::new();
+    match KubeApi::<Node>::all(client.clone())
+        .list(&ListParams::default().labels(REGION_LABEL))
+        .await
+    {
+        Ok(nodes) => {
+            for node in nodes.items {
+                if let Some(region) = node
+                    .metadata
+                    .labels
+                    .as_ref()
+                    .and_then(|l| l.get(REGION_LABEL))
+                {
+                    *counts.entry(region.clone()).or_insert(0) += 1;
+                }
+            }
+        }
+        Err(e) => log::warn!("cannot list nodes for the region counts: {e}"),
+    }
+    counts
+}
+
 #[get("/config")]
-pub async fn config(kubetailor: Data<Kubetailor>) -> impl Responder {
-    HttpResponse::Ok().json(PublicConfig::from(kubetailor.as_ref()))
+pub async fn config(client: Data<Client>, kubetailor: Data<Kubetailor>) -> impl Responder {
+    let counts = nodes_by_region(client.as_ref()).await;
+    HttpResponse::Ok().json(PublicConfig::new(kubetailor.as_ref(), &counts))
 }
 
 /// The TailoredApp a request would become, as YAML, without applying it: the same validation
@@ -356,10 +426,22 @@ pub async fn health(
         deployment: fetch_resource(&client, &params.owner, &kubetailor.namespace, &name).await,
         ingress: fetch_resource(&client, &params.owner, &kubetailor.namespace, &name).await,
     };
-    if let Ok(status) = Health::try_from(resources) {
-        HttpResponse::Ok().json(status)
-    } else {
-        HttpResponse::Ok().body(format!("Unable to get status of {name}"))
+    match Health::try_from(resources) {
+        Ok(mut status) => {
+            // The operator's word on why there is no placement yet (a node being added for the
+            // region, a refused claim): what a person waiting on a deploy wants to read.
+            let api: KubeApi<TailoredApp> =
+                KubeApi::namespaced(client.as_ref().clone(), &kubetailor.namespace);
+            status.message = api
+                .get_opt(&name)
+                .await
+                .ok()
+                .flatten()
+                .and_then(|app| app.status)
+                .and_then(|s| s.message);
+            HttpResponse::Ok().json(status)
+        }
+        Err(_) => HttpResponse::Ok().body(format!("Unable to get status of {name}")),
     }
 }
 

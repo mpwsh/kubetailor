@@ -50,6 +50,15 @@ pub struct Container {
     pub build_command: Option<String>,
     #[serde(rename = "runCommand", skip_serializing_if = "is_empty_string")]
     pub run_command: Option<String>,
+    /// What one instance needs (`250m`, `256Mi`). Unset lets the API apply its minimums.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resources: Option<Resources>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
+pub struct Resources {
+    pub cpu: String,
+    pub memory: String,
 }
 
 /// One extra container port, spelled as the API spells it: `protocol` is `TCP` or `UDP`,
@@ -91,11 +100,77 @@ pub struct ApiConfig {
     pub node_port_range: (u32, u32),
     #[serde(default)]
     pub allowed_images: Option<Vec<String>>,
+    /// Regions on offer, with how many nodes each has right now. Empty when the API does not
+    /// say: the wizard then takes a region as free text.
+    #[serde(default)]
+    pub regions: Vec<RegionInfo>,
+    /// Bounds on what one app may ask for; unset bounds are not enforced here (the API still
+    /// has the last word).
+    #[serde(default)]
+    pub limits: Limits,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+pub struct RegionInfo {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub nodes: usize,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
+pub struct Limits {
+    #[serde(default)]
+    pub cpu: Range,
+    #[serde(default)]
+    pub memory: Range,
+    #[serde(default)]
+    pub volume: VolumeLimits,
+}
+
+/// A bound as the API spells it: a Kubernetes quantity, either end optional.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
+pub struct Range {
+    #[serde(default)]
+    pub min: Option<String>,
+    #[serde(default)]
+    pub max: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
+pub struct VolumeLimits {
+    #[serde(default)]
+    pub count: CountRange,
+    #[serde(default)]
+    pub size: Range,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Default)]
+pub struct CountRange {
+    #[serde(default)]
+    pub min: Option<usize>,
+    #[serde(default)]
+    pub max: Option<usize>,
 }
 
 impl ApiConfig {
     fn default_node_port_range() -> (u32, u32) {
         (1024, 29999)
+    }
+
+    /// The region as people see it, for an id the API offers; the id itself otherwise.
+    pub fn region_name(&self, id: &str) -> String {
+        self.regions
+            .iter()
+            .find(|r| r.id == id)
+            .map(|r| r.name.clone())
+            .unwrap_or_else(|| id.to_owned())
+    }
+
+    /// Whether a region has no node yet, as far as the API knows. Unknown regions are not
+    /// claimed to be empty.
+    pub fn region_is_empty(&self, id: &str) -> bool {
+        self.regions.iter().any(|r| r.id == id && r.nodes == 0)
     }
 }
 
@@ -105,6 +180,8 @@ impl Default for ApiConfig {
             base_domain: String::new(),
             node_port_range: Self::default_node_port_range(),
             allowed_images: None,
+            regions: Vec::new(),
+            limits: Limits::default(),
         }
     }
 }

@@ -9,8 +9,8 @@
 #   kubectl -n kubetailor get tapp udp-echo -o jsonpath='{.status.endpoints}'
 #   echo hello | nc -u -w1 <ip> 7777
 #
-# The provider firewall is outside Kubernetes: on a flint cluster,
-#   flint cluster firewall <cluster> --allow udp:7777
+# With the flint controller the operator opens udp/7777 on the provider firewall itself (and
+# adds a node if `region` has none); without it: `flint cluster firewall <cluster> --allow udp:7777`.
 #
 # The `owner` label is required (the operator derives the TLS secret name from it when there
 # is an ingress; it also scopes the NetworkPolicy peers).
@@ -38,8 +38,12 @@ spec:
     serviceAccount: limited
     container:
       image: alpine/socat
+      # Run commands are shell lines (`sh -c`), like a Dockerfile's string-form CMD.
       runCommand: "socat -v UDP-RECVFROM:7777,fork EXEC:cat"
       replicas: 1
+      resources:
+        cpu: 100m
+        memory: 64Mi
       ports:
         - port: 7777
           protocol: UDP

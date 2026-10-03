@@ -42,23 +42,35 @@ kubetailor:
       - node
       - nicolaka/netshoot
       - tsl0922/ttyd:latest
+    # Bounds on what one app may ask for, as Kubernetes quantities. The minimums are also the
+    # defaults: an app that names no size gets them, so every pod carries requests and a full
+    # node is a known thing (that is what lets the cluster grow on demand).
     resources:
       cpu:
-        min: 0.2
+        min: 200m
         max: 1
       memory:
-        min: 128Mib
+        min: 128Mi
         max: 2Gi
       volume:
         count:
-          min: 0
           max: 2
         size:
-          min: 100Mib
-          max: 10Gi
+          min: 100Mi
+          # Volumes live on the app's node; keep them small so one app cannot fill it.
+          max: 2Gi
     replicas:
       min: 1
       max: 3
+  # Regions apps may be pinned to, as the console offers them: the node label value and the
+  # name people see. Empty: whatever regions the cluster's nodes carry, named by their id.
+  regions:
+    - id: scl
+      name: Santiago
+    - id: sao
+      name: São Paulo
+    - id: waw
+      name: Warsaw
   ingress:
     baseDomain: mpw.sh
     loadBalancerEndpoint: k3s.mpw.sh

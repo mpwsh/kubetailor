@@ -152,6 +152,31 @@ The ClusterRole in [deploy/clusterrole.yaml](./deploy/clusterrole.yaml) covers t
 a cluster without the flint CRDs the operator says so once at start-up and does none of this;
 apps still deploy onto the nodes there are.
 
+### Regions and sizes, as the server offers them
+
+The server config names what people may ask for, and `GET /config` hands it to the console:
+
+```yaml
+kubetailor:
+  regions:                       # the console's Region list; empty = whatever the nodes carry
+    - { id: scl, name: Santiago }
+    - { id: waw, name: Warsaw }
+  deployment:
+    resources:                   # Kubernetes quantities; a minimum is also the default
+      cpu:    { min: 200m,  max: 1 }
+      memory: { min: 128Mi, max: 2Gi }
+      volume: { count: { max: 2 }, size: { min: 100Mi, max: 2Gi } }
+```
+
+`GET /config` adds how many nodes each region has right now (`"nodes": 0` means the first
+deployment there waits for one), and the console turns Region into a dropdown of names, marks
+regions that would add a node, shows Size (CPU, memory) fields with the bounds, and caps
+volumes. The server enforces all of it on `POST /` and `POST /preview` whatever the client:
+an app without `resources` gets the minimums, one over a maximum is refused, a region not on
+the list is refused. A bound that is not a quantity (`128Mib`) stops the server at start-up.
+Volumes are `local-path` on the app's node, so the size cap is what keeps one app from filling
+the node. While a deployment waits, the progress view shows the operator's `status.message`.
+
 ### Live updates
 
 Editing a `TailoredApp` (`kubectl apply`/`edit`, or the server's `PUT`) re-renders its resources

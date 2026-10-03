@@ -20,7 +20,17 @@
   <dd>{{tapp.container.replicas}}</dd>
 
   <dt class="font-medium text-neutral-900 dark:text-white">Region</dt>
-  <dd>{{#if tapp.region}}{{tapp.region}}{{else}}<span class="text-neutral-500">any</span>{{/if}}</dd>
+  <dd>
+    {{#if tapp.region}}
+      {{#if region_name}}{{region_name}} <span class="text-neutral-500">({{tapp.region}})</span>{{else}}{{tapp.region}}{{/if}}
+      {{#if region_empty}}
+      <div class="mt-1 text-amber-700 dark:text-amber-400">No node there yet: deploying adds one, which takes about five minutes.</div>
+      {{/if}}
+    {{else}}<span class="text-neutral-500">any</span>{{/if}}
+  </dd>
+
+  <dt class="font-medium text-neutral-900 dark:text-white">Size</dt>
+  <dd>{{#if tapp.container.resources}}{{tapp.container.resources.cpu}} CPU, {{tapp.container.resources.memory}} memory{{else}}<span class="text-neutral-500">smallest</span>{{/if}} per instance</dd>
 
   <dt class="font-medium text-neutral-900 dark:text-white">Group</dt>
   <dd>{{#if tapp.group}}{{tapp.group}}{{else}}<span class="text-neutral-500">none</span>{{/if}}</dd>
