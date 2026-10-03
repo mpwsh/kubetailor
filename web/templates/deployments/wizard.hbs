@@ -27,6 +27,26 @@
       value = tapp.name
       help = "Lowercase letters, digits and dashes. It names everything the deployment creates."
     }}
+    {{#if config.regions}}
+    {{!--
+      Regions the API offers, by name. One without a node is still on offer: the first deploy
+      there asks for one (the flint controller), which takes a few minutes.
+    --}}
+    <div class="flex w-full max-w-xs flex-col gap-1 text-neutral-600 dark:text-neutral-300">
+      <label for="regionInput" class="w-fit pl-0.5 text-sm">Region</label>
+      <select id="regionInput" name="region"
+              class="w-full rounded-md border border-neutral-300 bg-neutral-50 px-2 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900/50 dark:focus-visible:outline-white">
+        <option value="">Any region</option>
+        {{#each config.regions}}
+        <option value="{{id}}" {{#if (eq id ../tapp.region)}}selected{{/if}}>{{name}}{{#unless nodes}} — adds a node on first deploy{{/unless}}</option>
+        {{/each}}
+      </select>
+      <p class="pl-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+        Where the app runs. A region without a node yet gets one when you deploy, which takes
+        about five minutes. "Any region" lets the scheduler choose.
+      </p>
+    </div>
+    {{else}}
     {{> cmp/text-input
       name = "region"
       title = "Region"
@@ -34,6 +54,7 @@
       value = tapp.region
       help = "Pin the app to the nodes of one region (e.g. scl). Leave empty to let the scheduler choose."
     }}
+    {{/if}}
   </div>
 
   {{!-- 2 Source --}}

@@ -26,6 +26,19 @@ pub struct Kubetailor {
     pub deployment: Deployment,
     pub ingress: Ingress,
     pub git_sync: Git,
+    /// Regions apps may be pinned to, with the name people see. Empty: whatever regions the
+    /// cluster's nodes carry, named by their id.
+    #[serde(default)]
+    pub regions: Vec<Region>,
+}
+
+/// A region as the console offers it: the node label value and a display name.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+pub struct Region {
+    /// The `topology.kubernetes.io/region` label value (`scl`, `waw`).
+    pub id: String,
+    /// What people see (`Santiago`, `Warsaw`).
+    pub name: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

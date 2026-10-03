@@ -1,10 +1,16 @@
 use std::collections::BTreeMap;
 
-use kubetailor::crd::{Container, Domains, TailoredApp, TailoredAppSpec};
+use kubetailor::crd::{Container, Domains, Resources, TailoredApp, TailoredAppSpec};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use super::{config::Kubetailor, deployment::Deployment, error::TappRequestError, git::Git};
+use super::{
+    config::{Kubetailor, Region},
+    deployment::{Deployment, Limits},
+    error::TappRequestError,
+    git::Git,
+    quantity::{bytes, cpu_millis, Quantity},
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -107,6 +113,136 @@ impl TappBuilder {
         Ok(())
     }
 
+    /// A region must be one the operator offers, when a list is configured.
+    fn validate_region(regions: &[Region], region: Option<&str>) -> Result<(), TappRequestError> {
+        let Some(region) = region.map(str::trim).filter(|r| !r.is_empty()) else {
+            return Ok(());
+        };
+        if regions.is_empty() || regions.iter().any(|r| r.id == region) {
+            return Ok(());
+        }
+        Err(TappRequestError::Region(format!(
+            "`{region}` is not offered; regions: {}",
+            regions
+                .iter()
+                .map(|r| r.id.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )))
+    }
+
+    /// What one replica gets: the request's `resources` kept within the configured bounds, or
+    /// the minimums when the request names none (so every pod carries requests and the
+    /// scheduler can tell a node is full). `None` only when nothing is configured either.
+    fn resolve_resources(
+        limits: &Limits,
+        requested: Option<&Resources>,
+    ) -> Result<Option<Resources>, TappRequestError> {
+        let bound = |what: &str, value: &Quantity, parse: fn(&str) -> Option<u64>| {
+            parse(value.as_str()).ok_or_else(|| {
+                TappRequestError::Resources(format!(
+                    "configured {what} bound `{}` is not a quantity",
+                    value.as_str()
+                ))
+            })
+        };
+        let check = |what: &str,
+                     value: &str,
+                     parse: fn(&str) -> Option<u64>,
+                     min: Option<&Quantity>,
+                     max: Option<&Quantity>|
+         -> Result<(), TappRequestError> {
+            let n = parse(value).ok_or_else(|| {
+                TappRequestError::Resources(format!("{what} `{value}` is not a quantity"))
+            })?;
+            if let Some(min) = min {
+                if n < bound(what, min, parse)? {
+                    return Err(TappRequestError::Resources(format!(
+                        "{what} {value} is below the minimum {}",
+                        min.as_str()
+                    )));
+                }
+            }
+            if let Some(max) = max {
+                if n > bound(what, max, parse)? {
+                    return Err(TappRequestError::Resources(format!(
+                        "{what} {value} is above the maximum {}",
+                        max.as_str()
+                    )));
+                }
+            }
+            Ok(())
+        };
+        let requested = match requested {
+            Some(r) => r.clone(),
+            None => match (&limits.cpu.min, &limits.memory.min) {
+                (Some(cpu), Some(memory)) => Resources {
+                    cpu: cpu.as_str().to_owned(),
+                    memory: memory.as_str().to_owned(),
+                },
+                _ => return Ok(None),
+            },
+        };
+        check(
+            "cpu",
+            &requested.cpu,
+            cpu_millis,
+            limits.cpu.min.as_ref(),
+            limits.cpu.max.as_ref(),
+        )?;
+        check(
+            "memory",
+            &requested.memory,
+            bytes,
+            limits.memory.min.as_ref(),
+            limits.memory.max.as_ref(),
+        )?;
+        Ok(Some(requested))
+    }
+
+    /// Volumes within the configured count and size bounds.
+    fn validate_volumes(limits: &Limits, container: &Container) -> Result<(), TappRequestError> {
+        let volumes = container.volumes.as_ref();
+        let count = volumes.map(BTreeMap::len).unwrap_or(0);
+        if let Some(max) = limits.volume.count.max {
+            if count > max {
+                return Err(TappRequestError::Volume(format!(
+                    "{count} volumes; at most {max} per deployment"
+                )));
+            }
+        }
+        let parse_bound = |b: &Quantity| {
+            bytes(b.as_str()).ok_or_else(|| {
+                TappRequestError::Volume(format!(
+                    "configured size bound `{}` is not a quantity",
+                    b.as_str()
+                ))
+            })
+        };
+        for (path, size) in volumes.into_iter().flatten() {
+            let n = bytes(size).ok_or_else(|| {
+                TappRequestError::Volume(format!("`{path}`: size `{size}` is not a quantity"))
+            })?;
+            if let Some(min) = &limits.volume.size.min {
+                if n < parse_bound(min)? {
+                    return Err(TappRequestError::Volume(format!(
+                        "`{path}`: {size} is below the minimum {}",
+                        min.as_str()
+                    )));
+                }
+            }
+            if let Some(max) = &limits.volume.size.max {
+                if n > parse_bound(max)? {
+                    return Err(TappRequestError::Volume(format!(
+                        "`{path}`: {size} is above the maximum {}",
+                        max.as_str()
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn validate_name(subdomain: &str, re: &Regex) -> Result<(), TappRequestError> {
         if !re.is_match(subdomain) {
             Err(TappRequestError::Domain(subdomain.to_string()))
@@ -172,6 +308,12 @@ impl TryFrom<TappRequest> for TailoredApp {
 
         TappBuilder::validate_name(&req.name, &name_regex)?;
         TappBuilder::validate_ports(&req.kubetailor.deployment, &req.container)?;
+        TappBuilder::validate_region(&req.kubetailor.regions, req.region.as_deref())?;
+        TappBuilder::validate_volumes(&req.kubetailor.deployment.resources, &req.container)?;
+        req.container.resources = TappBuilder::resolve_resources(
+            &req.kubetailor.deployment.resources,
+            req.container.resources.as_ref(),
+        )?;
         let labels = TappBuilder::create_labels(&req);
         let tapp_spec = TailoredAppSpec {
             labels: labels.clone(),
@@ -277,5 +419,110 @@ mod tests {
         ]));
         let req = TappRequest::try_from(app).unwrap();
         assert_eq!(req.group, "games");
+    }
+
+    fn limits(yaml: &str) -> Limits {
+        serde_yaml::from_str(yaml).unwrap()
+    }
+
+    fn container(volumes: &[(&str, &str)], resources: Option<(&str, &str)>) -> Container {
+        Container {
+            image: "x".into(),
+            replicas: 1,
+            volumes: (!volumes.is_empty()).then(|| {
+                volumes
+                    .iter()
+                    .map(|(p, s)| (p.to_string(), s.to_string()))
+                    .collect()
+            }),
+            resources: resources.map(|(cpu, memory)| Resources {
+                cpu: cpu.into(),
+                memory: memory.into(),
+            }),
+            ..Container::default()
+        }
+    }
+
+    #[test]
+    fn resources_default_to_the_minimum_and_stay_under_the_maximum() {
+        let l = limits("cpu: {min: 200m, max: 1}\nmemory: {min: 128Mi, max: 2Gi}");
+        let defaulted = TappBuilder::resolve_resources(&l, None).unwrap().unwrap();
+        assert_eq!(
+            (defaulted.cpu.as_str(), defaulted.memory.as_str()),
+            ("200m", "128Mi")
+        );
+        let ok = Resources {
+            cpu: "0.5".into(),
+            memory: "1Gi".into(),
+        };
+        assert_eq!(
+            TappBuilder::resolve_resources(&l, Some(&ok)).unwrap(),
+            Some(ok)
+        );
+        let greedy = Resources {
+            cpu: "4".into(),
+            memory: "1Gi".into(),
+        };
+        let err = TappBuilder::resolve_resources(&l, Some(&greedy)).unwrap_err();
+        assert!(err.to_string().contains("above the maximum 1"), "{err}");
+        let tiny = Resources {
+            cpu: "250m".into(),
+            memory: "64Mi".into(),
+        };
+        let err = TappBuilder::resolve_resources(&l, Some(&tiny)).unwrap_err();
+        assert!(err.to_string().contains("below the minimum 128Mi"), "{err}");
+        let garbage = Resources {
+            cpu: "fast".into(),
+            memory: "64Mi".into(),
+        };
+        assert!(TappBuilder::resolve_resources(&l, Some(&garbage)).is_err());
+        // Nothing configured: nothing imposed.
+        assert_eq!(
+            TappBuilder::resolve_resources(&Limits::default(), None).unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn volumes_are_bounded_in_size_and_count() {
+        let l = limits("volume: {count: {max: 2}, size: {min: 100Mi, max: 2Gi}}");
+        assert!(TappBuilder::validate_volumes(&l, &container(&[("/data", "2Gi")], None)).is_ok());
+        let err =
+            TappBuilder::validate_volumes(&l, &container(&[("/data", "10Gi")], None)).unwrap_err();
+        assert!(err.to_string().contains("above the maximum 2Gi"), "{err}");
+        let err =
+            TappBuilder::validate_volumes(&l, &container(&[("/data", "1Mi")], None)).unwrap_err();
+        assert!(err.to_string().contains("below the minimum"), "{err}");
+        let err = TappBuilder::validate_volumes(
+            &l,
+            &container(&[("/a", "1Gi"), ("/b", "1Gi"), ("/c", "1Gi")], None),
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("at most 2"), "{err}");
+        assert!(TappBuilder::validate_volumes(
+            &Limits::default(),
+            &container(&[("/x", "9Ti")], None)
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn regions_are_checked_against_the_list_when_there_is_one() {
+        let regions = vec![
+            Region {
+                id: "scl".into(),
+                name: "Santiago".into(),
+            },
+            Region {
+                id: "waw".into(),
+                name: "Warsaw".into(),
+            },
+        ];
+        assert!(TappBuilder::validate_region(&regions, Some("waw")).is_ok());
+        assert!(TappBuilder::validate_region(&regions, None).is_ok());
+        assert!(TappBuilder::validate_region(&regions, Some("")).is_ok());
+        let err = TappBuilder::validate_region(&regions, Some("mars")).unwrap_err();
+        assert!(err.to_string().contains("scl, waw"), "{err}");
+        assert!(TappBuilder::validate_region(&[], Some("mars")).is_ok());
     }
 }

@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use crate::models::{ApiConfig, Container, Domains, Git, Port, TappConfig};
+use crate::models::{ApiConfig, Container, Domains, Git, Port, Range, Resources, TappConfig};
 
 type Pairs = [(String, String)];
 
@@ -87,6 +87,75 @@ fn valid_name(name: &str) -> bool {
 fn valid_size(size: &str) -> bool {
     let digits = size.trim_end_matches("Mi").trim_end_matches("Gi");
     digits.len() < size.len() && !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// Bytes of a `<n>Mi` / `<n>Gi` size (what [`valid_size`] accepts), or of a bound the API
+/// states, which may also be `Ki`, `Ti`, decimal units or plain bytes.
+fn bytes(size: &str) -> Option<u64> {
+    let s = size.trim();
+    let end = s
+        .find(|c: char| !(c.is_ascii_digit() || c == '.'))
+        .unwrap_or(s.len());
+    let (digits, unit) = s.split_at(end);
+    let n: f64 = digits.parse().ok()?;
+    let unit: f64 = match unit {
+        "" => 1.0,
+        "Ki" => 1024.0,
+        "Mi" => 1024.0 * 1024.0,
+        "Gi" => 1024.0 * 1024.0 * 1024.0,
+        "Ti" => 1024.0 * 1024.0 * 1024.0 * 1024.0,
+        "k" => 1e3,
+        "M" => 1e6,
+        "G" => 1e9,
+        "T" => 1e12,
+        _ => return None,
+    };
+    Some((n * unit).round() as u64)
+}
+
+/// Millicores of a CPU quantity: `250m`, `0.5`, `1`.
+fn cpu_millis(cpu: &str) -> Option<u64> {
+    let s = cpu.trim();
+    match s.strip_suffix('m') {
+        Some(m) => m.parse::<u64>().ok(),
+        None => s.parse::<f64>().ok().map(|n| (n * 1000.0).round() as u64),
+    }
+}
+
+/// `value` against a bound the API states, in whatever unit `parse` measures.
+fn within(
+    what: &str,
+    value: &str,
+    range: &Range,
+    parse: fn(&str) -> Option<u64>,
+) -> Result<(), String> {
+    let n = parse(value).ok_or_else(|| format!("{what} `{value}` is not a quantity"))?;
+    if let Some(min) = range.min.as_deref() {
+        if parse(min).is_some_and(|m| n < m) {
+            return Err(format!("{what} {value} is below the minimum {min}"));
+        }
+    }
+    if let Some(max) = range.max.as_deref() {
+        if parse(max).is_some_and(|m| n > m) {
+            return Err(format!("{what} {value} is above the maximum {max}"));
+        }
+    }
+    Ok(())
+}
+
+/// The Size fields: both or neither. Neither lets the API apply its minimums.
+fn resources_of(pairs: &Pairs, config: &ApiConfig) -> Result<Option<Resources>, String> {
+    let cpu = first(pairs, "cpu");
+    let memory = first(pairs, "memory");
+    match (cpu, memory) {
+        (None, None) => Ok(None),
+        (Some(cpu), Some(memory)) => {
+            within("CPU", &cpu, &config.limits.cpu, cpu_millis)?;
+            within("memory", &memory, &config.limits.memory, bytes)?;
+            Ok(Some(Resources { cpu, memory }))
+        }
+        _ => Err("Size needs both CPU and memory, or neither".to_owned()),
+    }
 }
 
 /// One row of the Network step as the template seeds and posts it. `HTTP` is the row that
@@ -197,6 +266,13 @@ pub fn tapp_from_form(pairs: &Pairs, config: &ApiConfig) -> Result<TappConfig, S
         ));
     }
     let region = first(pairs, "region").map(|r| r.to_lowercase());
+    if let Some(region) = &region {
+        if !config.regions.is_empty() && !config.regions.iter().any(|r| &r.id == region) {
+            return Err(format!(
+                "`{region}` is not a region on offer; pick one from the list"
+            ));
+        }
+    }
 
     // Source
     let image = first(pairs, "image").ok_or("Image is required")?;
@@ -209,6 +285,7 @@ pub fn tapp_from_form(pairs: &Pairs, config: &ApiConfig) -> Result<TappConfig, S
         }
     }
     let replicas = number(pairs, "replicas", 1, 10)?;
+    let resources = resources_of(pairs, config)?;
     let repository = first(pairs, "repository");
     let git = repository.map(|repository| Git {
         repository: Some(repository),
@@ -259,6 +336,11 @@ pub fn tapp_from_form(pairs: &Pairs, config: &ApiConfig) -> Result<TappConfig, S
 
     // Data
     let volumes = pairs_of(pairs, "volume")?;
+    if let Some(max) = config.limits.volume.count.max {
+        if volumes.len() > max {
+            return Err(format!("at most {max} volumes per deployment"));
+        }
+    }
     for (path, size) in &volumes {
         if !path.starts_with('/') {
             return Err(format!("volume mount path `{path}` must be absolute"));
@@ -268,6 +350,12 @@ pub fn tapp_from_form(pairs: &Pairs, config: &ApiConfig) -> Result<TappConfig, S
                 "volume `{path}`: size must be a whole number of Mi or Gi (e.g. 512Mi, 2Gi), got `{size}`"
             ));
         }
+        within(
+            &format!("volume `{path}`"),
+            size,
+            &config.limits.volume.size,
+            bytes,
+        )?;
     }
     let files = pairs_of(pairs, "file")?;
     for path in files.keys() {
@@ -294,6 +382,7 @@ pub fn tapp_from_form(pairs: &Pairs, config: &ApiConfig) -> Result<TappConfig, S
             files: (!files.is_empty()).then_some(files),
             build_command: first(pairs, "buildcmd"),
             run_command: first(pairs, "runcmd"),
+            resources,
         },
         region,
         git,
@@ -495,6 +584,129 @@ mod tests {
         twice.extend(p(&[("env_key", "A"), ("env_value", "2")]));
         let err = tapp_from_form(&twice, &cfg()).unwrap_err();
         assert!(err.contains("listed twice"), "{err}");
+    }
+
+    #[test]
+    fn regions_come_from_the_list_when_the_api_offers_one() {
+        use crate::models::RegionInfo;
+        let config = ApiConfig {
+            regions: vec![
+                RegionInfo {
+                    id: "scl".into(),
+                    name: "Santiago".into(),
+                    nodes: 1,
+                },
+                RegionInfo {
+                    id: "waw".into(),
+                    name: "Warsaw".into(),
+                    nodes: 0,
+                },
+            ],
+            ..cfg()
+        };
+        let mut form = web();
+        form.retain(|(k, _)| k != "region");
+        form.push(("region".into(), "WAW".into()));
+        let t = tapp_from_form(&form, &config).unwrap();
+        assert_eq!(t.region.as_deref(), Some("waw"));
+        assert_eq!(config.region_name("waw"), "Warsaw");
+        assert!(config.region_is_empty("waw"));
+        assert!(!config.region_is_empty("scl"));
+        assert!(
+            !config.region_is_empty("mars"),
+            "unknown is not claimed empty"
+        );
+
+        let mut form = web();
+        form.retain(|(k, _)| k != "region");
+        form.push(("region".into(), "mars".into()));
+        let err = tapp_from_form(&form, &config).unwrap_err();
+        assert!(err.contains("not a region on offer"), "{err}");
+        // Without a list the field is free text, as before.
+        assert_eq!(
+            tapp_from_form(&form, &cfg()).unwrap().region.as_deref(),
+            Some("mars")
+        );
+    }
+
+    #[test]
+    fn size_and_volumes_stay_within_the_limits() {
+        use crate::models::{CountRange, Limits, VolumeLimits};
+        let config = ApiConfig {
+            limits: Limits {
+                cpu: Range {
+                    min: Some("200m".into()),
+                    max: Some("1".into()),
+                },
+                memory: Range {
+                    min: Some("128Mi".into()),
+                    max: Some("2Gi".into()),
+                },
+                volume: VolumeLimits {
+                    count: CountRange {
+                        min: None,
+                        max: Some(2),
+                    },
+                    size: Range {
+                        min: Some("100Mi".into()),
+                        max: Some("2Gi".into()),
+                    },
+                },
+            },
+            ..cfg()
+        };
+        // No size fields: the API decides.
+        assert!(tapp_from_form(&web(), &config)
+            .unwrap()
+            .container
+            .resources
+            .is_none());
+        let mut sized = web();
+        sized.extend(p(&[("cpu", "0.5"), ("memory", "512Mi")]));
+        let r = tapp_from_form(&sized, &config)
+            .unwrap()
+            .container
+            .resources
+            .unwrap();
+        assert_eq!((r.cpu.as_str(), r.memory.as_str()), ("0.5", "512Mi"));
+
+        let mut greedy = web();
+        greedy.extend(p(&[("cpu", "2"), ("memory", "512Mi")]));
+        let err = tapp_from_form(&greedy, &config).unwrap_err();
+        assert!(err.contains("above the maximum 1"), "{err}");
+        let mut half = web();
+        half.extend(p(&[("cpu", "1")]));
+        let err = tapp_from_form(&half, &config).unwrap_err();
+        assert!(err.contains("both CPU and memory"), "{err}");
+
+        let mut big = web();
+        big.retain(|(k, _)| !k.starts_with("volume_"));
+        big.extend(p(&[("volume_key", "/data"), ("volume_value", "10Gi")]));
+        let err = tapp_from_form(&big, &config).unwrap_err();
+        assert!(err.contains("above the maximum 2Gi"), "{err}");
+        let mut many = web();
+        many.extend(p(&[
+            ("volume_key", "/a"),
+            ("volume_value", "1Gi"),
+            ("volume_key", "/b"),
+            ("volume_value", "1Gi"),
+        ]));
+        let err = tapp_from_form(&many, &config).unwrap_err();
+        assert!(err.contains("at most 2 volumes"), "{err}");
+        // Nothing configured: nothing enforced, as before.
+        assert!(tapp_from_form(&big, &cfg()).is_ok());
+    }
+
+    #[test]
+    fn quantities() {
+        assert_eq!(cpu_millis("250m"), Some(250));
+        assert_eq!(cpu_millis("0.5"), Some(500));
+        assert_eq!(cpu_millis("2"), Some(2000));
+        assert_eq!(cpu_millis("fast"), None);
+        assert_eq!(bytes("2Gi"), Some(2 << 30));
+        assert_eq!(bytes("512Mi"), Some(512 << 20));
+        assert_eq!(bytes("1G"), Some(1_000_000_000));
+        assert_eq!(bytes("many"), None);
     }
 
     #[test]

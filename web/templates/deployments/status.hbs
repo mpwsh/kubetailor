@@ -17,6 +17,10 @@
         label=(concat "Containers ready: " status.deployment.replicas.ready "/" status.deployment.replicas.desired)
         pending="Starting containers…"
     }}
+    {{!-- Why there is no placement yet, in the operator's words: a node being added, a refused region. --}}
+    {{#if status.message}}{{#unless status.deployment.ready}}
+    <p class="-mt-2 px-4 text-xs text-neutral-500 dark:text-neutral-400">{{status.message}}</p>
+    {{/unless}}{{/if}}
     {{#if has_domains}}
     {{> cmp/progress-step done=status.domains.dns label="Domain ready" pending="Configuring domain…"}}
     {{> cmp/progress-step done=status.domains.ssl label="Certificate ready" pending="Issuing certificate…"}}

@@ -2,12 +2,17 @@
 {{> cmp/repeater
   prefix = "volume"
   title = "Volumes"
-  help = "Persistent storage mounted into the container. The data survives restarts and redeploys."
+  help = "Persistent storage on the app's node, mounted into the container. The data survives restarts and redeploys."
   key_placeholder = "/data"
-  value_placeholder = "1Gi"
+  value_placeholder = (default config.limits.volume.size.max "1Gi")
   add_label = "Add volume"
   seed = tapp.container.volumes
 }}
+{{#if config.limits.volume.size.max}}
+<p class="-mt-4 pl-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+  Up to {{config.limits.volume.size.max}} each{{#if config.limits.volume.count.max}}, {{config.limits.volume.count.max}} per deployment{{/if}}.
+</p>
+{{/if}}
 
 {{> cmp/repeater
   prefix = "file"

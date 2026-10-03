@@ -31,6 +31,11 @@ pub fn node_selector(deployment: &crd::Deployment) -> Option<BTreeMap<String, St
         .map(|region| BTreeMap::from([(REGION_LABEL.to_owned(), region.to_owned())]))
 }
 
+/// `sh -c <line>`: the way Docker runs a string-form `CMD`, so the same line works in both.
+fn shell_command(line: &str) -> Vec<String> {
+    vec!["/bin/sh".to_owned(), "-c".to_owned(), line.to_owned()]
+}
+
 /// Requests equal to what the app declared, and a memory limit at the same value: the scheduler
 /// counts requests when deciding a node is full, and a memory limit keeps one app from taking
 /// the node down with it. CPU is left unlimited so an idle neighbour's share is usable.
@@ -164,13 +169,19 @@ pub fn new(meta: &TappMeta, app: &TailoredApp, mounts: &[Mount]) -> Deployment {
         ]),
         ..Container::default()
     };
+    // A run command is a shell line (`socat -v UDP-RECVFROM:7777,fork EXEC:cat`), as it is on
+    // the git path, where watchexec hands it to a shell. As a single `command` element it would
+    // be looked up as one executable named after the whole line.
     let command = if app.spec.git.is_some() {
         Some(vec!["/init/run.sh".to_string()])
     } else {
         deployment
             .container
             .run_command
-            .map(|run_cmd| vec![run_cmd])
+            .as_deref()
+            .map(str::trim)
+            .filter(|c| !c.is_empty())
+            .map(shell_command)
     };
     let mut env_from = Vec::new();
 
@@ -363,5 +374,39 @@ pub fn new(meta: &TappMeta, app: &TailoredApp, mounts: &[Mount]) -> Deployment {
         },
         spec: Some(deployment_spec),
         ..Deployment::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn run_command_is_a_shell_line() {
+        assert_eq!(
+            shell_command("socat -v UDP-RECVFROM:7777,fork EXEC:cat"),
+            vec!["/bin/sh", "-c", "socat -v UDP-RECVFROM:7777,fork EXEC:cat"]
+        );
+    }
+
+    #[test]
+    fn resources_become_requests_and_a_memory_limit() {
+        let container = crd::Container {
+            image: "x".into(),
+            replicas: 1,
+            resources: Some(crd::Resources {
+                cpu: "250m".into(),
+                memory: "256Mi".into(),
+            }),
+            ..crd::Container::default()
+        };
+        let r = resource_requirements(&container).unwrap();
+        let requests = r.requests.unwrap();
+        assert_eq!(requests["cpu"].0, "250m");
+        assert_eq!(requests["memory"].0, "256Mi");
+        let limits = r.limits.unwrap();
+        assert_eq!(limits["memory"].0, "256Mi");
+        assert!(!limits.contains_key("cpu"), "CPU stays unlimited");
+        assert!(resource_requirements(&crd::Container::default()).is_none());
     }
 }

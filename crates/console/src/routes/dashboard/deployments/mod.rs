@@ -154,6 +154,8 @@ pub async fn view(
     }
 
     let action = Action::new("Edit").url(&format!("/deployments/edit?name={}", tapp.name));
+    let config = kubetailor.config().await;
+    let region_name = tapp.region.as_deref().map(|r| config.region_name(r));
     let data = json!({
         "initial": !req.is_htmx(),
         "title": format!("{} Details", params.name),
@@ -161,6 +163,7 @@ pub async fn view(
         "action": action,
         "user": user,
         "tapp": tapp,
+        "region_name": region_name,
     });
     let body = hb.render("deployments/view", &data).map_err(e500)?;
     Ok(HttpResponse::Ok().body(body))

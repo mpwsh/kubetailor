@@ -21,4 +21,31 @@
   min=1
   max=10
 }}
+
+{{!--
+  Size: what one instance gets, in Kubernetes quantities. Left blank, the API applies its
+  minimums, so every app carries requests and a full node is a known thing.
+--}}
+<div class="flex flex-col gap-2 text-neutral-600 dark:text-neutral-300">
+  <span class="pl-0.5 text-sm font-medium text-neutral-900 dark:text-white">Size</span>
+  <div class="flex flex-wrap gap-4">
+    <div class="flex w-40 flex-col gap-1">
+      <label for="cpuInput" class="w-fit pl-0.5 text-sm">CPU</label>
+      <input id="cpuInput" type="text" name="cpu" autocomplete="off"
+             placeholder="{{default config.limits.cpu.min "250m"}}" value="{{tapp.container.resources.cpu}}"
+             class="w-full rounded-md border border-neutral-300 bg-neutral-50 px-2 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900/50 dark:focus-visible:outline-white"/>
+      <p class="pl-0.5 text-xs text-neutral-500 dark:text-neutral-400">Cores, e.g. 250m or 0.5{{#if config.limits.cpu.max}}; at most {{config.limits.cpu.max}}{{/if}}</p>
+    </div>
+    <div class="flex w-40 flex-col gap-1">
+      <label for="memoryInput" class="w-fit pl-0.5 text-sm">Memory</label>
+      <input id="memoryInput" type="text" name="memory" autocomplete="off"
+             placeholder="{{default config.limits.memory.min "256Mi"}}" value="{{tapp.container.resources.memory}}"
+             class="w-full rounded-md border border-neutral-300 bg-neutral-50 px-2 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black dark:border-neutral-700 dark:bg-neutral-900/50 dark:focus-visible:outline-white"/>
+      <p class="pl-0.5 text-xs text-neutral-500 dark:text-neutral-400">e.g. 256Mi or 1Gi{{#if config.limits.memory.max}}; at most {{config.limits.memory.max}}{{/if}}</p>
+    </div>
+  </div>
+  <p class="pl-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+    Per instance. Blank gives the smallest size{{#if config.limits.cpu.min}} ({{config.limits.cpu.min}} CPU, {{config.limits.memory.min}}){{/if}}.
+  </p>
+</div>
 </div>

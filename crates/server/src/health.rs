@@ -9,6 +9,10 @@ use kubetailor::{
 pub struct Health {
     deployment: Deployment,
     domains: Domains,
+    /// The TailoredApp's `status.message`: why the app is not placed yet, in the operator's
+    /// words. Filled in by the route, absent once the app runs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -108,6 +112,7 @@ impl TryFrom<Resources> for Health {
                 dns: lb_status,
                 ssl: cert_status,
             },
+            message: None,
         })
     }
 }

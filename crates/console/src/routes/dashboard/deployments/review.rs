@@ -42,9 +42,16 @@ pub async fn form(
         .map(|(_, v)| v.trim())
         .filter(|v| !v.is_empty())
         .unwrap_or("Deploy");
+    let region_name = tapp.region.as_deref().map(|r| config.region_name(r));
+    let region_empty = tapp
+        .region
+        .as_deref()
+        .is_some_and(|r| config.region_is_empty(r));
     let data = json!({
         "tapp": tapp,
         "base_domain": config.base_domain,
+        "region_name": region_name,
+        "region_empty": region_empty,
         "manifest": manifest,
         "action_label": action_label,
         "user": user,
